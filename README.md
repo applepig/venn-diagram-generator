@@ -75,10 +75,30 @@ docker build -t venn-diagram-generator .
 docker run --rm -p 3000:3000 venn-diagram-generator
 ```
 
-`compose.yml` 走 external network `web`，Traefik 以 `Host(\`venn.applepig.net\`)` 路由到 port 3000，外部入口是 Cloudflare Tunnel（TLS 在 Cloudflare 終止，所以 entrypoint 用 `web` 不是 `websecure`）。
+兩份 compose 共用同一個 Dockerfile 與 external network `web`，只差 Traefik 路由：
+
+| 站 | 網址 | compose | entrypoint |
+|---|---|---|---|
+| 開發站 | `https://venn.dev.example` | `compose.dev.yml` | `websecure` + `tls`（本機 Traefik 的 `*.dev.example` wildcard 憑證） |
+| 正式站 | `https://venn.applepig.net` | `compose.yml` | `web`（TLS 在 Cloudflare 終止） |
+
+開發站跑在本機（`toybox`，REDACTED-IP），DNS 由 LAN 的 `*.dev.example` 泛解析負責：
 
 ```bash
-docker compose up -d --build
+docker compose -f compose.dev.yml up -d --build
+```
+
+正式站跑在 deploy-host（Oracle aarch64），架構是 Cloudflare Tunnel → Traefik → container，兩個 infra 容器都不 publish port，host 的 80/443 留給既有的 apache：
+
+```
+/srv/infra/compose.yml   traefik + cloudflared（共用 network web）
+/srv/venn/          本 repo 的同步副本，用 compose.yml 起 container
+```
+
+更新正式站：
+
+```bash
+./scripts/deploy.sh          # rsync 到 deploy-host 後 docker compose up -d --build
 ```
 
 ## 注意事項

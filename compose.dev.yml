@@ -1,0 +1,21 @@
+services:
+  venn-dev:
+    build: .
+    container_name: venn-dev
+    restart: unless-stopped
+    environment:
+      - PORT=3000
+    labels:
+      # 本機 Traefik 走 websecure，憑證是 certs/ 裡的 *.dev.example wildcard
+      - "traefik.enable=true"
+      - "traefik.docker.network=web"
+      - "traefik.http.routers.venn-dev.rule=Host(`venn.dev.example`)"
+      - "traefik.http.routers.venn-dev.entrypoints=websecure"
+      - "traefik.http.routers.venn-dev.tls=true"
+      - "traefik.http.services.venn-dev.loadbalancer.server.port=3000"
+    networks:
+      - web
+
+networks:
+  web:
+    external: true
