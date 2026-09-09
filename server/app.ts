@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { Resvg } from '@resvg/resvg-js';
+import { renderAsync } from '@resvg/resvg-js';
 import { Hono } from 'hono';
 import type { Context } from 'hono';
 import { sampleState } from '../shared/defaults';
@@ -16,6 +16,10 @@ export interface AppOptions {
 }
 
 const CACHE_FOREVER = 'public, max-age=31536000, immutable';
+
+/** 同時進行的點陣化上限：resvg 每張圖吃滿一條 worker thread，開太多只會一起變慢 */
+const MAX_CONCURRENT_RENDERS = 3;
+const RETRY_AFTER_SECONDS = 2;
 
 /** 走在 Traefik / Cloudflare Tunnel 後面，絕對 URL 要看 forwarded 標頭 */
 function originOf(c: Context): string {
@@ -33,13 +37,13 @@ function titleOf(state: VennState): string {
   return labels.length > 0 ? `${labels.join(' × ')}｜文氏圖 meme` : '文氏圖 meme 產生器';
 }
 
-function renderPng(state: VennState, font_file: string): Uint8Array {
-  return new Resvg(renderSvg(state), {
+/** 點陣化丟到 resvg 的 worker thread，避免大圖把 event loop 卡死（AC 1b） */
+async function renderPng(state: VennState, font_file: string): Promise<Uint8Array> {
+  const image = await renderAsync(renderSvg(state), {
     fitTo: { mode: 'width', value: state.size },
     font: { fontFiles: [font_file], loadSystemFonts: false, defaultFontFamily: 'Noto Sans TC' },
-  })
-    .render()
-    .asPng();
+  });
+  return image.asPng();
 }
 
 const FALLBACK_HTML = `<!doctype html><html lang="zh-Hant"><head><meta charset="utf-8"><title>文氏圖 meme 產生器</title></head><body><p>前端尚未 build，請先執行 <code>pnpm build</code>。</p></body></html>`;
@@ -59,7 +63,9 @@ export function createApp(opts: AppOptions): Hono {
     return index_html;
   };
 
-  app.get('/api/png', (c) => {
+  let in_flight = 0;
+
+  app.get('/api/png', async (c) => {
     const s = c.req.query('s');
     if (!s) return c.json({ error: '缺少狀態參數 s' }, 400);
 
@@ -71,7 +77,20 @@ export function createApp(opts: AppOptions): Hono {
       return c.json({ error: message }, 400);
     }
 
-    const png = renderPng(state, opts.fontFile);
+    if (in_flight >= MAX_CONCURRENT_RENDERS) {
+      return c.json({ error: '目前渲染忙碌，請稍後再試' }, 503, {
+        'retry-after': String(RETRY_AFTER_SECONDS),
+      });
+    }
+
+    in_flight++;
+    let png: Uint8Array;
+    try {
+      png = await renderPng(state, opts.fontFile);
+    } finally {
+      in_flight--;
+    }
+
     return c.body(png as unknown as ArrayBuffer, 200, {
       'content-type': 'image/png',
       'cache-control': CACHE_FOREVER,

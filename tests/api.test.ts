@@ -101,6 +101,74 @@ describe('GET /api/png：AC3 壞輸入回 400 JSON', () => {
   }
 });
 
+describe('GET /api/png：AC1b 非同步渲染與並行上限', () => {
+  /** 最重的一張：4 圈 flat，用來確保渲染真的耗時，測試才有意義 */
+  function heavy(size: number): string {
+    return encodeState({
+      ...defaultState(4),
+      style: 'flat',
+      size,
+      texts: { '1': { t: '快' }, '15': { t: '全都要' } },
+    });
+  }
+
+  it('渲染走非同步，不把 event loop 卡住', async () => {
+    let ticks = 0;
+    const timer = setInterval(() => {
+      ticks++;
+    }, 5);
+    const started = performance.now();
+    const res = await get(`/api/png?s=${heavy(2000)}`);
+    const elapsed = performance.now() - started;
+    clearInterval(timer);
+
+    expect(res.status).toBe(200);
+    // 前提：這張圖夠重（同步渲染會整段卡住 event loop），否則本測試無意義
+    expect(elapsed).toBeGreaterThan(30);
+    expect(ticks).toBeGreaterThan(2);
+  });
+
+  it('同時 6 個請求：超過上限的回 503 JSON 帶 Retry-After，其餘正常回 200', async () => {
+    const app = createApp({ fontFile: FONT_FILE });
+    const s = heavy(1200);
+    const responses = await Promise.all(
+      Array.from({ length: 6 }, () => app.request(`${ORIGIN}/api/png?s=${s}`)),
+    );
+    const statuses = responses.map((r) => r.status);
+
+    expect(statuses.filter((s) => s === 503).length).toBeGreaterThanOrEqual(1);
+    expect(new Set(statuses).size).toBeLessThanOrEqual(2);
+    expect(statuses.every((s) => s === 200 || s === 503)).toBe(true);
+
+    for (const res of responses) {
+      if (res.status === 503) {
+        expect(res.headers.get('retry-after')).toBe('2');
+        expect(res.headers.get('content-type')).toContain('application/json');
+        expect(await res.json()).toHaveProperty('error');
+      } else {
+        expect(res.headers.get('content-type')).toBe('image/png');
+      }
+    }
+  });
+
+  it('單發請求不會被並行上限擋下', async () => {
+    const app = createApp({ fontFile: FONT_FILE });
+    const res = await app.request(`${ORIGIN}/api/png?s=${heavy(800)}`);
+
+    expect(res.status).toBe(200);
+    expect(res.headers.get('content-type')).toBe('image/png');
+  });
+
+  it('渲染結束後名額會釋放：擠爆一輪之後仍出得了圖', async () => {
+    const app = createApp({ fontFile: FONT_FILE });
+    const s = heavy(800);
+    await Promise.all(Array.from({ length: 6 }, () => app.request(`${ORIGIN}/api/png?s=${s}`)));
+
+    const after = await app.request(`${ORIGIN}/api/png?s=${s}`);
+    expect(after.status).toBe(200);
+  });
+});
+
 describe('GET /：AC4 og meta', () => {
   it('帶 s 時 og:image 是指向對應 /api/png 的絕對 URL', async () => {
     const s = encodeState(sampleState());

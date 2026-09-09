@@ -1,5 +1,6 @@
 import { LINE_HEIGHT } from './defaults';
 import { circlesFor, layout } from './layout';
+import { regionPaths } from './region-geometry';
 import type { Circle, VennState } from './types';
 
 const FONT_FAMILY = 'Noto Sans TC';
@@ -66,34 +67,24 @@ export function mixColors(hexes: string[]): string {
   return hslToHex(h, Math.min(1, Math.max(s * 1.7, 0.6)) * (1 - 0.15 * depth), l * (0.8 - 0.15 * depth));
 }
 
-function flatRegions(circles: Circle[], colors: string[], size: number) {
-  const n = circles.length;
-  let defs = '';
-  circles.forEach((c, i) => {
-    defs += `<clipPath id="in${i}"><circle cx="${c.x * size}" cy="${c.y * size}" r="${c.r * size}"/></clipPath>`;
-    const cx = c.x * size;
-    const cy = c.y * size;
-    const r = c.r * size;
-    // 整張畫布挖掉這個圓：evenodd 的反向 clip
-    defs +=
-      `<clipPath id="out${i}" clip-rule="evenodd">` +
-      `<path clip-rule="evenodd" d="M0 0H${size}V${size}H0Z M${cx - r} ${cy}a${r} ${r} 0 1 0 ${2 * r} 0a${r} ${r} 0 1 0 ${-2 * r} 0Z"/>` +
-      `</clipPath>`;
-  });
-
+/**
+ * 平面填色：每個區域一條由弧段串成的閉合路徑（見 shared/region-geometry.ts）。
+ * 相鄰區域共用同一段弧，但兩邊各自抗鋸齒仍會在接縫透出一絲背景色，
+ * 所以補一道同色細描邊把接縫蓋掉。
+ */
+function flatRegions(circles: Circle[], colors: string[], size: number): string {
+  // 輸出永遠是 1 使用者單位 = 1 像素，所以描邊寬度用固定值（跨 size 一致地蓋掉 1px 級的接縫）
+  const stroke_w = 1.5;
   let body = '';
-  for (let mask = 1; mask < 1 << n; mask++) {
+  for (const [mask, d] of regionPaths(circles, size)) {
     const members: number[] = [];
-    for (let i = 0; i < n; i++) if (mask & (1 << i)) members.push(i);
+    for (let i = 0; i < circles.length; i++) if (mask & (1 << i)) members.push(i);
     const color = mixColors(members.map((i) => colors[i] ?? '#888888'));
-    // 成員圓向內 clip、非成員圓向外 clip，層層套出剛好那一塊區域
-    let el = `<rect width="${size}" height="${size}" fill="${color}"/>`;
-    for (let i = 0; i < n; i++) {
-      el = `<g clip-path="url(#${mask & (1 << i) ? 'in' : 'out'}${i})">${el}</g>`;
-    }
-    body += el;
+    body +=
+      `<path d="${d}" fill-rule="evenodd" fill="${escapeXml(color)}" ` +
+      `stroke="${escapeXml(color)}" stroke-width="${stroke_w}"/>`;
   }
-  return { defs, body };
+  return body;
 }
 
 // ---------- SVG ----------
@@ -107,9 +98,7 @@ export function renderSvg(state: VennState, opts: { editor?: boolean } = {}): st
   let body = '';
 
   if (state.style === 'flat') {
-    const regions = flatRegions(circles, state.colors, size);
-    defs += regions.defs;
-    body += regions.body;
+    body += flatRegions(circles, state.colors, size);
   } else if (is_outline) {
     body += circles
       .map(

@@ -1,6 +1,7 @@
 import { Resvg } from '@resvg/resvg-js';
 import { describe, expect, it } from 'vitest';
-import { renderSvg } from '../shared/render-svg';
+import { mixColors, renderSvg } from '../shared/render-svg';
+import { circlesFor, maskAt } from '../shared/layout';
 import { EDITOR_PLACEHOLDER, defaultState } from '../shared/defaults';
 import type { VennStyle } from '../shared/types';
 import { FONT_FILE } from './helpers/font';
@@ -51,6 +52,68 @@ describe('renderSvg：AC2 三種 style 都產出合法 SVG', () => {
       }
     });
   }
+});
+
+describe('renderSvg：flat 平面填色', () => {
+  it('相鄰區域的接縫不會透出背景色', () => {
+    const size = 800;
+    const state = { ...defaultState(4), style: 'flat' as const, size, texts: {} };
+    const circles = circlesFor(4, state.radius, state.overlap);
+    const pixels = new Resvg(renderSvg(state)).render().pixels;
+
+    // 接縫像素只能是兩側區域色的混合，所以不得亮過「鄰近區域裡最亮的那個色」；
+    // 更亮就代表背景（#fafafa）從兩條路徑之間漏了出來
+    const sum = (hex: string) =>
+      [1, 3, 5].reduce((acc, i) => acc + parseInt(hex.slice(i, i + 2), 16), 0);
+    const brightness_of = new Map<number, number>();
+    for (let mask = 1; mask < 16; mask++) {
+      const members = [0, 1, 2, 3].filter((i) => mask & (1 << i));
+      brightness_of.set(mask, sum(mixColors(members.map((i) => state.colors[i]!))));
+    }
+    brightness_of.set(0, sum(state.bg));
+    const AA_TOLERANCE = 3 * 4;
+
+    const EDGE = 2 / size;
+    const too_bright: string[] = [];
+    let seam_pixels = 0;
+    for (let y = 0; y < size; y++) {
+      for (let x = 0; x < size; x++) {
+        const ux = (x + 0.5) / size;
+        const uy = (y + 0.5) / size;
+        const dist = circles.map((c) => Math.hypot(ux - c.x, uy - c.y));
+        const on_edge = circles.map((c, i) => Math.abs(dist[i]! - c.r) < EDGE);
+        // 兩條圓周交會的角落有 3 個以上區域參與混色，「接縫只有兩側」的模型不適用
+        if (on_edge.filter(Boolean).length !== 1) continue;
+        // 聯集外緣本來就該與背景混色；只看「壓在別的圓內部」的接縫
+        if (!circles.some((c, i) => !on_edge[i] && dist[i]! < c.r - EDGE)) continue;
+
+        // 沿著它所在圓周的法線往內外各探一點，取得這條接縫兩側的區域＝合法的顏色來源
+        let limit = 0;
+        circles.forEach((c, i) => {
+          if (!on_edge[i]) return;
+          const ux_dir = (ux - c.x) / dist[i]!;
+          const uy_dir = (uy - c.y) / dist[i]!;
+          for (const offset of [-3 / size, 3 / size]) {
+            const side = maskAt(
+              circles,
+              c.x + (c.r + offset) * ux_dir,
+              c.y + (c.r + offset) * uy_dir,
+            );
+            limit = Math.max(limit, brightness_of.get(side)!);
+          }
+        });
+        limit += AA_TOLERANCE;
+
+        seam_pixels++;
+        const o = (y * size + x) * 4;
+        const brightness = pixels[o]! + pixels[o + 1]! + pixels[o + 2]!;
+        if (brightness > limit) too_bright.push(`(${x},${y}) 亮度 ${brightness} > ${limit}`);
+      }
+    }
+
+    expect(seam_pixels).toBeGreaterThan(500); // 前提：真的掃到接縫，否則本測試無意義
+    expect(too_bright.slice(0, 5)).toEqual([]);
+  });
 });
 
 describe('renderSvg：XML escape', () => {
