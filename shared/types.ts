@@ -1,0 +1,67 @@
+export type VennStyle = 'translucent' | 'flat' | 'outline';
+
+export type CircleCount = 2 | 3 | 4;
+
+/**
+ * 一個文字槽。`fs`／`dx`／`dy` 只在使用者手動調整過時存在，
+ * 缺席代表「自動」：字級由 fit 演算法決定、位置為區域框中心。
+ */
+export interface TextSlot {
+  /** 文字內容，允許 `\n` 換行 */
+  t: string;
+  /** 手動字級，畫布寬比例 */
+  fs?: number;
+  /** 相對區域框中心的水平偏移，畫布寬比例 */
+  dx?: number;
+  /** 相對區域框中心的垂直偏移，畫布寬比例 */
+  dy?: number;
+}
+
+export interface VennState {
+  v: 1;
+  n: CircleCount;
+  style: VennStyle;
+  opacity: number;
+  overlap: number;
+  radius: number;
+  colors: string[];
+  bg: string;
+  size: number;
+  /** key 是成員圓 bitmask 的十進位字串（circle i = bit i） */
+  texts: Record<string, TextSlot>;
+}
+
+/** 單位空間（0..1，畫布寬為 1）的圓 */
+export interface Circle {
+  x: number;
+  y: number;
+  r: number;
+}
+
+/** 單位空間的區域文字框 */
+export interface RegionBox {
+  cx: number;
+  cy: number;
+  w: number;
+  h: number;
+}
+
+export type SlotKind = 'label' | 'intersection';
+
+/** layout() 的輸出：一個已排版好的文字區塊，全部座標都在單位空間 */
+export interface TextBlock {
+  mask: number;
+  kind: SlotKind;
+  /** 區域內接文字框（未套用 dx/dy） */
+  box: RegionBox;
+  /** 文字實際中心，已套用 dx/dy */
+  cx: number;
+  cy: number;
+  /** 字級，畫布寬比例 */
+  fs: number;
+  lines: string[];
+  /** 是否為空槽的編輯器 placeholder */
+  placeholder: boolean;
+  /** 字級是否由使用者手動指定（手動時不自動縮字） */
+  manualFs: boolean;
+}
