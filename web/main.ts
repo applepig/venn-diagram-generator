@@ -1,11 +1,6 @@
 import './style.css';
-import {
-  DEFAULT_OVERLAP,
-  DEFAULT_RADIUS,
-  PALETTE,
-  SLOT_MASKS,
-  sampleState,
-} from '../shared/defaults';
+import { sampleState } from '../shared/defaults';
+import { nextStateForCircleCount } from '../shared/circle-count';
 import { decodeState, encodeState } from '../shared/state-codec-web';
 import type { CircleCount, TextSlot, VennState } from '../shared/types';
 import { createCanvas } from './canvas';
@@ -52,13 +47,8 @@ function setState(patch: Partial<VennState>): void {
 
 function setCircleCount(n: CircleCount): void {
   if (n === state.n) return;
-  // 圈數換了就回到該圈數的預設幾何，避免沿用上一個圈數的滑桿值把版面弄壞
-  const allowed = new Set(SLOT_MASKS[n].map(String));
-  const texts = Object.fromEntries(
-    Object.entries(state.texts).filter(([mask]) => allowed.has(mask)),
-  );
-  const colors = Array.from({ length: n }, (_, i) => state.colors[i] ?? PALETTE[i] ?? '#888888');
-  setState({ n, texts, colors, overlap: DEFAULT_OVERLAP[n], radius: DEFAULT_RADIUS[n] });
+  state = nextStateForCircleCount(state, n);
+  render();
 }
 
 function pngUrl(): string {

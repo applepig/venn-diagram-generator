@@ -91,7 +91,44 @@ body {
 
 .swatches {
   display: flex;
-  gap: 8px;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.swatch-row {
+  display: grid;
+  grid-template-columns: repeat(10, 1fr);
+  gap: 4px;
+}
+
+.swatch {
+  position: relative;
+  height: 20px;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+.swatch[aria-pressed='true'] {
+  border-color: var(--fg);
+  box-shadow: 0 0 0 2px var(--accent);
+}
+
+/* 「自訂」格沒被選中時顯示彩虹，提示它會開原生色盤 */
+.swatch-custom {
+  background: conic-gradient(#e04848, #e6a92e, #3cb54a, #2e9be6, #8b5cf6, #e04848);
+}
+
+.swatch-custom input[type='color'] {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  opacity: 0;
+  cursor: pointer;
 }
 
 input[type='color'] {

@@ -7,6 +7,7 @@ import {
   SIZE_CHOICES,
 } from '../shared/defaults';
 import type { CircleCount, VennState, VennStyle } from '../shared/types';
+import { SWATCH_COLORS, createSwatchRow, type SwatchRow } from './swatch-row';
 
 const STYLE_LABELS: [VennStyle, string][] = [
   ['translucent', '半透明'],
@@ -125,7 +126,7 @@ export function createToolbar(root: HTMLElement, handlers: ToolbarHandlers): Too
 
   const swatches = document.createElement('div');
   swatches.className = 'swatches';
-  const swatch_inputs: HTMLInputElement[] = [];
+  const color_rows: SwatchRow[] = [];
   const colors_field = field('每圈顏色', swatches);
 
   const bg_input = document.createElement('input');
@@ -182,24 +183,22 @@ export function createToolbar(root: HTMLElement, handlers: ToolbarHandlers): Too
 
   /** 只有圈數變動才需要重建色票列，其餘情況沿用既有節點 */
   function syncSwatches(state: VennState): void {
-    if (swatch_inputs.length !== state.n) {
+    if (color_rows.length !== state.n) {
       swatches.replaceChildren();
-      swatch_inputs.length = 0;
+      color_rows.length = 0;
       for (let i = 0; i < state.n; i++) {
-        const input = document.createElement('input');
-        input.type = 'color';
-        input.addEventListener('input', () => {
+        const row = createSwatchRow(SWATCH_COLORS, (color) => {
           if (!latest_state) return;
           const colors = [...latest_state.colors];
-          colors[i] = input.value;
+          colors[i] = color;
           handlers.onPatch({ colors });
         });
-        swatches.append(input);
-        swatch_inputs.push(input);
+        swatches.append(row.root);
+        color_rows.push(row);
       }
     }
-    for (let i = 0; i < swatch_inputs.length; i++) {
-      syncValue(swatch_inputs[i]!, state.colors[i] ?? PALETTE[i] ?? '#888888');
+    for (let i = 0; i < color_rows.length; i++) {
+      color_rows[i]!.setValue(state.colors[i] ?? PALETTE[i] ?? '#888888');
     }
   }
 

@@ -1,12 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import { circlesFor, estimateWidth, layout, regionBox, wrapText } from '../shared/layout';
 import {
+  EDITOR_PLACEHOLDER,
+  EDITOR_PLACEHOLDER_SHORT,
   INTERSECTION_START_FS,
   LABEL_START_FS,
   LINE_HEIGHT,
   MIN_FS,
   SLOT_MASKS,
   defaultState,
+  sampleState,
 } from '../shared/defaults';
 import type { CircleCount, VennState } from '../shared/types';
 
@@ -43,6 +46,57 @@ describe('wrapText', () => {
 
   it('保留使用者輸入的手動換行', () => {
     expect(wrapText('媽媽\n煮的', 0.05, 1)).toEqual(['媽媽', '煮的']);
+  });
+
+  describe('AC6 禁則處理', () => {
+    const startsWithForbidden = (line: string) => /^[」!?。，、）]/.test(line);
+    const endsWithForbidden = (line: string) => /[「（]$/.test(line);
+
+    it('「」! 不落在行首：「把手舉起來!!」在窄框裡每行都不以禁字開頭', () => {
+      // 0.2 ＝ 4 個全形字寬，禁則黏出的「來!!」」（3.24 字寬）放得進去
+      const lines = wrapText('「把手舉起來!!」', 0.05, 0.2);
+
+      expect(lines.length).toBeGreaterThan(1);
+      for (const line of lines) expect(startsWithForbidden(line)).toBe(false);
+    });
+
+    it('「 不落在行尾：換行點不會停在開引號後面', () => {
+      const lines = wrapText('他說「不要這樣做」', 0.05, 0.16);
+
+      expect(lines.length).toBeGreaterThan(1);
+      for (const line of lines) expect(endsWithForbidden(line)).toBe(false);
+    });
+
+    it('句讀不落在行首：逗號句號跟著前一個字走', () => {
+      const lines = wrapText('今天很好，明天更好。', 0.05, 0.16);
+
+      expect(lines.length).toBeGreaterThan(1);
+      for (const line of lines) expect(startsWithForbidden(line)).toBe(false);
+    });
+
+    it('禁則讓位給不溢框：黏合後放不進框寬時照樣斷開，不硬擠', () => {
+      // 「來!!」」需要 3.24 字寬，框只有 3.2 字寬：兩條規則衝突時以不溢框為先
+      const max_w = 0.16;
+      const lines = wrapText('「把手舉起來!!」', 0.05, max_w);
+
+      for (const line of lines) expect(estimateWidth(line, 0.05)).toBeLessThanOrEqual(max_w + 1e-9);
+    });
+
+    it('連續標點不會黏成一條超寬的行：。×20 每行仍在框寬內', () => {
+      const max_w = 0.16;
+      const lines = wrapText('。'.repeat(20), 0.05, max_w);
+
+      for (const line of lines) expect(estimateWidth(line, 0.05)).toBeLessThanOrEqual(max_w + 1e-9);
+    });
+
+    it('4 圈 template 的中央文字在預設幾何下每行都合禁則', () => {
+      const block = layout(sampleState(4)).find((b) => b.mask === 15)!;
+
+      for (const line of block.lines) {
+        expect(startsWithForbidden(line)).toBe(false);
+        expect(endsWithForbidden(line)).toBe(false);
+      }
+    });
   });
 });
 
@@ -138,6 +192,11 @@ describe('layout：AC1 不溢框', () => {
       '5': '難吃',
       '10': '貴',
       '12': '學餐',
+      // 三重交集區只放得下短字，見 02 spec
+      '7': '好貴',
+      '11': '好遠',
+      '13': '難吃',
+      '14': '不飽',
       '15': '媽媽煮的',
     }),
   };
@@ -178,13 +237,27 @@ describe('layout：AC1 不溢框', () => {
     expect(checked).toBeGreaterThan(20);
   });
 
-  it('字級觸底時仍保證水平不溢出：超寬單字會被硬斷', () => {
+  it('字級觸底時仍保證水平不溢出：超寬單字與禁則黏合都會被斷開', () => {
+    const texts = [
+      'Supercalifragilisticexpialidocious',
+      '他說「我不去」，我說「好」。',
+      '。'.repeat(20),
+      '「把手舉起來!!」',
+    ];
+    let checked = 0;
+
     for (const n of [2, 3, 4] as CircleCount[]) {
-      for (const block of layout(fillAllSlots(n, 'Supercalifragilisticexpialidocious'))) {
-        const longest = Math.max(...block.lines.map((l) => estimateWidth(l, block.fs)));
-        expect(longest).toBeLessThanOrEqual(block.box.w + 1e-9);
+      for (const text of texts) {
+        for (const block of layout(fillAllSlots(n, text))) {
+          const longest = Math.max(...block.lines.map((l) => estimateWidth(l, block.fs)));
+          expect(longest, `n=${n} mask=${block.mask} text=${text}`).toBeLessThanOrEqual(
+            block.box.w + 1e-9,
+          );
+          checked++;
+        }
       }
     }
+    expect(checked).toBeGreaterThan(20);
   });
 
   it('超長文字先換行再縮字：字級變小、行數變多，仍不溢框', () => {
@@ -235,6 +308,32 @@ describe('layout：AC1 字級與槽的存在性', () => {
     const editor_masks = layout(s, { editor: true }).map((b) => b.mask);
     expect(editor_masks).toContain(2);
     expect(layout(s, { editor: true }).find((b) => b.mask === 2)!.placeholder).toBe(true);
+  });
+
+  it('AC7 三重槽的 placeholder 放不下時改顯示「＋」且不溢框', () => {
+    const blocks = layout(sampleState(4), { editor: true });
+
+    for (const mask of [7, 11, 13, 14]) {
+      const block = blocks.find((b) => b.mask === mask);
+      expect(block, `mask ${mask} 要有 placeholder 才點得到`).toBeDefined();
+      expect(block!.placeholder).toBe(true);
+      expect(block!.lines).toEqual([EDITOR_PLACEHOLDER_SHORT]);
+      expect(estimateWidth(block!.lines[0]!, block!.fs)).toBeLessThanOrEqual(block!.box.w + 1e-9);
+      expect(block!.fs * LINE_HEIGHT).toBeLessThanOrEqual(block!.box.h + 1e-9);
+    }
+  });
+
+  it('AC7 三重槽放 2 個全形字不觸字級下限', () => {
+    const s = { ...sampleState(4), texts: { '7': { t: '甲乙' }, '14': { t: '甲乙' } } };
+
+    for (const block of layout(s)) expect(block.fs).toBeGreaterThan(MIN_FS);
+  });
+
+  it('框放得下時 placeholder 仍用完整的「點此輸入」', () => {
+    const block = layout(defaultState(2), { editor: true }).find((b) => b.mask === 3)!;
+
+    expect(block.lines.join('')).toBe(EDITOR_PLACEHOLDER);
+    expect(block.fs).toBeGreaterThan(MIN_FS);
   });
 
   it('手動 fs 與 dx/dy 會被採用，不被自動排版覆寫', () => {

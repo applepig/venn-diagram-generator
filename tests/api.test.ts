@@ -187,6 +187,13 @@ describe('GET /：AC4 og meta', () => {
     expect(match![1]).toMatch(new RegExp(`^${ORIGIN}/api/png\\?s=[A-Za-z0-9_-]+$`));
   });
 
+  it('沒有 s 時 og:title 用預設 template 的單圈標籤，手動換行不留空白', async () => {
+    const html = await (await get('/')).text();
+    const title = html.match(/<meta property="og:title" content="([^"]+)"/)![1]!;
+
+    expect(title).toBe('該做的事 × 想做的事｜文氏圖 meme');
+  });
+
   it('og:image 尊重反向代理的 x-forwarded-proto／host', async () => {
     const html = await (
       await get('/', { 'x-forwarded-proto': 'https', 'x-forwarded-host': 'venn.example.com' })

@@ -1,5 +1,6 @@
 import {
   EDITOR_PLACEHOLDER,
+  EDITOR_PLACEHOLDER_SHORT,
   INTERSECTION_ASPECT,
   INTERSECTION_START_FS,
   LABEL_ASPECT,
@@ -56,6 +57,51 @@ function breakOversizedToken(token: string, fs: number, max_w: number): string[]
   return parts;
 }
 
+// 禁則：這些字不能站在行首（收尾標點），「（ 不能停在行尾（開頭標點）
+const NO_LINE_START = '」!?。，、）';
+const NO_LINE_END = '「（';
+
+/**
+ * 把禁字黏到相鄰 token 上，讓貪婪換行沒有機會在禁則位置斷行。
+ * 只在黏完仍放得進框寬時才黏：黏不下就讓禁則退讓——溢出框比禁字站行首更糟
+ * （01 spec AC1 明訂觸底時保證水平不溢出）。字級還有空間縮時 fitText 會先縮字，
+ * 縮到下限才會走到這個退讓路徑。
+ */
+function applyKinsoku(tokens: string[], fs: number, max_w: number): string[] {
+  const fits = (s: string) => estimateWidth(s, fs) <= max_w;
+
+  const glued: string[] = [];
+  for (const token of tokens) {
+    const prev = glued[glued.length - 1];
+    if (
+      prev !== undefined &&
+      prev.trim() !== '' &&
+      NO_LINE_START.includes(token[0]!) &&
+      fits(prev + token)
+    ) {
+      glued[glued.length - 1] = prev + token;
+      continue;
+    }
+    glued.push(token);
+  }
+
+  const out: string[] = [];
+  for (let i = glued.length - 1; i >= 0; i--) {
+    const token = glued[i]!;
+    const next = out[0];
+    if (
+      next !== undefined &&
+      NO_LINE_END.includes(token[token.length - 1]!) &&
+      fits(token + next)
+    ) {
+      out[0] = token + next;
+      continue;
+    }
+    out.unshift(token);
+  }
+  return out;
+}
+
 export function wrapText(text: string, fs: number, max_w: number): string[] {
   const out: string[] = [];
   for (const para of text.split('\n')) {
@@ -69,7 +115,7 @@ export function wrapText(text: string, fs: number, max_w: number): string[] {
       }
     }
     let cur = '';
-    for (const token of tokens) {
+    for (const token of applyKinsoku(tokens, fs, max_w)) {
       if (cur && estimateWidth(cur + token, fs) > max_w) {
         out.push(cur.trim());
         cur = token.trim() === '' ? '' : token;
@@ -227,9 +273,15 @@ export function layout(state: VennState, opts: { editor?: boolean } = {}): TextB
     const display = is_empty ? EDITOR_PLACEHOLDER : text;
     const manual_fs = typeof slot?.fs === 'number';
     // 手動指定字級時只換行不縮字，否則 +/- 按鈕會被自動排版吃掉
-    const fitted = manual_fs
+    let fitted = manual_fs
       ? { fs: slot!.fs!, lines: wrapText(display, slot!.fs!, box.w) }
       : fitText(display, box, startFsFor(kind));
+
+    // 細碎區域（如 4 圈的三重交集）連 placeholder 都放不下；空槽沒 placeholder 就點不到，
+    // 所以退成單字而不是不畫
+    if (is_empty && fitted.fs <= MIN_FS) {
+      fitted = fitText(EDITOR_PLACEHOLDER_SHORT, box, startFsFor(kind));
+    }
 
     blocks.push({
       mask,

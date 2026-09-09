@@ -88,6 +88,44 @@ describe('validateState：schema 檢查', () => {
     expect(validateState(JSON.parse(JSON.stringify(sampleState())))).toEqual(sampleState());
   });
 
+  it('AC5 舊連結的 overlap 1.0～1.6 照常解得開', () => {
+    for (const overlap of [1.0, 1.15, 1.2, 1.6]) {
+      expect(validateState({ ...sampleState(), overlap }).overlap).toBeCloseTo(overlap, 10);
+    }
+  });
+
+  it('AC5 舊 4 圈連結只帶九個原有槽也照常解得開', () => {
+    const old_slots = [1, 2, 4, 8, 3, 5, 10, 12, 15];
+    const s = {
+      ...sampleState(4),
+      texts: Object.fromEntries(old_slots.map((m) => [String(m), { t: '甲' }])),
+    };
+
+    expect(Object.keys(validateState(s).texts).map(Number).sort((a, b) => a - b)).toEqual(
+      [...old_slots].sort((a, b) => a - b),
+    );
+  });
+
+  it('4 圈的三重槽 7、11、13、14 都是合法 key', () => {
+    const triples = [7, 11, 13, 14];
+    const s = {
+      ...sampleState(4),
+      texts: Object.fromEntries(triples.map((m) => [String(m), { t: '甲' }])),
+    };
+
+    expect(
+      Object.keys(validateState(s).texts)
+        .map(Number)
+        .sort((a, b) => a - b),
+    ).toEqual(triples);
+  });
+
+  it('3 圈餵 4 圈才有的槽 11 仍被拒', () => {
+    const s = { ...sampleState(3), texts: { '11': { t: '甲' } } };
+
+    expect(() => validateState(s)).toThrow(StateError);
+  });
+
   const invalid: [string, unknown][] = [
     ['null', null],
     ['字串', 'nope'],

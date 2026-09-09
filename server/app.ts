@@ -32,7 +32,13 @@ function originOf(c: Context): string {
 function titleOf(state: VennState): string {
   const labels = Object.entries(state.texts)
     .filter(([mask]) => Number.isInteger(Math.log2(Number(mask))))
-    .map(([, slot]) => slot.t.replace(/\s+/g, ' ').trim())
+    // 手動換行是排版用的，og:title 是單行文字：換行直接接起來，其餘空白才收成一格
+    .map(([, slot]) =>
+      slot.t
+        .replace(/\s*\n\s*/g, '')
+        .replace(/\s+/g, ' ')
+        .trim(),
+    )
     .filter(Boolean);
   return labels.length > 0 ? `${labels.join(' × ')}｜文氏圖 meme` : '文氏圖 meme 產生器';
 }
