@@ -9,3 +9,4 @@ dist-server/
 !.env.example
 *.log
 .DS_Store
+.token
