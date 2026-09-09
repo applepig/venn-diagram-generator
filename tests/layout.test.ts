@@ -198,10 +198,11 @@ describe('layout：AC1 不溢框', () => {
     expect(long.lines.length * long.fs * LINE_HEIGHT).toBeLessThanOrEqual(long.box.h + 1e-9);
   });
 
-  it('字級不會低於下限', () => {
-    for (const block of layout(fillAllSlots(4, '一二三四五六七八九十一二三四五六七八九十'))) {
-      expect(block.fs).toBeGreaterThanOrEqual(MIN_FS);
-    }
+  it('文字長到每個槽都塞不下時，字級停在畫布 2.5%，不會再往下縮', () => {
+    const blocks = layout(fillAllSlots(4, '字'.repeat(80)));
+
+    expect(blocks).not.toHaveLength(0);
+    for (const block of blocks) expect(block.fs).toBeCloseTo(0.025, 10);
   });
 });
 

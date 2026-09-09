@@ -134,6 +134,41 @@ describe('validateState：schema 檢查', () => {
     expect(() => validateState(s)).not.toThrow();
   });
 
+  describe('XML 1.0 不接受的字元', () => {
+    const cases: [string, number][] = [
+      ['NUL U+0000', 0x00],
+      ['U+0008', 0x08],
+      ['垂直定位字元 U+000B', 0x0b],
+      ['U+001F', 0x1f],
+      ['非字元 U+FFFE', 0xfffe],
+      ['非字元 U+FFFF', 0xffff],
+    ];
+
+    for (const [name, code] of cases) {
+      it(`文字含 ${name} → StateError`, () => {
+        const s = { ...sampleState(), texts: { '1': { t: `a${String.fromCharCode(code)}b` } } };
+
+        expect(() => validateState(s)).toThrow(StateError);
+      });
+    }
+
+    it('落單的 surrogate → StateError', () => {
+      const s = { ...sampleState(), texts: { '1': { t: `a${String.fromCharCode(0xd800)}b` } } };
+
+      expect(() => validateState(s)).toThrow(StateError);
+    });
+
+    it('成對的 surrogate（emoji）不受影響', () => {
+      expect(() => validateState({ ...sampleState(), texts: { '1': { t: '🎉' } } })).not.toThrow();
+    });
+
+    it('tab、換行、歸位是合法的，不能被誤擋', () => {
+      const s = { ...sampleState(), texts: { '1': { t: 'a\tb\nc\rd' } } };
+
+      expect(() => validateState(s)).not.toThrow();
+    });
+  });
+
   it('超長文字經由 URL 進來時也會被擋下（decode 也走同一套驗證）', () => {
     const packed = packJson({ ...sampleState(), texts: { '1': { t: '字'.repeat(81) } } });
 

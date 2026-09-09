@@ -221,3 +221,50 @@ describe('GET /：AC4 og meta', () => {
     expect(html).not.toContain('<script>alert(1)</script>');
   });
 });
+
+describe('非 XML 字元不得穿透到渲染層', () => {
+  // XML 1.0 不接受這些字元，但 JSON 能以 \u 逃逸序列把它們載運進來
+  const NUL = String.fromCharCode(0x00);
+  const VERTICAL_TAB = String.fromCharCode(0x0b);
+  const NONCHAR = String.fromCharCode(0xfffe);
+
+  const badTextUrl = (ch: string) =>
+    `/api/png?s=${packJson({ ...sampleState(), texts: { '1': { t: `a${ch}b` } } })}`;
+
+  for (const [name, ch] of [
+    ['NUL U+0000', NUL],
+    ['垂直定位字元 U+000B', VERTICAL_TAB],
+    ['非字元 U+FFFE', NONCHAR],
+  ] as const) {
+    it(`文字含 ${name} → /api/png 回 400 JSON，不是 500`, async () => {
+      const res = await get(badTextUrl(ch));
+
+      expect(res.status).toBe(400);
+      expect(res.headers.get('content-type')).toContain('application/json');
+      expect(await res.json()).toHaveProperty('error');
+    });
+  }
+
+  it('文字含 NUL → 首頁仍回 200，且 HTML 不含裸 NUL', async () => {
+    const res = await get(
+      `/?s=${packJson({ ...sampleState(), texts: { '1': { t: `工程${NUL}師` } } })}`,
+    );
+    const html = await res.text();
+
+    expect(res.status).toBe(200);
+    expect(html).not.toContain(NUL);
+    expect(html).toContain('og:image');
+  });
+
+  it('合法的 tab／換行／歸位不受影響，照樣出圖', async () => {
+    const s = encodeState({
+      ...defaultState(2),
+      size: 400,
+      texts: { '3': { t: '會寫\tCSS\r\n也會設計' } },
+    });
+    const res = await get(`/api/png?s=${s}`);
+
+    expect(res.status).toBe(200);
+    expect(res.headers.get('content-type')).toBe('image/png');
+  });
+});

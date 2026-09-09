@@ -9,7 +9,7 @@ import {
 import { decodeState, encodeState } from '../shared/state-codec-web';
 import type { CircleCount, TextSlot, VennState } from '../shared/types';
 import { createCanvas } from './canvas';
-import { renderToolbar } from './toolbar';
+import { createToolbar } from './toolbar';
 
 const toolbar_el = document.getElementById('toolbar')!;
 const canvas_el = document.getElementById('canvas')!;
@@ -19,6 +19,14 @@ let state: VennState = sampleState();
 let encoded = '';
 /** 編碼是非同步的，用 token 丟掉過期結果，避免慢的那次蓋掉新的 */
 let encode_token = 0;
+
+// 工具列只建一次，之後只做增量更新：在 input 事件裡重建節點會中斷拖曳手勢
+const toolbar = createToolbar(toolbar_el, {
+  onPatch: (patch) => setState(patch),
+  onCircleCount: (n) => setCircleCount(n),
+  onCopyImage: () => void copyImage(),
+  onCopyLink: () => void copyLink(),
+});
 
 const canvas = createCanvas(canvas_el, overlay_el, {
   getState: () => state,
@@ -84,12 +92,7 @@ async function copyLink(): Promise<void> {
 
 function render(): void {
   canvas.render();
-  renderToolbar(toolbar_el, state, pngUrl(), {
-    onPatch: setState,
-    onCircleCount: setCircleCount,
-    onCopyImage: copyImage,
-    onCopyLink: copyLink,
-  });
+  toolbar.update(state, pngUrl());
   void syncUrl();
 }
 
@@ -100,12 +103,7 @@ async function syncUrl(): Promise<void> {
   encoded = next;
   history.replaceState(null, '', `?s=${encoded}`);
   // 編碼完成後才知道正確的下載連結與 og 分享網址，補一次工具列
-  renderToolbar(toolbar_el, state, pngUrl(), {
-    onPatch: setState,
-    onCircleCount: setCircleCount,
-    onCopyImage: copyImage,
-    onCopyLink: copyLink,
-  });
+  toolbar.update(state, pngUrl());
 }
 
 async function boot(): Promise<void> {

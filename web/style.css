@@ -55,6 +55,11 @@ body {
   gap: 6px;
 }
 
+/* .field 的 display: flex 會蓋掉 [hidden] 的 UA 樣式，要明寫 */
+.field[hidden] {
+  display: none;
+}
+
 .field > label {
   font-size: 12px;
   color: var(--muted);

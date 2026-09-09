@@ -4,6 +4,8 @@ import { renderSvg } from '../shared/render-svg';
 import type { TextBlock, TextSlot, VennState } from '../shared/types';
 
 const DRAG_THRESHOLD_PX = 4;
+/** 必須與 .slot-edit 的 border-width 一致 */
+const EDIT_BORDER_PX = 2;
 const FS_STEP = 1.12;
 const FS_MIN = 0.012;
 const FS_MAX = 0.5;
@@ -92,8 +94,12 @@ export function createCanvas(
     editing_mask = mask;
 
     const slot = handlers.getState().texts[String(mask)];
-    const width = Math.max(px(block.box.w), 40);
-    const height = Math.max(px(Math.max(block.lines.length, 1) * block.fs * LINE_HEIGHT), 24);
+    // box-sizing 是 border-box，虛線邊框會吃掉內容寬高，要外加回去
+    // 否則文字比 layout 算出來的框窄一圈，一打字就提早折行、第一行還會被裁掉
+    const content_w = Math.max(px(block.box.w), 40);
+    const content_h = Math.max(px(Math.max(block.lines.length, 1) * block.fs * LINE_HEIGHT), 24);
+    const width = content_w + EDIT_BORDER_PX * 2;
+    const height = content_h + EDIT_BORDER_PX * 2;
 
     const ta = document.createElement('textarea');
     ta.className = 'slot-edit';
@@ -104,7 +110,21 @@ export function createCanvas(
     ta.style.height = `${height}px`;
     ta.style.fontSize = `${px(block.fs)}px`;
 
-    ta.addEventListener('input', () => handlers.setText(mask, ta.value));
+    // 估寬演算法與瀏覽器實際字型度量會有幾 px 落差，內容一旦比框高，
+    // textarea 會捲到游標處把第一行推出視野。直接讓框長到剛好裝得下。
+    const fitHeight = () => {
+      ta.style.height = `${height}px`;
+      if (ta.scrollHeight > ta.clientHeight) {
+        ta.style.height = `${ta.scrollHeight + EDIT_BORDER_PX * 2}px`;
+      }
+      ta.style.top = `${px(block.cy) - ta.offsetHeight / 2}px`;
+      ta.scrollTop = 0;
+    };
+
+    ta.addEventListener('input', () => {
+      handlers.setText(mask, ta.value);
+      fitHeight();
+    });
     ta.addEventListener('keydown', (e) => {
       if (e.key === 'Escape') {
         e.preventDefault();
@@ -115,6 +135,7 @@ export function createCanvas(
 
     overlay_el.append(ta);
     editor_el = ta;
+    fitHeight();
     ta.focus();
     ta.setSelectionRange(ta.value.length, ta.value.length);
     render();

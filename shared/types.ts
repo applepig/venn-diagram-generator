@@ -62,6 +62,4 @@ export interface TextBlock {
   lines: string[];
   /** 是否為空槽的編輯器 placeholder */
   placeholder: boolean;
-  /** 字級是否由使用者手動指定（手動時不自動縮字） */
-  manualFs: boolean;
 }

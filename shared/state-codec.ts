@@ -62,11 +62,35 @@ function requireHex(v: unknown, name: string): string {
   return v;
 }
 
+/**
+ * XML 1.0 不接受的字元：除了 \t \n \r 以外的 C0 控制字元，以及非字元 U+FFFE／U+FFFF。
+ * 這些字元 JSON 載得動、SVG 載不動，放行的話會在點陣化階段炸成 500。
+ */
+const INVALID_XML_RE = /[\u0000-\u0008\u000B\u000C\u000E-\u001F\uFFFE\uFFFF]/;
+
+/** 落單的 surrogate 同樣不是合法的 XML 字元 */
+function hasLoneSurrogate(s: string): boolean {
+  for (let i = 0; i < s.length; i++) {
+    const code = s.charCodeAt(i);
+    if (code >= 0xd800 && code <= 0xdbff) {
+      const next = s.charCodeAt(i + 1);
+      if (!(next >= 0xdc00 && next <= 0xdfff)) return true;
+      i++;
+    } else if (code >= 0xdc00 && code <= 0xdfff) {
+      return true;
+    }
+  }
+  return false;
+}
+
 function parseSlot(key: string, raw: unknown): TextSlot {
   if (!isRecord(raw)) throw new StateError(`文字槽 ${key} 格式錯誤`);
   if (typeof raw.t !== 'string') throw new StateError(`文字槽 ${key} 缺少文字內容`);
   if ([...raw.t].length > MAX_TEXT_LEN) {
     throw new StateError(`文字槽 ${key} 超過 ${MAX_TEXT_LEN} 字上限`);
+  }
+  if (INVALID_XML_RE.test(raw.t) || hasLoneSurrogate(raw.t)) {
+    throw new StateError(`文字槽 ${key} 含有無法輸出的控制字元`);
   }
 
   const slot: TextSlot = { t: raw.t };

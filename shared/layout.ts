@@ -240,7 +240,6 @@ export function layout(state: VennState, opts: { editor?: boolean } = {}): TextB
       fs: fitted.fs,
       lines: fitted.lines,
       placeholder: is_empty,
-      manualFs: manual_fs,
     });
   }
 
