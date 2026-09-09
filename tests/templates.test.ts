@@ -42,7 +42,7 @@ const TEXTS_4 = {
   '5': { t: '「聽懂我\n在說\n什麼嗎?」' },
   '10': { t: '「別讓\n我說\n第二次!」' },
   '12': { t: '「不好好\n聽話\n會有嚴重\n的後果」' },
-  '15': { t: '「把手\n舉起來!!」' },
+  '15': { t: '把手\n舉起來!!' },
 };
 
 describe('sampleState', () => {
@@ -65,7 +65,7 @@ describe('sampleState', () => {
     const s = sampleState(4);
     s.texts['15'] = { t: '被改掉' };
 
-    expect(sampleState(4).texts['15']).toEqual({ t: '「把手\n舉起來!!」' });
+    expect(sampleState(4).texts['15']).toEqual({ t: '把手\n舉起來!!' });
   });
 
   it('template 的槽都在該圈數的合法槽位內', () => {
@@ -190,7 +190,7 @@ describe('nextStateForCircleCount', () => {
     const next = nextStateForCircleCount(sampleState(2), 4);
     next.texts['15'] = { t: '被改掉' };
 
-    expect(TEMPLATES[4].texts['15']).toEqual({ t: '「把手\n舉起來!!」' });
+    expect(TEMPLATES[4].texts['15']).toEqual({ t: '把手\n舉起來!!' });
   });
 });
 

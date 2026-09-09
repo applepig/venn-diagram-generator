@@ -74,7 +74,7 @@ export const TEMPLATES: Record<CircleCount, { style: VennStyle; texts: Record<st
         '5': { t: '「聽懂我\n在說\n什麼嗎?」' },
         '10': { t: '「別讓\n我說\n第二次!」' },
         '12': { t: '「不好好\n聽話\n會有嚴重\n的後果」' },
-        '15': { t: '「把手\n舉起來!!」' },
+        '15': { t: '把手\n舉起來!!' },
       },
     },
   };
