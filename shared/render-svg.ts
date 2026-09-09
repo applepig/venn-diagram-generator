@@ -52,12 +52,16 @@ export function mixColors(hexes: string[]): string {
   if (hexes.length === 0) return '#000000';
   if (hexes.length === 1) return hexes[0]!;
 
-  const rgb: [number, number, number] = [0, 0, 0];
+  let r = 0;
+  let g = 0;
+  let b = 0;
   for (const hex of hexes) {
-    const parts = hexToRgb(hex);
-    for (let i = 0; i < 3; i++) rgb[i] += parts[i]! / hexes.length;
+    const [pr, pg, pb] = hexToRgb(hex);
+    r += pr / hexes.length;
+    g += pg / hexes.length;
+    b += pb / hexes.length;
   }
-  const [h, s, l] = rgbToHsl(rgb[0], rgb[1], rgb[2]);
+  const [h, s, l] = rgbToHsl(r, g, b);
   const depth = hexes.length - 2; // 雙重 0、三重 1、四重 2
   return hslToHex(h, Math.min(1, Math.max(s * 1.7, 0.6)) * (1 - 0.15 * depth), l * (0.8 - 0.15 * depth));
 }

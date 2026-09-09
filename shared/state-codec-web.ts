@@ -1,9 +1,10 @@
 import { StateError, bytesToState, decodeBase64Url, encodeBase64Url, stateToBytes } from './state-codec';
 import type { VennState } from './types';
 
-async function pipeThrough(bytes: Uint8Array, stream: TransformStream<Uint8Array, Uint8Array>) {
+async function pipeThrough(bytes: Uint8Array, stream: CompressionStream | DecompressionStream) {
   const blob = new Blob([bytes as BlobPart]);
-  const buf = await new Response(blob.stream().pipeThrough(stream)).arrayBuffer();
+  const piped = blob.stream().pipeThrough(stream as ReadableWritablePair<Uint8Array, BufferSource>);
+  const buf = await new Response(piped).arrayBuffer();
   return new Uint8Array(buf);
 }
 

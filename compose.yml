@@ -1,0 +1,19 @@
+services:
+  venn:
+    build: .
+    container_name: venn-diagram-generator
+    restart: unless-stopped
+    environment:
+      - PORT=3000
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=web"
+      - "traefik.http.routers.venn.rule=Host(`venn.applepig.net`)"
+      - "traefik.http.routers.venn.entrypoints=web"
+      - "traefik.http.services.venn.loadbalancer.server.port=3000"
+    networks:
+      - web
+
+networks:
+  web:
+    external: true

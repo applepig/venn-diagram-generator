@@ -143,7 +143,22 @@ export function maskAt(circles: Circle[], x: number, y: number): number {
  * 像素取樣求區域重心，再從重心以固定長寬比向外長矩形，
  * 直到矩形邊界碰到區域邊緣為止。區域不存在或細到放不下框時回傳 null。
  */
+// 取樣成本不低（每個區域 200×200 點），編輯器拖曳與拉滑桿時同一組幾何會重算很多次
+const box_cache = new Map<string, RegionBox | null>();
+const BOX_CACHE_MAX = 512;
+
 export function regionBox(circles: Circle[], mask: number, aspect: number): RegionBox | null {
+  const key = `${circles.map((c) => `${c.x},${c.y},${c.r}`).join(';')}|${mask}|${aspect}`;
+  const cached = box_cache.get(key);
+  if (cached !== undefined) return cached;
+
+  const box = computeRegionBox(circles, mask, aspect);
+  if (box_cache.size >= BOX_CACHE_MAX) box_cache.clear();
+  box_cache.set(key, box);
+  return box;
+}
+
+function computeRegionBox(circles: Circle[], mask: number, aspect: number): RegionBox | null {
   let sum_x = 0;
   let sum_y = 0;
   let count = 0;
