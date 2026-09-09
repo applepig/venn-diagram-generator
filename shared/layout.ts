@@ -128,6 +128,62 @@ export function wrapText(text: string, fs: number, max_w: number): string[] {
   return out;
 }
 
+/**
+ * 使用者按 Enter 打出的硬行，沒有換行意圖時回 null。
+ * 空行不算手動行（wrapText 一向丟掉空段落），濾完不到兩行就沒有換行意圖，
+ * 交給自動折行——否則尾端多按一次 Enter 就會壓成一行、字級崩掉。
+ */
+function hardLines(text: string): string[] | null {
+  const manual = text
+    .split('\n')
+    .map((l) => l.trim())
+    .filter((l) => l !== '');
+  return manual.length >= 2 ? manual : null;
+}
+
+/**
+ * 手動字級下的換行：字級不能動，所以硬行只在每行都放得下時成立；
+ * 任一行放不下就整段退回自動折行，用折行保住水平不溢出（01-mvp AC1）。
+ */
+export function wrapManualFs(text: string, fs: number, max_w: number): string[] {
+  const hard = hardLines(text);
+  if (hard && hard.every((l) => estimateWidth(l, fs) <= max_w)) return hard;
+  return wrapText(text, fs, max_w);
+}
+
+// 置中補償只認全形括號：它們的墨跡只佔半格（「靠右、」靠左），
+// 置中要補的是那半格空白。!?。，、 的墨跡不偏在半格，整個掛出去反而看起來偏右。
+const SHIFT_BRACKET_START = '「（『';
+const SHIFT_BRACKET_END = '」）』';
+// 行尾的標點串裡只有括號要補償，其餘標點跳過不計（全形半形都要認：
+// 打「聽好」！」的人和打「聽好！」」的人看到的偏移是同一個）
+const SHIFT_TAIL_SKIP = '!?。，、！？；：';
+
+/**
+ * 一行文字置中時要挪的水平量（單位空間）。行首的開括號讓正文看起來偏右、
+ * 行尾的收括號讓正文看起來偏左；把兩邊的半格空白差額分攤到兩側就是補償量。
+ */
+export function centerShift(line: string, fs: number): number {
+  let l = 0;
+  for (const ch of line) {
+    if (!SHIFT_BRACKET_START.includes(ch)) break;
+    l++;
+  }
+
+  let r = 0;
+  for (let i = line.length - 1; i >= 0; i--) {
+    const ch = line[i]!;
+    if (SHIFT_BRACKET_END.includes(ch)) {
+      r++;
+      continue;
+    }
+    if (SHIFT_TAIL_SKIP.includes(ch)) continue;
+    break;
+  }
+
+  return ((r - l) * 0.5 * fs) / 2;
+}
+
 /** 先換行，塞不下就縮字，縮到下限為止 */
 export function fitText(
   text: string,
@@ -135,8 +191,10 @@ export function fitText(
   start_fs: number,
   min_fs = MIN_FS,
 ): { fs: number; lines: string[] } {
+  // 手動換行是硬換行：只縮字，不再對使用者定好的行做自動折行
+  const hard = hardLines(text);
   for (let fs = start_fs; fs >= min_fs; fs *= 0.95) {
-    const lines = wrapText(text, fs, box.w);
+    const lines = hard ?? wrapText(text, fs, box.w);
     const longest = Math.max(0, ...lines.map((l) => estimateWidth(l, fs)));
     if (longest <= box.w && lines.length * fs * LINE_HEIGHT <= box.h) return { fs, lines };
   }
@@ -274,7 +332,7 @@ export function layout(state: VennState, opts: { editor?: boolean } = {}): TextB
     const manual_fs = typeof slot?.fs === 'number';
     // 手動指定字級時只換行不縮字，否則 +/- 按鈕會被自動排版吃掉
     let fitted = manual_fs
-      ? { fs: slot!.fs!, lines: wrapText(display, slot!.fs!, box.w) }
+      ? { fs: slot!.fs!, lines: wrapManualFs(display, slot!.fs!, box.w) }
       : fitText(display, box, startFsFor(kind));
 
     // 細碎區域（如 4 圈的三重交集）連 placeholder 都放不下；空槽沒 placeholder 就點不到，

@@ -1,8 +1,19 @@
 import { describe, expect, it } from 'vitest';
-import { circlesFor, estimateWidth, layout, regionBox, wrapText } from '../shared/layout';
 import {
+  centerShift,
+  circlesFor,
+  estimateWidth,
+  fitText,
+  layout,
+  regionBox,
+  wrapText,
+} from '../shared/layout';
+import {
+  DEFAULT_OVERLAP,
+  DEFAULT_RADIUS,
   EDITOR_PLACEHOLDER,
   EDITOR_PLACEHOLDER_SHORT,
+  INTERSECTION_ASPECT,
   INTERSECTION_START_FS,
   LABEL_START_FS,
   LINE_HEIGHT,
@@ -97,6 +108,188 @@ describe('wrapText', () => {
         expect(endsWithForbidden(line)).toBe(false);
       }
     });
+  });
+});
+
+describe('AC8 fitText 的手動換行是硬換行', () => {
+  /** 4 圈預設幾何下 mask 3 的相鄰交集框，是 template 兩行文字的實際容器 */
+  function intersectionBox(mask: number) {
+    return regionBox(
+      circlesFor(4, DEFAULT_RADIUS[4], DEFAULT_OVERLAP[4]),
+      mask,
+      INTERSECTION_ASPECT,
+    )!;
+  }
+
+  it('含 \\n 的文字以手動行為準：兩行就是兩行，靠縮字塞進框裡', () => {
+    const fitted = fitText('「大家給我\n聽好!」', intersectionBox(3), INTERSECTION_START_FS);
+
+    expect(fitted.lines).toEqual(['「大家給我', '聽好!」']);
+    expect(fitted.fs).toBeCloseTo(0.0375, 3);
+  });
+
+  it('手動行的最長行與總高都在框內', () => {
+    const box = intersectionBox(3);
+    const fitted = fitText('「大家給我\n聽好!」', box, INTERSECTION_START_FS);
+
+    expect(Math.max(...fitted.lines.map((l) => estimateWidth(l, fitted.fs)))).toBeLessThanOrEqual(
+      box.w + 1e-9,
+    );
+    expect(fitted.lines.length * fitted.fs * LINE_HEIGHT).toBeLessThanOrEqual(box.h + 1e-9);
+  });
+
+  it('縮到下限仍放不下時退回自動折行，維持水平不溢出', () => {
+    const box = { cx: 0.5, cy: 0.5, w: 0.05, h: 0.4 };
+    const fitted = fitText('「大家給我\n聽好!」', box, INTERSECTION_START_FS);
+
+    expect(fitted.fs).toBeCloseTo(MIN_FS, 10);
+    expect(fitted.lines.length).toBeGreaterThan(2);
+    for (const line of fitted.lines) {
+      expect(estimateWidth(line, fitted.fs)).toBeLessThanOrEqual(box.w + 1e-9);
+    }
+  });
+
+  it('不含 \\n 的文字照舊自動折行', () => {
+    const box = intersectionBox(3);
+    const fitted = fitText('要等到天荒地老海枯石爛', box, INTERSECTION_START_FS);
+
+    expect(fitted.lines.length).toBeGreaterThan(1);
+    expect(fitted.lines.join('')).toBe('要等到天荒地老海枯石爛');
+    for (const line of fitted.lines) {
+      expect(estimateWidth(line, fitted.fs)).toBeLessThanOrEqual(box.w + 1e-9);
+    }
+  });
+
+  // 空行一向不算內容（wrapText 從 01-mvp 起就丟掉空段落），
+  // 硬換行沿用同一條：使用者多按的 Enter 不該變成幽靈行、也不該讓字級崩掉
+  describe('空行不算手動行', () => {
+    const boxes = [
+      { name: '寬框', box: { cx: 0.5, cy: 0.5, w: 0.3, h: 0.2 } },
+      { name: '窄框', box: { cx: 0.5, cy: 0.5, w: 0.12, h: 0.09 } },
+    ];
+
+    for (const { name, box } of boxes) {
+      it(`${name}：尾端多按一次 Enter 的排版與不帶尾端 \\n 完全相同`, () => {
+        const plain = fitText('大家給我聽好', box, INTERSECTION_START_FS);
+        const trailing = fitText('大家給我聽好\n', box, INTERSECTION_START_FS);
+
+        expect(trailing.lines).toEqual(plain.lines);
+        expect(trailing.fs).toBeCloseTo(plain.fs, 10);
+      });
+
+      it(`${name}：行間空行不產生幽靈行，排版與只有一個 \\n 相同`, () => {
+        const single = fitText('「大家\n聽好」', box, INTERSECTION_START_FS);
+        const blank = fitText('「大家\n\n聽好」', box, INTERSECTION_START_FS);
+
+        expect(blank.lines).toEqual(single.lines);
+        expect(blank.fs).toBeCloseTo(single.fs, 10);
+      });
+
+      it(`${name}：只有空白的行也不算手動行`, () => {
+        const spaced = fitText('大家\n  \n聽好', box, INTERSECTION_START_FS);
+
+        expect(spaced.lines).toEqual(['大家', '聽好']);
+      });
+    }
+
+    it('整段只有換行時不輸出任何行', () => {
+      const box = { cx: 0.5, cy: 0.5, w: 0.3, h: 0.2 };
+
+      expect(fitText('\n\n', box, INTERSECTION_START_FS).lines).toEqual([]);
+    });
+  });
+
+  it('手動指定字級的文字含 \\n 時仍逐行輸出', () => {
+    const s = { ...defaultState(2), texts: { '3': { t: '拖到\n明天', fs: 0.06 } } };
+    const block = layout(s).find((b) => b.mask === 3)!;
+
+    expect(block.fs).toBeCloseTo(0.06, 10);
+    expect(block.lines).toEqual(['拖到', '明天']);
+  });
+
+  // 手動字級不能縮字，所以硬換行的保證只到「放得下就照使用者的行走」：
+  // 放不下時用折行保住水平不溢出（01-mvp AC1）
+  describe('手動字級的硬換行', () => {
+    const text = '「大家給我\n聽好!」';
+
+    function manualFsBlock(fs: number) {
+      const s = { ...defaultState(4), texts: { '3': { t: text, fs } } };
+      return layout(s).find((b) => b.mask === 3)!;
+    }
+
+    it('每行都放得進框寬時照使用者的行走，不自動折行', () => {
+      const block = manualFsBlock(0.03);
+
+      expect(block.lines).toEqual(['「大家給我', '聽好!」']);
+      expect(block.fs).toBeCloseTo(0.03, 10);
+    });
+
+    it('任一手動行放不進框寬時退回自動折行，每行估寬仍在框內', () => {
+      const box = intersectionBox(3);
+      const block = manualFsBlock(0.09);
+
+      expect(block.lines.length).toBeGreaterThan(2);
+      expect(block.fs).toBeCloseTo(0.09, 10);
+      for (const line of block.lines) {
+        expect(estimateWidth(line, block.fs)).toBeLessThanOrEqual(box.w + 1e-9);
+      }
+    });
+
+    // 行尾多打的空白不是內容：拿沒 trim 的寬度去比框寬，會把放得下的手動行拆散
+    it('手動行前後的空白不計入框寬，不會因此被拆行', () => {
+      // 0.08 下「大家」估寬 0.16 放得進 0.188 的框，但連著前導空白算就是 0.208
+      const s = { ...defaultState(4), texts: { '3': { t: '  大家  \n  聽好  ', fs: 0.08 } } };
+      const block = layout(s).find((b) => b.mask === 3)!;
+
+      expect(block.lines).toEqual(['大家', '聽好']);
+    });
+
+    it('空行不算手動行：尾端多按的 Enter 不產生幽靈行', () => {
+      expect(manualFsBlock(0.03).lines).toEqual(
+        layout({
+          ...defaultState(4),
+          texts: { '3': { t: `${text}\n`, fs: 0.03 } },
+        }).find((b) => b.mask === 3)!.lines,
+      );
+    });
+  });
+});
+
+describe('AC9 括號置中補償 centerShift', () => {
+  const fs = 0.04;
+
+  it('行首開引號往左補半格的一半', () => {
+    expect(centerShift('「大家給我', fs)).toBeCloseTo(-0.25 * fs, 10);
+  });
+
+  it('行尾收引號往右補半格的一半，中間的 ! 不計', () => {
+    expect(centerShift('聽好!」', fs)).toBeCloseTo(0.25 * fs, 10);
+  });
+
+  it('只有驚嘆號結尾不補償', () => {
+    expect(centerShift('舉起來!!', fs)).toBeCloseTo(0, 10);
+  });
+
+  it('全形標點與收引號的前後順序都不影響補償量', () => {
+    // 使用者打全形標點跟半形一樣常見；標點在括號前或括號後都只是輸入習慣，
+    // 看起來偏左的量是一樣的
+    expect(centerShift('聽好！」', fs)).toBeCloseTo(0.25 * fs, 10);
+    expect(centerShift('聽好」！', fs)).toBeCloseTo(0.25 * fs, 10);
+    expect(centerShift('聽好」？', fs)).toBeCloseTo(0.25 * fs, 10);
+    expect(centerShift('聽好」：', fs)).toBeCloseTo(0.25 * fs, 10);
+    expect(centerShift('聽好」；', fs)).toBeCloseTo(0.25 * fs, 10);
+  });
+
+  it('頭尾成對的引號互相抵銷', () => {
+    expect(centerShift('「他說」', fs)).toBeCloseTo(0, 10);
+  });
+
+  it('沒有標點的行不補償', () => {
+    expect(centerShift('把手', fs)).toBeCloseTo(0, 10);
+  });
+
+  it('補償量隨字級等比放大', () => {
+    expect(centerShift('聽好!」', 2 * fs)).toBeCloseTo(2 * centerShift('聽好!」', fs), 10);
   });
 });
 

@@ -1,5 +1,5 @@
 import { LINE_HEIGHT } from './defaults';
-import { circlesFor, layout } from './layout';
+import { centerShift, circlesFor, layout } from './layout';
 import { regionPaths } from './region-geometry';
 import type { Circle, VennState } from './types';
 
@@ -135,7 +135,8 @@ export function renderSvg(state: VennState, opts: { editor?: boolean } = {}): st
     const tspans = block.lines
       .map(
         (line, i) =>
-          `<text x="${block.cx * size}" y="${y0 + i * line_h}" font-size="${fs}">${escapeXml(line)}</text>`,
+          `<text x="${(block.cx + centerShift(line, block.fs)) * size}" y="${y0 + i * line_h}" ` +
+          `font-size="${fs}">${escapeXml(line)}</text>`,
       )
       .join('');
     const opacity_attr = block.placeholder ? ' opacity="0.35"' : '';

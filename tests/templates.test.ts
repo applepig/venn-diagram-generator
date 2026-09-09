@@ -38,10 +38,10 @@ const TEXTS_4 = {
   '2': { t: '銀行\n搶匪' },
   '4': { t: '牧師' },
   '8': { t: '叫小孩\n把毛衣脫下\n的媽媽' },
-  '3': { t: '「大家\n給我\n聽好!」' },
-  '5': { t: '「聽懂我\n在說\n什麼嗎?」' },
-  '10': { t: '「別讓\n我說\n第二次!」' },
-  '12': { t: '「不好好\n聽話\n會有嚴重\n的後果」' },
+  '3': { t: '「大家給我\n聽好!」' },
+  '5': { t: '「聽懂我在\n說什麼嗎?」' },
+  '10': { t: '「別讓我\n說第二次!」' },
+  '12': { t: '「不聽話會有\n嚴重的後果」' },
   '15': { t: '把手\n舉起來!!' },
 };
 
@@ -206,6 +206,23 @@ describe('AC4 三組 template 在預設幾何下都不觸字級下限', () => {
       for (const block of blocks) expect(block.fs).toBeGreaterThan(MIN_FS);
     });
   }
+
+  // 字級是 0.95 步進收斂出來的離散值，釘死每一格等於把收斂方式當規格；
+  // AC10 要的是「兩行、看得清、中央最大」這三件事
+  it('AC10 4 圈四個相鄰交集都排成兩行且字級不觸底，中央不小於相鄰交集', () => {
+    const blocks = layout(sampleState(4));
+    const adjacent = [3, 5, 10, 12];
+
+    for (const mask of adjacent) {
+      const block = blocks.find((b) => b.mask === mask)!;
+      expect(block.lines, `mask ${mask}`).toHaveLength(2);
+      expect(block.fs, `mask ${mask}`).toBeGreaterThan(MIN_FS);
+    }
+    const center = blocks.find((b) => b.mask === 15)!;
+    const max_adjacent = Math.max(...adjacent.map((m) => blocks.find((b) => b.mask === m)!.fs));
+
+    expect(center.fs).toBeGreaterThanOrEqual(max_adjacent);
+  });
 
   it('4 圈中央「把手舉起來!!」的字級不小於任何相鄰雙圈格', () => {
     const blocks = layout(sampleState(4));

@@ -1,7 +1,7 @@
 import { Resvg } from '@resvg/resvg-js';
 import { describe, expect, it } from 'vitest';
 import { mixColors, renderSvg } from '../shared/render-svg';
-import { circlesFor, maskAt } from '../shared/layout';
+import { circlesFor, layout, maskAt } from '../shared/layout';
 import { EDITOR_PLACEHOLDER, defaultState } from '../shared/defaults';
 import type { VennStyle } from '../shared/types';
 import { FONT_FILE } from './helpers/font';
@@ -136,6 +136,36 @@ describe('renderSvg：XML escape', () => {
     const svg = renderSvg(s);
 
     expect(renderPng(svg).length).toBeGreaterThan(1000);
+  });
+});
+
+describe('renderSvg：AC9 括號置中補償', () => {
+  const size = 1200;
+
+  function textXs(svg: string, mask: number): number[] {
+    const group = svg.match(new RegExp(`<g data-region="${mask}"[^>]*>(.*?)</g>`))![1]!;
+    return [...group.matchAll(/<text x="(-?[\d.]+)"/g)].map((m) => Number(m[1]));
+  }
+
+  it('行首「與行尾」的行各往反方向挪半格的一半', () => {
+    const state = { ...defaultState(2), size, texts: { '3': { t: '「大家給我\n聽好!」' } } };
+    const block = layout(state).find((b) => b.mask === 3)!;
+    const xs = textXs(renderSvg(state), 3);
+
+    expect(block.lines).toEqual(['「大家給我', '聽好!」']);
+    expect(xs).toHaveLength(2);
+    expect(xs[0]!).toBeCloseTo((block.cx - 0.25 * block.fs) * size, 6);
+    expect(xs[1]!).toBeCloseTo((block.cx + 0.25 * block.fs) * size, 6);
+    expect(xs[1]! - xs[0]!).toBeCloseTo(0.5 * block.fs * size, 6);
+  });
+
+  it('不帶括號的文字每行都停在區域中心，不被挪動', () => {
+    const state = { ...defaultState(2), size, texts: { '3': { t: '把手\n舉起來!!' } } };
+    const block = layout(state).find((b) => b.mask === 3)!;
+    const xs = textXs(renderSvg(state), 3);
+
+    expect(xs).toHaveLength(2);
+    for (const x of xs) expect(x).toBeCloseTo(block.cx * size, 6);
   });
 });
 
