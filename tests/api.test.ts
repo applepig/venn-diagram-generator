@@ -363,11 +363,22 @@ describe('GET /：AC4 og meta', () => {
     expect(html).toContain('<meta property="og:image:height" content="630">');
   });
 
-  it('沒有 s 時 og:title 用預設 template 的單圈標籤，手動換行不留空白', async () => {
+  it('沒有 s 時 <title>、og:title、twitter:title 都用品牌文案，不用範例圖上的字', async () => {
     const html = await (await get('/')).text();
+    const brand = '文氏圖產生器｜找不到哏圖不會自己做嗎？';
+
+    expect(html).toContain(`<title>${brand}</title>`);
+    expect(html).toContain(`<meta property="og:title" content="${brand}">`);
+    expect(html).toContain(`<meta name="twitter:title" content="${brand}">`);
+    expect(html).not.toContain('該做的事 × 想做的事');
+  });
+
+  it('帶 s 時 og:title 用圖上的單圈標籤，手動換行不留空白', async () => {
+    const html = await (await get(`/?s=${encodeState(sampleState())}`)).text();
     const title = html.match(/<meta property="og:title" content="([^"]+)"/)![1]!;
 
     expect(title).toBe('該做的事 × 想做的事｜文氏圖 meme');
+    expect(html).toContain(`<title>${title}</title>`);
   });
 
   it('og:image 尊重反向代理的 x-forwarded-proto／host', async () => {
@@ -521,7 +532,7 @@ describe('AC13 SEO：canonical、robots、structured data', () => {
     expect(html).toContain(`<link rel="canonical" href="${ORIGIN}/">`);
     expect(html).toContain('<meta name="robots" content="index, follow">');
     expect(html).toContain('"@type":"WebApplication"');
-    expect(html).toContain(`<title>文氏圖 meme 產生器｜填字就有的文氏圖梗圖工具</title>`);
+    expect(html).toContain(`<title>文氏圖產生器｜找不到哏圖不會自己做嗎？</title>`);
   });
 
   it('分享頁 canonical 指自己、noindex，且不宣告成獨立作品', async () => {
@@ -549,7 +560,7 @@ describe('AC13 SEO：canonical、robots、structured data', () => {
   it('og 補齊 site_name、locale、image:alt 與 twitter:description', async () => {
     const html = await (await get('/')).text();
 
-    expect(html).toContain('<meta property="og:site_name" content="文氏圖 meme 產生器">');
+    expect(html).toContain('<meta property="og:site_name" content="文氏圖產生器">');
     expect(html).toContain('<meta property="og:locale" content="zh_TW">');
     expect(html).toContain('<meta property="og:image:type" content="image/png">');
     expect(html).toContain('<meta property="og:image:alt"');
