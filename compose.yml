@@ -7,6 +7,8 @@ services:
       - PORT=3000
       # og:image／og:url 的 origin 鎖死在這，不讓 X-Forwarded-Host 決定
       - PUBLIC_ORIGIN=https://venn.applepig.net
+      # 只有正式站注入 GTM；開發站（compose.dev.yml）刻意不給，數據才不會混進來
+      - VENN_GTM_ID=GTM-KTZKC8CH
     labels:
       - "traefik.enable=true"
       - "traefik.docker.network=web"

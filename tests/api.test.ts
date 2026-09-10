@@ -330,6 +330,88 @@ describe('AC2 s 參數長度閘', () => {
   });
 });
 
+describe('AC13 SEO：canonical、robots、structured data', () => {
+  it('首頁 canonical 收斂到 /，可索引，並帶 WebApplication 的 JSON-LD', async () => {
+    const html = await (await get('/')).text();
+
+    expect(html).toContain(`<link rel="canonical" href="${ORIGIN}/">`);
+    expect(html).toContain('<meta name="robots" content="index, follow">');
+    expect(html).toContain('"@type":"WebApplication"');
+    expect(html).toContain(`<title>文氏圖 meme 產生器｜填字就有的文氏圖梗圖工具</title>`);
+  });
+
+  it('分享頁 canonical 指自己、noindex，且不宣告成獨立作品', async () => {
+    const s = encodeState(sampleState());
+    const html = await (await get(`/?s=${s}`)).text();
+
+    expect(html).toContain(`<link rel="canonical" href="${ORIGIN}/?s=${s}">`);
+    expect(html).toContain('<meta name="robots" content="noindex, follow">');
+    expect(html).not.toContain('application/ld+json');
+  });
+
+  it('分享頁的 <title> 換成圖上的內容，不留 build 時的預設值', async () => {
+    const s = encodeState(sampleState());
+    const html = await (await get(`/?s=${s}`)).text();
+
+    expect(html).toContain('<title>該做的事 × 想做的事｜文氏圖 meme</title>');
+  });
+
+  it('壞掉的 s 不會被當成值得索引的頁面', async () => {
+    const html = await (await get('/?s=!!!!')).text();
+
+    expect(html).toContain(`<link rel="canonical" href="${ORIGIN}/">`);
+  });
+
+  it('og 補齊 site_name、locale、image:alt 與 twitter:description', async () => {
+    const html = await (await get('/')).text();
+
+    expect(html).toContain('<meta property="og:site_name" content="文氏圖 meme 產生器">');
+    expect(html).toContain('<meta property="og:locale" content="zh_TW">');
+    expect(html).toContain('<meta property="og:image:type" content="image/png">');
+    expect(html).toContain('<meta property="og:image:alt"');
+    expect(html).toContain('<meta name="twitter:description"');
+  });
+
+  it('robots.txt 指向絕對網址的 sitemap，且不擋 ?s=（會連 og 爬蟲一起擋掉）', async () => {
+    const res = await get('/robots.txt');
+    const body = await res.text();
+
+    expect(res.status).toBe(200);
+    expect(res.headers.get('content-type')).toContain('text/plain');
+    expect(body).toContain(`Sitemap: ${ORIGIN}/sitemap.xml`);
+    expect(body).not.toContain('Disallow');
+  });
+
+  it('sitemap.xml 只收首頁', async () => {
+    const res = await get('/sitemap.xml');
+    const body = await res.text();
+
+    expect(res.status).toBe(200);
+    expect(res.headers.get('content-type')).toContain('application/xml');
+    expect(body).toContain(`<loc>${ORIGIN}/</loc>`);
+    expect(body.match(/<loc>/g)).toHaveLength(1);
+  });
+});
+
+describe('AC13 GTM 只在給了 container id 時注入', () => {
+  const GTM_ID = 'GTM-KTZKC8CH';
+  const tagged = createApp({ fontFile: FONT_FILE, publicOrigin: ORIGIN, gtmId: GTM_ID });
+
+  it('沒給 id 的部署（開發站、測試）完全不載入 GTM', async () => {
+    const html = await (await get('/')).text();
+
+    expect(html).not.toContain('googletagmanager');
+  });
+
+  it('給了 id 時 head 有 gtm.js、body 開頭有 noscript iframe', async () => {
+    const html = await (await tagged.request(`${ORIGIN}/`)).text();
+
+    expect(html).toContain(`'${GTM_ID}'`);
+    expect(html).toContain('https://www.googletagmanager.com/gtm.js?id=');
+    expect(html).toContain(`<body><noscript><iframe src="https://www.googletagmanager.com/ns.html?id=${GTM_ID}"`);
+  });
+});
+
 describe('AC3 og origin 由 publicOrigin 決定', () => {
   const fixed = createApp({ fontFile: FONT_FILE, publicOrigin: ORIGIN });
 

@@ -8,11 +8,14 @@ const DIST_DIR = process.env.VENN_DIST ?? 'dist';
 const FONT_FILE = process.env.VENN_FONT ?? 'assets/fonts/NotoSansTC-Bold.otf';
 
 const PUBLIC_ORIGIN = process.env.PUBLIC_ORIGIN || undefined;
+// 只有正式站的 compose 會給：開發站與本機跑起來不該把數據送進 GTM
+const GTM_ID = process.env.VENN_GTM_ID || undefined;
 
 const app = createApp({
   fontFile: resolve(FONT_FILE),
   distDir: resolve(DIST_DIR),
   publicOrigin: PUBLIC_ORIGIN,
+  gtmId: GTM_ID,
 });
 
 // createApp 已先註冊 /api/png 與 /，這裡只接沒被吃掉的靜態資源
