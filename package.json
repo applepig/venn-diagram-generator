@@ -5,12 +5,10 @@
   "type": "module",
   "packageManager": "pnpm@11.22.0",
   "scripts": {
-    "dev": "concurrently -n web,api -c cyan,magenta \"pnpm dev:web\" \"pnpm dev:api\"",
-    "dev:web": "vite",
-    "dev:api": "tsx watch server/index.ts",
+    "dev": "VENN_DEV=1 tsx watch server/index.ts",
     "build": "pnpm build:web && pnpm build:server",
     "build:web": "vite build",
-    "build:server": "esbuild server/index.ts --bundle --platform=node --target=node24 --format=esm --outfile=dist-server/index.mjs --external:@resvg/resvg-js",
+    "build:server": "esbuild server/index.ts --bundle --platform=node --target=node24 --format=esm --outfile=dist-server/index.mjs --external:@resvg/resvg-js --external:vite",
     "start": "node dist-server/index.mjs",
     "typecheck": "tsc --noEmit",
     "test": "vitest run"
@@ -22,7 +20,6 @@
   },
   "devDependencies": {
     "@types/node": "^26.4.1",
-    "concurrently": "^9.1.2",
     "esbuild": "^0.25.0",
     "tsx": "^4.19.0",
     "typescript": "^5.7.0",

@@ -1,11 +1,20 @@
 services:
   venn-dev:
-    build: .
+    # 開發站不 build image：直接掛原始碼跑 Vite dev（middlewareMode），改一行就熱更新
+    image: node:24-slim
     container_name: venn-dev
     restart: unless-stopped
+    working_dir: /app
+    # uid 1000 = host 的 applepig，避免 vite 快取寫出 root 所有的檔案
+    user: "1000:1000"
+    volumes:
+      - .:/app
     environment:
       - PORT=3000
       - PUBLIC_ORIGIN=https://venn.dev.example
+      - VENN_DEV=1
+      # 這裡刻意不給 VENN_GTM_ID：開發站的操作不該混進正式站的數據
+    command: ./node_modules/.bin/tsx watch server/index.ts
     labels:
       # 本機 Traefik 走 websecure，憑證是 certs/ 裡的 *.dev.example wildcard
       - "traefik.enable=true"

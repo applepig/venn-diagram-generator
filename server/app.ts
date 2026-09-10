@@ -17,6 +17,11 @@ export interface AppOptions {
   publicOrigin?: string;
   /** GTM container id；沒給就完全不注入，開發站與測試不會送出數據 */
   gtmId?: string;
+  /**
+   * 取得要注入 meta 的 index.html。dev 模式用它換成 Vite 轉換過的原始檔，
+   * 讓開發站和正式站共用同一份 meta 注入邏輯，不必維護第二套。
+   */
+  loadIndexHtml?: (url: string) => string | Promise<string>;
 }
 
 const CACHE_FOREVER = 'public, max-age=31536000, immutable';
@@ -148,7 +153,7 @@ export function createApp(opts: AppOptions): Hono {
     });
   });
 
-  app.get('/', (c) => {
+  app.get('/', async (c) => {
     const s = c.req.query('s');
     let state: VennState;
     let param: string;
@@ -199,7 +204,8 @@ export function createApp(opts: AppOptions): Hono {
     ].join('');
 
     const title = shared ? og_title : HOME_TITLE;
-    const html = readIndexHtml()
+    const base = opts.loadIndexHtml ? await opts.loadIndexHtml(c.req.url) : readIndexHtml();
+    const html = base
       .replace(/<title>[^<]*<\/title>/, `<title>${escapeXml(title)}</title>`)
       .replace('</head>', `${meta}</head>`)
       .replace('<body>', `<body>${opts.gtmId ? gtmBody(opts.gtmId) : ''}`);

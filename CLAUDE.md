@@ -8,6 +8,7 @@
 - 圓的位置只由 state 的 n／overlap／radius 推得，不存座標。
 - 字型檔隨 repo 走（`assets/fonts/`），不依賴系統字型；Docker image 內亦不安裝字型套件。
 - 前端 Vite + vanilla TS，server Hono；部署 Docker → Traefik → Cloudflare Tunnel，hostname `venn.applepig.net`（見 `../cloudflare_deployment.md`）。
+- 單一入口：dev 用 Vite middlewareMode 掛進 Hono，`/`、`/api/png`、`/robots.txt` 全走 server 既有邏輯，SEO／og meta 不得出現第二套注入。開發站 `venn.dev.example` 掛原始碼熱更新、不 build image，且刻意不給 `VENN_GTM_ID`。
 
 ## 文件
 - `docs/01-mvp/spec.md`：sprint SSOT。`docs/01-mvp/works.md`：工作紀錄。`docs/01-mvp/prototype/venn.mjs`：比例與演算法驗證用的 throwaway 腳本，只作參考。

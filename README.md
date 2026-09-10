@@ -61,7 +61,7 @@ curl -o venn.png "http://localhost:3000/api/png?s=$S"
 
 ```bash
 pnpm install
-pnpm dev          # Vite 5173（會把 /api 轉給 3000）＋ Hono 3000
+pnpm dev          # Hono 3000，Vite 以 middlewareMode 掛在同一個 port（含 HMR）
 pnpm test         # Vitest
 pnpm typecheck    # tsc --noEmit
 pnpm build        # web → dist/，server → dist-server/
@@ -77,17 +77,17 @@ docker build -t venn-diagram-generator .
 docker run --rm -p 3000:3000 venn-diagram-generator
 ```
 
-兩份 compose 共用同一個 Dockerfile 與 external network `web`，只差 Traefik 路由：
+兩份 compose 共用 external network `web`，差別在跑法與 Traefik 路由：
 
-| 站 | 網址 | compose | entrypoint |
-|---|---|---|---|
-| 開發站 | `https://venn.dev.example` | `compose.dev.yml` | `websecure` + `tls`（本機 Traefik 的 `*.dev.example` wildcard 憑證） |
-| 正式站 | `https://venn.applepig.net` | `compose.yml` | `web`（TLS 在 Cloudflare 終止） |
+| 站 | 網址 | compose | 跑法 | entrypoint |
+|---|---|---|---|---|
+| 開發站 | `https://venn.dev.example` | `compose.dev.yml` | 掛原始碼跑 `pnpm dev`，不 build image | `websecure` + `tls`（本機 Traefik 的 `*.dev.example` wildcard 憑證） |
+| 正式站 | `https://venn.applepig.net` | `compose.yml` | Dockerfile build 出 dist | `web`（TLS 在 Cloudflare 終止） |
 
-開發站跑在本機（`toybox`，REDACTED-IP），DNS 由 LAN 的 `*.dev.example` 泛解析負責：
+開發站跑在本機（`toybox`，REDACTED-IP），DNS 由 LAN 的 `*.dev.example` 泛解析負責。它把 repo 掛進 `node:24-slim` 直接跑 `tsx watch server/index.ts`，改前端走 HMR（websocket 經 Traefik 的 wss）、改 server 由 tsx 重啟，都不必重 build：
 
 ```bash
-docker compose -f compose.dev.yml up -d --build
+docker compose -f compose.dev.yml up -d
 ```
 
 正式站跑在 deploy-host（Oracle aarch64），架構是 Cloudflare Tunnel → Traefik → container，兩個 infra 容器都不 publish port，host 的 80/443 留給既有的 apache：

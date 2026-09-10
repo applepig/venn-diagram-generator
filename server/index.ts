@@ -1,7 +1,9 @@
+import { createServer } from 'node:http';
 import { resolve } from 'node:path';
-import { serve } from '@hono/node-server';
+import { getRequestListener, serve } from '@hono/node-server';
 import { serveStatic } from '@hono/node-server/serve-static';
 import { createApp } from './app';
+import type { DevServer } from './dev';
 
 const PORT = Number(process.env.PORT ?? 3000);
 const DIST_DIR = process.env.VENN_DIST ?? 'dist';
@@ -10,17 +12,52 @@ const FONT_FILE = process.env.VENN_FONT ?? 'assets/fonts/NotoSansTC-Bold.otf';
 const PUBLIC_ORIGIN = process.env.PUBLIC_ORIGIN || undefined;
 // 只有正式站的 compose 會給：開發站與本機跑起來不該把數據送進 GTM
 const GTM_ID = process.env.VENN_GTM_ID || undefined;
+const DEV = process.env.VENN_DEV === '1';
 
-const app = createApp({
-  fontFile: resolve(FONT_FILE),
-  distDir: resolve(DIST_DIR),
-  publicOrigin: PUBLIC_ORIGIN,
-  gtmId: GTM_ID,
-});
+async function main(): Promise<void> {
+  if (!DEV) {
+    const app = createApp({
+      fontFile: resolve(FONT_FILE),
+      distDir: resolve(DIST_DIR),
+      publicOrigin: PUBLIC_ORIGIN,
+      gtmId: GTM_ID,
+    });
+    // createApp 已先註冊 /api/png 與 /，這裡只接沒被吃掉的靜態資源
+    app.use('/*', serveStatic({ root: DIST_DIR }));
 
-// createApp 已先註冊 /api/png 與 /，這裡只接沒被吃掉的靜態資源
-app.use('/*', serveStatic({ root: DIST_DIR }));
+    serve({ fetch: app.fetch, port: PORT, hostname: '0.0.0.0' }, (info) => {
+      console.log(`venn server listening on http://0.0.0.0:${info.port}`);
+    });
+    return;
+  }
 
-serve({ fetch: app.fetch, port: PORT, hostname: '0.0.0.0' }, (info) => {
-  console.log(`venn server listening on http://0.0.0.0:${info.port}`);
-});
+  // dev：先開 http server 讓 Vite 的 HMR websocket 掛上去，再把兩層接起來
+  const http_server = createServer();
+  const { createDevServer } = await import('./dev');
+  let dev: DevServer;
+  try {
+    dev = await createDevServer(http_server);
+  } catch (err) {
+    http_server.close();
+    throw err;
+  }
+
+  const app = createApp({
+    fontFile: resolve(FONT_FILE),
+    publicOrigin: PUBLIC_ORIGIN,
+    gtmId: GTM_ID,
+    loadIndexHtml: dev.loadIndexHtml,
+  });
+
+  const hono = getRequestListener(app.fetch);
+  // Vite 先接前端資源與 HMR，沒接住的（/、/api/png、/robots.txt…）才落到 Hono
+  http_server.on('request', (req, res) => {
+    dev.middlewares(req, res, () => hono(req, res));
+  });
+
+  http_server.listen(PORT, '0.0.0.0', () => {
+    console.log(`venn dev server listening on http://0.0.0.0:${PORT}`);
+  });
+}
+
+void main();
