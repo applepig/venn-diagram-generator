@@ -539,45 +539,57 @@ select {
   margin: 0;
 }
 
-/* peek 條與 overlay 的關閉鈕只存在於窄版面 */
-.peek-hint,
+/* sticky 小圖條整塊只存在於窄版面 */
+.peek {
+  display: none;
+}
+
 .preview-close {
   display: none;
 }
 
-/* ---- 窄版面：預覽收成頂端一格，點開才蓋成 overlay ---- */
+/* ---- 窄版面：大圖 → sticky 小圖條 → 完整面板 ---- */
 @media (max-width: 860px) {
+  /* 改 flex：sticky 的位移空間來自 containing block，grid item 的 area 剛好等於自身高度就黏不住 */
   .app {
-    grid-template-columns: minmax(0, 1fr);
+    display: flex;
+    flex-direction: column;
+    /* 蓋掉寬版面 grid 用的 align-items: start，flex column 下它會讓每塊縮成內容寬 */
+    align-items: stretch;
     gap: 0;
     padding: 0;
-    /* min-height: 100vh 的剩餘高度預設會攤給兩列，在 peek 條下方撐出一段空白 */
-    align-content: start;
   }
 
-  .panel {
-    position: static;
-    order: 2;
-    border-width: 1px 0 0;
-    border-radius: 0;
-    padding: 14px 12px 20px;
-  }
-
-  /* peek：sticky 一格高，調控制項時始終看得到圖有沒有變 */
   .stage {
     order: 1;
+    padding: 12px 12px 0;
+  }
+
+  /* 捲過大圖之後才黏在頂端，之後調控制項都還看得到圖有沒有變 */
+  .peek {
+    order: 2;
+    display: flex;
+    align-items: center;
+    gap: 10px;
     position: sticky;
     top: 0;
     z-index: 20;
-    flex-direction: row;
-    gap: 10px;
+    margin-top: 12px;
     background: var(--bg);
     border-bottom: 1px solid var(--line);
     padding: 8px 12px;
     cursor: pointer;
   }
 
-  .canvas-wrap {
+  .panel {
+    position: static;
+    order: 3;
+    border-width: 1px 0 0;
+    border-radius: 0;
+    padding: 14px 12px 20px;
+  }
+
+  .peek .canvas-wrap {
     width: 56px;
     flex: none;
   }
@@ -590,27 +602,23 @@ select {
     font-size: 13px;
   }
 
-  /* 一格高的條放不下說明，而且那時也點不到圖上的字 */
-  .stage .hint {
-    display: none;
-  }
-
   body[data-preview='open'] {
     overflow: hidden;
   }
 
-  body[data-preview='open'] .stage {
+  body[data-preview='open'] .peek {
     position: fixed;
     inset: 0;
     z-index: 50;
     flex-direction: column;
     justify-content: center;
+    margin-top: 0;
     background: #0b0d10f2;
     border-bottom: 0;
     padding: 20px;
   }
 
-  body[data-preview='open'] .canvas-wrap {
+  body[data-preview='open'] .peek .canvas-wrap {
     width: min(92vw, 68vh);
   }
 
@@ -618,7 +626,6 @@ select {
     display: none;
   }
 
-  body[data-preview='open'] .stage .hint,
   body[data-preview='open'] .preview-close {
     display: block;
   }

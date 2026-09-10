@@ -15,10 +15,16 @@
         <div class="canvas-wrap">
           <div class="canvas" id="canvas"></div>
         </div>
-        <p class="peek-hint">預覽 · 點一下放大</p>
-        <button type="button" class="preview-close">關閉預覽</button>
         <p class="hint">點圖上的文字可以跳到對應的那一列；空的區域從列表進去填。</p>
       </main>
+      <!-- 窄版面才出現：捲過大圖之後黏在頂端，點一下放大成 overlay -->
+      <div class="peek">
+        <div class="canvas-wrap">
+          <div class="canvas" id="canvas-mini"></div>
+        </div>
+        <p class="peek-hint">預覽 · 點一下放大</p>
+        <button type="button" class="preview-close">關閉預覽</button>
+      </div>
     </div>
     <script type="module" src="/main.ts"></script>
   </body>

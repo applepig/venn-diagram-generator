@@ -1,8 +1,15 @@
 import { renderSvg } from '../shared/render-svg';
 import type { VennState } from '../shared/types';
 
-/** 與 style.css 的單欄斷點同一個值：窄版面才有 peek／overlay 兩段預覽 */
+/** 與 style.css 的單欄斷點同一個值：窄版面才有 sticky 小圖與 overlay */
 const NARROW_MQ = '(max-width: 860px)';
+
+export interface CanvasElements {
+  /** 頁面頂端的大圖，跟著內容捲走 */
+  main: HTMLElement;
+  /** sticky 條裡的小圖，點一下放大成 overlay */
+  mini: HTMLElement;
+}
 
 export interface CanvasHandlers {
   getState: () => VennState;
@@ -14,9 +21,14 @@ export interface CanvasController {
   render: () => void;
 }
 
+function maskOf(target: EventTarget | null): number | null {
+  const group = (target as Element | null)?.closest('[data-region]');
+  return group ? Number(group.getAttribute('data-region')) : null;
+}
+
 /** 預覽只負責畫，不接受任何直接編輯（04 AC5） */
-export function createCanvas(canvas_el: HTMLElement, handlers: CanvasHandlers): CanvasController {
-  const stage = canvas_el.closest('.stage') as HTMLElement;
+export function createCanvas(els: CanvasElements, handlers: CanvasHandlers): CanvasController {
+  const peek = els.mini.closest('.peek') as HTMLElement;
   const narrow = window.matchMedia(NARROW_MQ);
 
   const isOpen = (): boolean => document.body.dataset.preview === 'open';
@@ -25,31 +37,28 @@ export function createCanvas(canvas_el: HTMLElement, handlers: CanvasHandlers): 
   };
   setOpen(false);
 
-  canvas_el.addEventListener('click', (event) => {
-    // 窄版面的 peek 條只有一格高，點不準圖上的字：這時整條的意思就是「放大」
-    if (narrow.matches && !isOpen()) {
-      setOpen(true);
-      event.stopPropagation();
-      return;
-    }
-    const group = (event.target as Element | null)?.closest('[data-region]');
-    if (!group) return;
-    // 先收起 overlay 再展開那一列：overlay 蓋住面板，而且鎖住捲動會讓 scrollIntoView 失效
-    setOpen(false);
-    handlers.onRegionPicked(Number(group.getAttribute('data-region')));
-    // 不讓下面那個 listener 把剛收起來的 overlay 當成「點 peek 條」再打開
-    event.stopPropagation();
+  els.main.addEventListener('click', (event) => {
+    const mask = maskOf(event.target);
+    if (mask !== null) handlers.onRegionPicked(mask);
   });
 
-  stage.addEventListener('click', (event) => {
+  peek.addEventListener('click', (event) => {
     if (!narrow.matches) return;
-    // peek 條的文字與留白也算「點一下放大」
+    // 收合狀態的小圖只有一格高，點不準圖上的字：整條的意思就是「放大」
     if (!isOpen()) {
       setOpen(true);
       return;
     }
-    // overlay 展開時，圖以外的地方（背景與關閉鈕）收回 peek
-    if ((event.target as Element).closest('.canvas-wrap')) return;
+    if ((event.target as Element).closest('.canvas-wrap')) {
+      const mask = maskOf(event.target);
+      // 點到圖的空白處不收起，只有點到文字才跳去那一列
+      if (mask === null) return;
+      // 先收起 overlay：它蓋住面板，而且鎖住捲動會讓 scrollIntoView 失效
+      setOpen(false);
+      handlers.onRegionPicked(mask);
+      return;
+    }
+    // 背景與關閉鈕
     setOpen(false);
   });
 
@@ -64,7 +73,12 @@ export function createCanvas(canvas_el: HTMLElement, handlers: CanvasHandlers): 
 
   return {
     render() {
-      canvas_el.innerHTML = renderSvg(handlers.getState());
+      const svg = renderSvg(handlers.getState());
+      els.main.innerHTML = svg;
+      // 同一份 SVG 出現兩次會有兩個 id="glow"，小圖換掉自己那組再插入
+      els.mini.innerHTML = svg
+        .replaceAll('id="glow"', 'id="glow-mini"')
+        .replaceAll('url(#glow)', 'url(#glow-mini)');
     },
   };
 }

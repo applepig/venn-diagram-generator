@@ -10,6 +10,7 @@ import { createToolbar } from './toolbar';
 
 const panel_el = document.getElementById('panel')!;
 const canvas_el = document.getElementById('canvas')!;
+const canvas_mini_el = document.getElementById('canvas-mini')!;
 
 let state: VennState = sampleState();
 let encoded = '';
@@ -26,10 +27,13 @@ const toolbar = createToolbar(panel_el, {
   onDownloadSvg: () => downloadSvg(),
 });
 
-const canvas = createCanvas(canvas_el, {
-  getState: () => state,
-  onRegionPicked: (mask) => toolbar.openSlot(mask),
-});
+const canvas = createCanvas(
+  { main: canvas_el, mini: canvas_mini_el },
+  {
+    getState: () => state,
+    onRegionPicked: (mask) => toolbar.openSlot(mask),
+  },
+);
 
 function patchSlot(mask: number, patch: Partial<TextSlot>): void {
   setState({ texts: patchSlotTexts(state.texts, String(mask), patch) });
