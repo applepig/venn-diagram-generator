@@ -1,6 +1,6 @@
 # venn-diagram-generator
 
-文氏圖 meme 產生器：WYSIWYG 單頁編輯器，狀態編進 URL，server 出 PNG 與 og:image。玩具專案，遵循上層 `Dropbox/projects/CLAUDE.md` 玩具模式。
+文氏圖產生器：WYSIWYG 單頁編輯器，狀態編進 URL，server 出 PNG 與 og:image。玩具專案，遵循上層 `Dropbox/projects/CLAUDE.md` 玩具模式。
 
 ## 架構約束
 - SVG 是唯一渲染真相：`shared/` 下的純函式（layout、render-svg、state 編解碼）前後端共用；PNG 只是 SVG 經 `@resvg/resvg-js` 轉檔，不得出現第二套繪圖邏輯。

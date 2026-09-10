@@ -377,7 +377,7 @@ describe('GET /：AC4 og meta', () => {
     const html = await (await get(`/?s=${encodeState(sampleState())}`)).text();
     const title = html.match(/<meta property="og:title" content="([^"]+)"/)![1]!;
 
-    expect(title).toBe('該做的事 × 想做的事｜文氏圖 meme');
+    expect(title).toBe('該做的事 × 想做的事｜文氏圖產生器');
     expect(html).toContain(`<title>${title}</title>`);
   });
 
@@ -548,7 +548,7 @@ describe('AC13 SEO：canonical、robots、structured data', () => {
     const s = encodeState(sampleState());
     const html = await (await get(`/?s=${s}`)).text();
 
-    expect(html).toContain('<title>該做的事 × 想做的事｜文氏圖 meme</title>');
+    expect(html).toContain('<title>該做的事 × 想做的事｜文氏圖產生器</title>');
   });
 
   it('壞掉的 s 不會被當成值得索引的頁面', async () => {

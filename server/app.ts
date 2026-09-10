@@ -56,7 +56,7 @@ function titleOf(state: VennState): string {
         .trim(),
     )
     .filter(Boolean);
-  return labels.length > 0 ? `${labels.join(' × ')}｜文氏圖 meme` : SITE_NAME;
+  return labels.length > 0 ? `${labels.join(' × ')}｜${SITE_NAME}` : SITE_NAME;
 }
 
 /** 點陣化丟到 resvg 的 worker thread，避免大圖把 event loop 卡死（AC 1b） */
@@ -71,10 +71,10 @@ async function renderPng(state: VennState, font_file: string): Promise<Uint8Arra
 const FALLBACK_HTML = `<!doctype html><html lang="zh-Hant"><head><meta charset="utf-8"><title>文氏圖產生器</title></head><body><p>前端尚未 build，請先執行 <code>pnpm build</code>。</p></body></html>`;
 
 const SITE_NAME = '文氏圖產生器';
-const DESCRIPTION = '填字就有的文氏圖 meme 產生器，狀態直接編在網址裡。';
+const DESCRIPTION = '填字就有的文氏圖產生器，狀態直接編在網址裡。';
 /** 首頁的 <title> 與 og:title 都用 OG 底圖上的品牌文案；分享頁才走 titleOf() 顯示圖上的內容 */
 const HOME_TITLE = '文氏圖產生器｜找不到哏圖不會自己做嗎？';
-const IMAGE_ALT = '文氏圖 meme 預覽圖';
+const IMAGE_ALT = '文氏圖產生器預覽圖';
 
 /** GTM 的官方 snippet，只有 container id 抽成參數 */
 function gtmHead(id: string): string {
