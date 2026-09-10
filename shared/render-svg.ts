@@ -16,8 +16,19 @@ export function escapeXml(s: string): string {
 
 // ---------- 平面填色的區域配色 ----------
 
+/** state.colors 短於圈數時的備援色（正常流程不會發生，codec 會擋下來） */
+const FALLBACK_COLOR = '#888888';
+
 function hexToRgb(hex: string): [number, number, number] {
   return [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16)) as [number, number, number];
+}
+
+function rgbToHex(r: number, g: number, b: number): string {
+  const channel = (v: number) =>
+    Math.round(Math.max(0, Math.min(255, v)))
+      .toString(16)
+      .padStart(2, '0');
+  return `#${channel(r)}${channel(g)}${channel(b)}`;
 }
 
 function rgbToHsl(r: number, g: number, b: number): [number, number, number] {
@@ -72,14 +83,12 @@ export function mixColors(hexes: string[]): string {
  * 相鄰區域共用同一段弧，但兩邊各自抗鋸齒仍會在接縫透出一絲背景色，
  * 所以補一道同色細描邊把接縫蓋掉。
  */
-function flatRegions(circles: Circle[], colors: string[], size: number): string {
+function flatRegions(state: VennState, circles: Circle[], size: number): string {
   // 輸出永遠是 1 使用者單位 = 1 像素，所以描邊寬度用固定值（跨 size 一致地蓋掉 1px 級的接縫）
   const stroke_w = 1.5;
   let body = '';
   for (const [mask, d] of regionPaths(circles, size)) {
-    const members: number[] = [];
-    for (let i = 0; i < circles.length; i++) if (mask & (1 << i)) members.push(i);
-    const color = mixColors(members.map((i) => colors[i] ?? '#888888'));
+    const color = regionColor(state, mask);
     body +=
       `<path d="${d}" fill-rule="evenodd" fill="${escapeXml(color)}" ` +
       `stroke="${escapeXml(color)}" stroke-width="${stroke_w}"/>`;
@@ -87,9 +96,55 @@ function flatRegions(circles: Circle[], colors: string[], size: number): string 
   return body;
 }
 
+// ---------- 亮度與區域代表色 ----------
+
+/** WCAG 相對亮度：sRGB 通道線性化後加權；0 是黑、1 是白 */
+export function relativeLuminance(hex: string): number {
+  const [r, g, b] = hexToRgb(hex).map((v) => {
+    const s = v / 255;
+    return s <= 0.03928 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4;
+  }) as [number, number, number];
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+}
+
+/** 超過這個亮度就改用黑字（AC8）；PALETTE 與其混色最亮 0.454，只有淺色 override 會過線 */
+const DARK_TEXT_LUMINANCE = 0.6;
+
+function membersOf(mask: number): number[] {
+  const members: number[] = [];
+  for (let i = 0; mask >> i; i++) if (mask & (1 << i)) members.push(i);
+  return members;
+}
+
+/**
+ * 一個區域在目前樣式下實際看到的顏色：
+ * flat 是 `fill` override 或自動混色、translucent 是背景與成員色依圈序 source-over 疊出來的、
+ * outline 沒有填色所以是背景色；單圈區一律取該圈的顏色，與面板上的顏色控制項一致。
+ */
+export function regionColor(state: VennState, mask: number): string {
+  const members = membersOf(mask);
+  const colorOf = (i: number) => state.colors[i] ?? FALLBACK_COLOR;
+
+  if (state.style === 'flat') {
+    return state.texts[String(mask)]?.fill ?? mixColors(members.map(colorOf));
+  }
+  if (members.length === 1) return colorOf(members[0]!);
+  if (state.style === 'outline') return state.bg;
+
+  let [r, g, b] = hexToRgb(state.bg);
+  for (const i of members) {
+    const [sr, sg, sb] = hexToRgb(colorOf(i));
+    const a = state.opacity;
+    r = a * sr + (1 - a) * r;
+    g = a * sg + (1 - a) * g;
+    b = a * sb + (1 - a) * b;
+  }
+  return rgbToHex(r, g, b);
+}
+
 // ---------- SVG ----------
 
-export function renderSvg(state: VennState, opts: { editor?: boolean } = {}): string {
+export function renderSvg(state: VennState): string {
   const size = state.size;
   const circles = circlesFor(state.n, state.radius, state.overlap);
   const is_outline = state.style === 'outline';
@@ -98,7 +153,17 @@ export function renderSvg(state: VennState, opts: { editor?: boolean } = {}): st
   let body = '';
 
   if (state.style === 'flat') {
-    body += flatRegions(circles, state.colors, size);
+    body += flatRegions(state, circles, size);
+    // 挖白（或任何淺色 override）的區域貼在淺色背景上看不出圓，補一圈輪廓把梗撐住；
+    // 沒有 override 的 flat 圖不加，舊連結的畫面一個像素都不動
+    if (Object.values(state.texts).some((slot) => slot.fill !== undefined)) {
+      body += circles
+        .map(
+          (c) =>
+            `<circle cx="${c.x * size}" cy="${c.y * size}" r="${c.r * size}" fill="none" stroke="#000000" stroke-width="${size * 0.004}"/>`,
+        )
+        .join('');
+    }
   } else if (is_outline) {
     body += circles
       .map(
@@ -125,10 +190,13 @@ export function renderSvg(state: VennState, opts: { editor?: boolean } = {}): st
       `</filter>`;
   }
 
-  const text_fill = is_outline ? '#000000' : '#ffffff';
-  const glow_attr = is_outline ? '' : ' filter="url(#glow)"';
-
-  for (const block of layout(state, opts)) {
+  for (const block of layout(state)) {
+    // flat 的區域可能被 override 成淺色，白字＋光暈會糊掉，改看該區實際亮度取黑白
+    const on_light =
+      state.style === 'flat' &&
+      relativeLuminance(regionColor(state, block.mask)) >= DARK_TEXT_LUMINANCE;
+    const text_fill = is_outline || on_light ? '#000000' : '#ffffff';
+    const glow_attr = is_outline || on_light ? '' : ' filter="url(#glow)"';
     const fs = block.fs * size;
     const line_h = fs * LINE_HEIGHT;
     const y0 = block.cy * size - ((block.lines.length - 1) * line_h) / 2;
@@ -139,10 +207,8 @@ export function renderSvg(state: VennState, opts: { editor?: boolean } = {}): st
           `font-size="${fs}">${escapeXml(line)}</text>`,
       )
       .join('');
-    const opacity_attr = block.placeholder ? ' opacity="0.35"' : '';
-    const placeholder_attr = block.placeholder ? ' data-placeholder="1"' : '';
     body +=
-      `<g data-region="${block.mask}"${placeholder_attr}${opacity_attr} fill="${text_fill}" ` +
+      `<g data-region="${block.mask}" fill="${text_fill}" ` +
       `font-family="${FONT_FAMILY}" font-weight="700" text-anchor="middle" ` +
       `dominant-baseline="central"${glow_attr}>${tspans}</g>`;
   }

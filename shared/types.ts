@@ -15,6 +15,8 @@ export interface TextSlot {
   dx?: number;
   /** 相對區域框中心的垂直偏移，畫布寬比例 */
   dy?: number;
+  /** 該區的填色 override（`#rrggbb`），只在 flat 樣式生效；缺席代表自動混色 */
+  fill?: string;
 }
 
 export interface VennState {
@@ -60,6 +62,4 @@ export interface TextBlock {
   /** 字級，畫布寬比例 */
   fs: number;
   lines: string[];
-  /** 是否為空槽的編輯器 placeholder */
-  placeholder: boolean;
 }

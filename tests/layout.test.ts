@@ -11,8 +11,6 @@ import {
 import {
   DEFAULT_OVERLAP,
   DEFAULT_RADIUS,
-  EDITOR_PLACEHOLDER,
-  EDITOR_PLACEHOLDER_SHORT,
   INTERSECTION_ASPECT,
   INTERSECTION_START_FS,
   LABEL_START_FS,
@@ -494,39 +492,16 @@ describe('layout：AC1 字級與槽的存在性', () => {
     expect(masks).not.toContain(15);
   });
 
-  it('空槽預設不輸出，editor 模式才給 placeholder', () => {
+  it('空槽不輸出任何區塊', () => {
     const s = stateWith(3, { '1': '快' });
 
     expect(layout(s).map((b) => b.mask)).toEqual([1]);
-    const editor_masks = layout(s, { editor: true }).map((b) => b.mask);
-    expect(editor_masks).toContain(2);
-    expect(layout(s, { editor: true }).find((b) => b.mask === 2)!.placeholder).toBe(true);
-  });
-
-  it('AC7 三重槽的 placeholder 放不下時改顯示「＋」且不溢框', () => {
-    const blocks = layout(sampleState(4), { editor: true });
-
-    for (const mask of [7, 11, 13, 14]) {
-      const block = blocks.find((b) => b.mask === mask);
-      expect(block, `mask ${mask} 要有 placeholder 才點得到`).toBeDefined();
-      expect(block!.placeholder).toBe(true);
-      expect(block!.lines).toEqual([EDITOR_PLACEHOLDER_SHORT]);
-      expect(estimateWidth(block!.lines[0]!, block!.fs)).toBeLessThanOrEqual(block!.box.w + 1e-9);
-      expect(block!.fs * LINE_HEIGHT).toBeLessThanOrEqual(block!.box.h + 1e-9);
-    }
   });
 
   it('AC7 三重槽放 2 個全形字不觸字級下限', () => {
     const s = { ...sampleState(4), texts: { '7': { t: '甲乙' }, '14': { t: '甲乙' } } };
 
     for (const block of layout(s)) expect(block.fs).toBeGreaterThan(MIN_FS);
-  });
-
-  it('框放得下時 placeholder 仍用完整的「點此輸入」', () => {
-    const block = layout(defaultState(2), { editor: true }).find((b) => b.mask === 3)!;
-
-    expect(block.lines.join('')).toBe(EDITOR_PLACEHOLDER);
-    expect(block.fs).toBeGreaterThan(MIN_FS);
   });
 
   it('手動 fs 與 dx/dy 會被採用，不被自動排版覆寫', () => {

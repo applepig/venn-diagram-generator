@@ -153,6 +153,9 @@ describe('validateState：schema 檢查', () => {
     ['texts key 不是這個圈數的槽', { ...sampleState(), texts: { '7': { t: '無效' } } }],
     ['texts value 缺 t', { ...sampleState(), texts: { '1': {} } }],
     ['texts value 的 fs 不是數字', { ...sampleState(), texts: { '1': { t: '甲', fs: 'big' } } }],
+    ['AC6 fill 不是 hex', { ...sampleState(), texts: { '1': { t: '甲', fill: 'red' } } }],
+    ['AC6 fill 是三碼縮寫', { ...sampleState(), texts: { '1': { t: '甲', fill: '#fff' } } }],
+    ['AC6 fill 不是字串', { ...sampleState(), texts: { '1': { t: '甲', fill: 0xffffff } } }],
   ];
 
   for (const [name, input] of invalid) {
@@ -160,6 +163,31 @@ describe('validateState：schema 檢查', () => {
       expect(() => validateState(input)).toThrow(StateError);
     });
   }
+
+  it('AC6 合法的 fill 通過驗證並被保留下來', () => {
+    const s = { ...sampleState(2), texts: { '3': { t: '挖白', fill: '#FFFFFF' }, '1': { t: '甲' } } };
+
+    const state = validateState(s);
+
+    expect(state.texts['3']).toEqual({ t: '挖白', fill: '#FFFFFF' });
+    expect(state.texts['1']!.fill).toBeUndefined();
+  });
+
+  it('AC6 帶 fill 的 state 經由 URL round-trip 後 fill 原樣回來', () => {
+    const s: VennState = {
+      ...defaultState(2),
+      style: 'flat',
+      texts: { '3': { t: '挖白', fill: '#ffffff' } },
+    };
+
+    expect(decodeState(encodeState(s))).toEqual(s);
+  });
+
+  it('AC6 不帶 fill 的舊格式解出來不會多出 fill 欄位', () => {
+    const state = decodeState(encodeState(sampleState(2)));
+
+    for (const slot of Object.values(state.texts)) expect('fill' in slot).toBe(false);
+  });
 
   it('任一文字超過 80 字 → StateError', () => {
     const s = { ...sampleState(), texts: { '1': { t: '字'.repeat(81) } } };
@@ -232,14 +260,19 @@ describe('decodeState：解壓輸出上限（AC1）', () => {
     expect(state).toEqual({ ...sampleState(), size: 400 });
   });
 
-  it('最壞的合法 state（13 槽各 80 個不重複中文＋fs/dx/dy）編得出、解得回，且不超過參數長度上限', () => {
-    let code_point = 0x4e00;
+  it('最壞的合法 state（13 槽各 80 個不重複的 4-byte 字＋fs/dx/dy/fill）編得出、解得回，且不超過參數長度上限', () => {
+    // U+20000 起的擴充漢字每字 4 bytes，是單一 code point 能佔的最大體積，比 3-byte 中文更壞
+    let code_point = 0x20000;
+    let fill_seed = 0x123457;
     const texts: Record<string, TextSlot> = {};
     for (const mask of SLOT_MASKS[4]) {
       const t = Array.from({ length: MAX_TEXT_LEN }, () => String.fromCodePoint(code_point++)).join(
         '',
       );
-      texts[String(mask)] = { t, fs: 0.037, dx: -0.011, dy: 0.023 };
+      // 每槽不同的 fill，壓縮器沒有重複字串可吃，才是真正的最壞案例
+      fill_seed = (fill_seed * 7919) % 0xffffff;
+      const fill = `#${fill_seed.toString(16).padStart(6, '0')}`;
+      texts[String(mask)] = { t, fs: 0.037, dx: -0.011, dy: 0.023, fill };
     }
     const worst: VennState = { ...defaultState(4), texts };
 

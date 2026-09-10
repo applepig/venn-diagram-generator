@@ -1,43 +1,38 @@
 import './style.css';
 import { sampleState } from '../shared/defaults';
 import { nextStateForCircleCount } from '../shared/circle-count';
+import { renderSvg } from '../shared/render-svg';
 import { decodeState, encodeState } from '../shared/state-codec-web';
 import type { CircleCount, TextSlot, VennState } from '../shared/types';
 import { createCanvas } from './canvas';
+import { patchSlotTexts } from './patch-slot';
 import { createToolbar } from './toolbar';
 
-const toolbar_el = document.getElementById('toolbar')!;
+const panel_el = document.getElementById('panel')!;
 const canvas_el = document.getElementById('canvas')!;
-const overlay_el = document.getElementById('overlay')!;
 
 let state: VennState = sampleState();
 let encoded = '';
 /** 編碼是非同步的，用 token 丟掉過期結果，避免慢的那次蓋掉新的 */
 let encode_token = 0;
 
-// 工具列只建一次，之後只做增量更新：在 input 事件裡重建節點會中斷拖曳手勢
-const toolbar = createToolbar(toolbar_el, {
+// 面板只建一次，之後只做增量更新：在 input 事件裡重建節點會中斷拖曳手勢與游標
+const toolbar = createToolbar(panel_el, {
   onPatch: (patch) => setState(patch),
   onCircleCount: (n) => setCircleCount(n),
+  onPatchSlot: patchSlot,
   onCopyImage: () => void copyImage(),
   onCopyLink: () => void copyLink(),
+  onDownloadSvg: () => downloadSvg(),
 });
 
-const canvas = createCanvas(canvas_el, overlay_el, {
+const canvas = createCanvas(canvas_el, {
   getState: () => state,
-  setText: (mask, t) => patchSlot(mask, { t }),
-  patchSlot,
-  resetSlot: (mask) => {
-    const slot = state.texts[String(mask)];
-    if (!slot) return;
-    setState({ texts: { ...state.texts, [String(mask)]: { t: slot.t } } });
-  },
+  onRegionPicked: (mask) => toolbar.openSlot(mask),
 });
 
 function patchSlot(mask: number, patch: Partial<TextSlot>): void {
-  const key = String(mask);
-  const current: TextSlot = state.texts[key] ?? { t: '' };
-  setState({ texts: { ...state.texts, [key]: { ...current, ...patch } } });
+  setState({ texts: patchSlotTexts(state.texts, String(mask), patch) });
 }
 
 function setState(patch: Partial<VennState>): void {
@@ -57,6 +52,17 @@ function pngUrl(): string {
 
 function shareUrl(): string {
   return `${location.origin}/?s=${encoded}`;
+}
+
+/** SVG 由前端這份純函式直接產出，和 /api/png 是同一張圖 */
+function downloadSvg(): void {
+  const url = URL.createObjectURL(new Blob([renderSvg(state)], { type: 'image/svg+xml' }));
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'venn.svg';
+  a.click();
+  // 同一個 tick 就 revoke，部分瀏覽器會來不及取用而下載空檔；讓出一輪再釋放
+  setTimeout(() => URL.revokeObjectURL(url), 0);
 }
 
 async function copyImage(): Promise<void> {
@@ -92,7 +98,7 @@ async function syncUrl(): Promise<void> {
   if (token !== encode_token) return;
   encoded = next;
   history.replaceState(null, '', `?s=${encoded}`);
-  // 編碼完成後才知道正確的下載連結與 og 分享網址，補一次工具列
+  // 編碼完成後才知道正確的下載連結與 og 分享網址，補一次面板
   toolbar.update(state, pngUrl());
 }
 
@@ -107,7 +113,6 @@ async function boot(): Promise<void> {
     }
   }
   render();
-  window.addEventListener('resize', () => canvas.render());
 }
 
 void boot();

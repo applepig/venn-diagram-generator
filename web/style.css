@@ -10,10 +10,12 @@
   --bg: #14161a;
   --panel: #1e2128;
   --panel-2: #262a33;
+  --panel-3: #2f3440;
   --line: #333845;
   --fg: #e8eaee;
   --muted: #9aa2b1;
   --accent: #4c8dff;
+  color-scheme: dark;
 }
 
 * {
@@ -25,143 +27,458 @@ body {
   background: var(--bg);
   color: var(--fg);
   font-family: 'Noto Sans TC', system-ui, sans-serif;
+  font-size: 14px;
   font-weight: 700;
+  line-height: 1.5;
 }
 
 .app {
   display: grid;
-  grid-template-columns: 320px 1fr;
+  grid-template-columns: 320px minmax(0, 1fr);
   gap: 20px;
   padding: 20px;
   min-height: 100vh;
   align-items: start;
 }
 
-.toolbar {
+.panel {
   background: var(--panel);
   border: 1px solid var(--line);
   border-radius: 12px;
-  padding: 16px;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 12px;
+  padding: 14px;
   position: sticky;
   top: 20px;
 }
 
-.field {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-/* .field 的 display: flex 會蓋掉 [hidden] 的 UA 樣式，要明寫 */
-.field[hidden] {
-  display: none;
-}
-
-.field > label {
-  font-size: 12px;
-  color: var(--muted);
-  letter-spacing: 0.04em;
-}
-
-.seg {
-  display: flex;
-  gap: 6px;
-}
-
-.seg button {
-  flex: 1;
-  padding: 7px 0;
-  border-radius: 8px;
-  border: 1px solid var(--line);
-  background: var(--panel-2);
-  color: var(--fg);
-  font: inherit;
-  font-size: 13px;
-  cursor: pointer;
-}
-
-.seg button[aria-pressed='true'] {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: #fff;
-}
-
-.swatches {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.swatch-row {
-  display: grid;
-  grid-template-columns: repeat(10, 1fr);
-  gap: 4px;
-}
-
-.swatch {
-  position: relative;
-  height: 20px;
-  padding: 0;
-  border: 1px solid var(--line);
-  border-radius: 5px;
-  cursor: pointer;
-}
-
-.swatch[aria-pressed='true'] {
-  border-color: var(--fg);
-  box-shadow: 0 0 0 2px var(--accent);
-}
-
-/* 「自訂」格沒被選中時顯示彩虹，提示它會開原生色盤 */
-.swatch-custom {
-  background: conic-gradient(#e04848, #e6a92e, #3cb54a, #2e9be6, #8b5cf6, #e04848);
-}
-
-.swatch-custom input[type='color'] {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  padding: 0;
+.panel hr {
   border: 0;
-  opacity: 0;
-  cursor: pointer;
+  border-top: 1px solid var(--line);
+  margin: 1px 0;
+  width: 100%;
 }
 
-input[type='color'] {
-  width: 100%;
-  height: 32px;
-  padding: 0;
+/* ---- 圈數 ---- */
+.counts {
+  display: flex;
+  gap: 6px;
+}
+
+.counts button {
+  flex: 1;
+  background: var(--panel-2);
   border: 1px solid var(--line);
   border-radius: 8px;
-  background: var(--panel-2);
+  padding: 7px 0 5px;
   cursor: pointer;
+  color: var(--muted);
+}
+
+.counts button[aria-pressed='true'] {
+  border-color: var(--accent);
+  color: var(--fg);
+}
+
+.counts svg {
+  display: block;
+  margin: 0 auto;
+  width: 40px;
+  height: 22px;
+}
+
+/* ---- 通用列 ---- */
+.row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.row > label {
+  color: var(--muted);
+  font-weight: 400;
+  flex: none;
+  min-width: 46px;
+}
+
+.row > .val {
+  margin-left: auto;
+  color: var(--muted);
+  font-family: ui-monospace, monospace;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+/* .stack 的 display: flex 會蓋掉 [hidden] 的 UA 樣式，要明寫 */
+.stack[hidden] {
+  display: none;
 }
 
 input[type='range'] {
   width: 100%;
   accent-color: var(--accent);
+  margin: 0;
 }
 
-select {
-  padding: 7px 8px;
-  border-radius: 8px;
-  border: 1px solid var(--line);
+.seg {
+  display: flex;
+  flex: 1;
   background: var(--panel-2);
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  padding: 2px;
+  gap: 2px;
+}
+
+.seg button {
+  flex: 1;
+  appearance: none;
+  background: none;
+  border: 0;
+  border-radius: 5px;
+  color: var(--muted);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 400;
+  padding: 4px 0;
+  cursor: pointer;
+}
+
+.seg button[aria-pressed='true'] {
+  background: var(--panel-3);
+  color: var(--fg);
+  font-weight: 700;
+}
+
+/* ---- 顏色 popover ---- */
+.color {
+  position: relative;
+  margin-left: auto;
+}
+
+.color > button {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  padding: 3px 7px 3px 4px;
+  cursor: pointer;
+  color: var(--muted);
+  font: inherit;
+  font-size: 11px;
+  font-family: ui-monospace, monospace;
+}
+
+.color > button:hover:not(:disabled) {
+  border-color: var(--accent);
+}
+
+.color > button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.chip {
+  width: 20px;
+  height: 16px;
+  border-radius: 4px;
+  border: 1px solid #0007;
+  flex: none;
+}
+
+.chip.auto {
+  background: repeating-linear-gradient(45deg, #4a4f5c 0 4px, #2f3440 4px 8px);
+}
+
+.pop {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 5px);
+  z-index: 5;
+  background: var(--panel-3);
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  padding: 8px;
+  box-shadow: 0 10px 24px #0009;
+  display: none;
+  width: 152px;
+}
+
+.pop[data-open] {
+  display: block;
+}
+
+.pop .grid {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 4px;
+}
+
+.pop .grid button {
+  aspect-ratio: 1;
+  border-radius: 4px;
+  border: 1px solid #0007;
+  padding: 0;
+  cursor: pointer;
+}
+
+.pop .grid button[aria-pressed='true'] {
+  outline: 2px solid var(--fg);
+  outline-offset: 1px;
+}
+
+.pop hr {
+  border: 0;
+  border-top: 1px solid var(--line);
+  margin: 8px 0;
+}
+
+.pop .more {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.pop .hex {
+  flex: 1;
+  min-width: 0;
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  color: var(--fg);
+  font-family: ui-monospace, monospace;
+  font-size: 11.5px;
+  padding: 4px 6px;
+}
+
+.pop .native {
+  width: 26px;
+  height: 24px;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--panel-2);
+  cursor: pointer;
+}
+
+/* ---- 文字槽 ---- */
+.slots {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.slot {
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: var(--panel-2);
+  overflow: visible;
+}
+
+.slot > summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  cursor: pointer;
+  list-style: none;
+}
+
+.slot > summary::-webkit-details-marker {
+  display: none;
+}
+
+.slot > summary::after {
+  content: '⌃';
+  margin-left: auto;
+  color: var(--muted);
+  font-size: 12px;
+  transform: rotate(180deg);
+}
+
+.slot[open] > summary::after {
+  transform: none;
+}
+
+.slot > summary:hover {
+  background: var(--panel-3);
+}
+
+/* AC4：區域不存在的那一列整列停用，只留展開看原因 */
+.slot.disabled > summary .swatch,
+.slot.disabled > summary .tag,
+.slot.disabled > summary .txt {
+  opacity: 0.45;
+}
+
+.slot .swatch {
+  width: 13px;
+  height: 13px;
+  border-radius: 3px;
+  border: 1px solid #0007;
+  flex: none;
+}
+
+.tag {
+  font-family: ui-monospace, monospace;
+  font-size: 12px;
+  color: var(--fg);
+  flex: none;
+  min-width: 46px;
+}
+
+.txt {
+  color: var(--muted);
+  font-weight: 400;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+.body {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 4px 10px 11px;
+}
+
+.body .note {
+  margin: 0;
+  color: var(--muted);
+  font-weight: 400;
+  font-size: 11.5px;
+  line-height: 1.4;
+}
+
+textarea {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 7px;
   color: var(--fg);
   font: inherit;
   font-size: 13px;
+  padding: 6px 8px;
+  width: 100%;
+  min-height: 54px;
+  resize: vertical;
+}
+
+textarea:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* 字級：[自動] [− N px +]，外框標示現在是哪一邊在管 */
+.fs {
+  display: flex;
+  align-items: stretch;
+  gap: 5px;
+  margin-left: auto;
+}
+
+.fs .auto-btn,
+.fs .steps {
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  border-radius: 7px;
+}
+
+.fs .auto-btn {
+  color: var(--muted);
+  font: inherit;
+  font-size: 11px;
+  font-weight: 400;
+  padding: 3px 8px;
+  cursor: pointer;
+}
+
+.fs .steps {
+  display: flex;
+  align-items: center;
+  padding: 0 2px;
+}
+
+.fs .steps button {
+  background: none;
+  border: 0;
+  color: var(--muted);
+  font: inherit;
+  font-size: 13px;
+  line-height: 1;
+  padding: 3px 7px;
+  cursor: pointer;
+}
+
+.fs .steps .num {
+  background: none;
+  border: 0;
+  font-family: ui-monospace, monospace;
+  font-size: 11.5px;
+  color: var(--muted);
+  width: 34px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  padding: 0;
+  -moz-appearance: textfield;
+}
+
+.fs .steps .num::-webkit-inner-spin-button,
+.fs .steps .num::-webkit-outer-spin-button {
+  appearance: none;
+  margin: 0;
+}
+
+.fs .steps .unit {
+  font-family: ui-monospace, monospace;
+  font-size: 11.5px;
+  color: var(--muted);
+  padding-right: 2px;
+}
+
+.fs[data-mode='auto'] .auto-btn,
+.fs[data-mode='manual'] .steps {
+  border-color: var(--accent);
+  color: var(--fg);
+}
+
+.fs[data-mode='manual'] .steps .num,
+.fs[data-mode='manual'] .steps .unit,
+.fs[data-mode='manual'] .steps button {
+  color: var(--fg);
+}
+
+.fs button:disabled,
+.fs .num:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+/* ---- 輸出 ---- */
+select {
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  color: var(--fg);
+  font: inherit;
+  font-size: 13px;
+  padding: 5px 7px;
+  margin-left: auto;
 }
 
 .actions {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  border-top: 1px solid var(--line);
-  padding-top: 16px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
 }
 
 .actions button,
@@ -169,22 +486,28 @@ select {
   display: block;
   text-align: center;
   text-decoration: none;
-  padding: 10px;
-  border-radius: 8px;
-  border: 1px solid var(--line);
   background: var(--panel-2);
+  border: 1px solid var(--line);
+  border-radius: 8px;
   color: var(--fg);
   font: inherit;
-  font-size: 14px;
+  font-size: 13px;
+  padding: 8px 0;
   cursor: pointer;
 }
 
 .actions a.primary {
   background: var(--accent);
   border-color: var(--accent);
-  color: #fff;
+  color: #0a1220;
 }
 
+.actions button:hover,
+.actions a:hover {
+  border-color: var(--accent);
+}
+
+/* ---- 預覽 ---- */
 .stage {
   display: flex;
   flex-direction: column;
@@ -193,7 +516,6 @@ select {
 }
 
 .canvas-wrap {
-  position: relative;
   width: min(100%, 78vh);
   aspect-ratio: 1;
 }
@@ -207,72 +529,22 @@ select {
 }
 
 .canvas [data-region] {
-  cursor: text;
-}
-
-.overlay {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-}
-
-.overlay > * {
-  pointer-events: auto;
-}
-
-.slot-edit {
-  position: absolute;
-  margin: 0;
-  padding: 0;
-  border: 2px dashed var(--accent);
-  border-radius: 4px;
-  background: rgba(20, 22, 26, 0.35);
-  color: #fff;
-  font-family: 'Noto Sans TC', sans-serif;
-  font-weight: 700;
-  text-align: center;
-  line-height: 1.12;
-  resize: none;
-  overflow: hidden;
-  outline: none;
-}
-
-.slot-tools {
-  position: absolute;
-  transform: translate(-50%, -100%);
-  display: flex;
-  gap: 4px;
-  padding: 4px;
-  border-radius: 8px;
-  background: var(--panel);
-  border: 1px solid var(--line);
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.45);
-  white-space: nowrap;
-}
-
-.slot-tools button {
-  padding: 4px 8px;
-  border-radius: 6px;
-  border: 1px solid var(--line);
-  background: var(--panel-2);
-  color: var(--fg);
-  font: inherit;
-  font-size: 12px;
   cursor: pointer;
 }
 
 .hint {
   color: var(--muted);
+  font-weight: 400;
   font-size: 13px;
   margin: 0;
 }
 
 @media (max-width: 860px) {
   .app {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
 
-  .toolbar {
+  .panel {
     position: static;
     order: 2;
   }
@@ -284,4 +556,9 @@ select {
   .canvas-wrap {
     width: 100%;
   }
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }

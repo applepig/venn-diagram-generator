@@ -1,6 +1,4 @@
 import {
-  EDITOR_PLACEHOLDER,
-  EDITOR_PLACEHOLDER_SHORT,
   INTERSECTION_ASPECT,
   INTERSECTION_START_FS,
   LABEL_ASPECT,
@@ -311,7 +309,7 @@ function aspectFor(kind: 'label' | 'intersection'): number {
   return kind === 'label' ? LABEL_ASPECT : INTERSECTION_ASPECT;
 }
 
-export function layout(state: VennState, opts: { editor?: boolean } = {}): TextBlock[] {
+export function layout(state: VennState): TextBlock[] {
   const circles = circlesFor(state.n, state.radius, state.overlap);
   const blocks: TextBlock[] = [];
 
@@ -321,25 +319,17 @@ export function layout(state: VennState, opts: { editor?: boolean } = {}): TextB
   for (const mask of masks) {
     const slot = state.texts[String(mask)];
     const text = slot?.t ?? '';
-    const is_empty = text.trim() === '';
-    if (is_empty && !opts.editor) continue;
+    if (text.trim() === '') continue;
 
     const kind = popCount(mask) === 1 ? 'label' : 'intersection';
     const box = regionBox(circles, mask, aspectFor(kind));
     if (!box) continue;
 
-    const display = is_empty ? EDITOR_PLACEHOLDER : text;
     const manual_fs = typeof slot?.fs === 'number';
     // 手動指定字級時只換行不縮字，否則 +/- 按鈕會被自動排版吃掉
-    let fitted = manual_fs
-      ? { fs: slot!.fs!, lines: wrapManualFs(display, slot!.fs!, box.w) }
-      : fitText(display, box, startFsFor(kind));
-
-    // 細碎區域（如 4 圈的三重交集）連 placeholder 都放不下；空槽沒 placeholder 就點不到，
-    // 所以退成單字而不是不畫
-    if (is_empty && fitted.fs <= MIN_FS) {
-      fitted = fitText(EDITOR_PLACEHOLDER_SHORT, box, startFsFor(kind));
-    }
+    const fitted = manual_fs
+      ? { fs: slot!.fs!, lines: wrapManualFs(text, slot!.fs!, box.w) }
+      : fitText(text, box, startFsFor(kind));
 
     blocks.push({
       mask,
@@ -349,7 +339,6 @@ export function layout(state: VennState, opts: { editor?: boolean } = {}): TextB
       cy: box.cy + (slot?.dy ?? 0),
       fs: fitted.fs,
       lines: fitted.lines,
-      placeholder: is_empty,
     });
   }
 

@@ -97,6 +97,7 @@ function parseSlot(key: string, raw: unknown): TextSlot {
   if (raw.fs !== undefined) slot.fs = requireNumber(raw.fs, `文字槽 ${key} 的字級`, 0.001, 1);
   if (raw.dx !== undefined) slot.dx = requireNumber(raw.dx, `文字槽 ${key} 的水平偏移`, -1, 1);
   if (raw.dy !== undefined) slot.dy = requireNumber(raw.dy, `文字槽 ${key} 的垂直偏移`, -1, 1);
+  if (raw.fill !== undefined) slot.fill = requireHex(raw.fill, `文字槽 ${key} 的填色`);
   return slot;
 }
 

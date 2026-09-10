@@ -31,16 +31,14 @@ export const RADIUS_MAX = 0.35;
 export const MAX_TEXT_LEN = 80;
 
 /**
- * server route 收 `s` 參數的長度上限。最壞的合法 state（13 槽塞滿不重複中文＋fs/dx/dy）
- * 實測編出來 2,200 字元，留 1.8 倍餘裕；壓縮炸彈得靠上萬字元才打得動，這道閘讓它連 decode 都進不去。
+ * server route 收 `s` 參數的長度上限。最壞的合法 state 是 13 槽各塞滿 80 個不重複的 4-byte code point
+ * （U+20000 起的擴充漢字）＋fs/dx/dy＋每槽不同的 fill，實測編出來 3,639 字元（不帶 fill 是 3,466），
+ * 只留 1.10 倍餘裕；同樣條件換成 3-byte 中文是 3,266。
+ * 壓縮炸彈得靠上萬字元才打得動，這道閘讓它連 decode 都進不去。
  */
 export const MAX_STATE_PARAM_LEN = 4000;
 
 export const SIZE_CHOICES = [800, 1200, 1600];
-
-export const EDITOR_PLACEHOLDER = '點此輸入';
-/** 細碎區域連 placeholder 都放不下時的退路（見 layout()） */
-export const EDITOR_PLACEHOLDER_SHORT = '＋';
 
 /**
  * 每個圈數的預設 meme：文字槽與搭配的樣式，三組各示範一種樣式。
@@ -106,8 +104,9 @@ export function isPristine(state: VennState): boolean {
     const slot = state.texts[key]!;
     const expected = template[key];
     if (!expected || slot.t !== expected.t) return false;
-    // 調過字級或拖過位置就算編輯過，即使文字沒變
+    // 調過字級、拖過位置或指定過填色就算編輯過，即使文字沒變
     if (slot.fs !== undefined || slot.dx !== undefined || slot.dy !== undefined) return false;
+    if (slot.fill !== undefined) return false;
   }
   return true;
 }

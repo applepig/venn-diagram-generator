@@ -1,8 +1,8 @@
 import { Resvg } from '@resvg/resvg-js';
 import { describe, expect, it } from 'vitest';
-import { mixColors, renderSvg } from '../shared/render-svg';
+import { mixColors, regionColor, relativeLuminance, renderSvg } from '../shared/render-svg';
 import { circlesFor, layout, maskAt } from '../shared/layout';
-import { EDITOR_PLACEHOLDER, defaultState } from '../shared/defaults';
+import { PALETTE, defaultState } from '../shared/defaults';
 import type { VennStyle } from '../shared/types';
 import { FONT_FILE } from './helpers/font';
 
@@ -169,31 +169,192 @@ describe('renderSvg：AC9 括號置中補償', () => {
   });
 });
 
-describe('renderSvg：編輯器模式', () => {
-  it('每個文字槽帶 data-region，供編輯器點選定位', () => {
-    const svg = renderSvg(threeCircle('flat'), { editor: true });
+describe('renderSvg：AC5 點選定位用的 data-region', () => {
+  it('有文字的槽都帶 data-region，供面板點選定位', () => {
+    const svg = renderSvg(threeCircle('flat'));
 
     for (const mask of [1, 2, 4, 3, 5, 6, 7]) {
       expect(svg).toContain(`data-region="${mask}"`);
     }
   });
 
-  it('空槽：輸出模式不畫，編輯器模式顯示 placeholder', () => {
+  it('空槽不畫也不出 data-region，只能從左欄列表進入', () => {
     const s = defaultState(2);
     s.texts = { '1': { t: '工程師' } };
 
-    // placeholder 可能被換行拆開，所以比對去掉標籤後的純文字
-    const textOf = (svg: string) => svg.replace(/<[^>]*>/g, '');
+    const svg = renderSvg(s);
+    expect(svg).toContain('data-region="1"');
+    expect(svg).not.toContain('data-region="2"');
+    expect(svg).not.toContain('data-region="3"');
+  });
+});
 
-    const output = renderSvg(s);
-    expect(output).not.toContain('data-placeholder');
-    expect(textOf(output)).not.toContain(EDITOR_PLACEHOLDER.slice(0, 2));
-    expect(output).not.toContain('data-region="2"');
+describe('renderSvg：AC6 區域填色 override', () => {
+  function twoCircle(style: VennStyle, fill?: string) {
+    return {
+      ...defaultState(2),
+      style,
+      texts: { '1': { t: '甲' }, '2': { t: '乙' }, '3': { t: '交集', ...(fill ? { fill } : {}) } },
+    };
+  }
 
-    const editor = renderSvg(s, { editor: true });
-    expect(editor).toContain('data-placeholder="1"');
-    expect(textOf(editor)).toContain(EDITOR_PLACEHOLDER.slice(0, 2));
-    expect(editor).toContain('data-region="2"');
+  it('flat：該區改用 override 色，原本的自動混色不再出現', () => {
+    const svg = renderSvg(twoCircle('flat', '#123456'));
+
+    expect(svg).toContain('fill="#123456"');
+    expect(svg).not.toContain(mixColors([PALETTE[0]!, PALETTE[1]!]));
+  });
+
+  it('flat：沒帶 fill 的區域仍是自動混色', () => {
+    const svg = renderSvg(twoCircle('flat'));
+
+    expect(svg).toContain(`fill="${mixColors([PALETTE[0]!, PALETTE[1]!])}"`);
+  });
+
+  it('translucent 與 outline 忽略 fill', () => {
+    expect(renderSvg(twoCircle('translucent', '#123456'))).not.toContain('#123456');
+    expect(renderSvg(twoCircle('outline', '#123456'))).not.toContain('#123456');
+  });
+
+  it('AC7 flat 有 override 時每個圓補一圈黑描邊，寬度是畫布的 0.4%', () => {
+    const svg = renderSvg({ ...twoCircle('flat', '#ffffff'), size: 1000 });
+    const rings = [...svg.matchAll(/<circle [^>]*fill="none"[^>]*>/g)].map((m) => m[0]);
+
+    expect(rings).toHaveLength(2);
+    for (const ring of rings) {
+      expect(ring).toContain('stroke="#000000"');
+      expect(ring).toContain('stroke-width="4"');
+    }
+    expect(renderPng(svg).length).toBeGreaterThan(1000); // 補上的輪廓沒有破壞 SVG
+  });
+
+  it('AC7 沒有 override 的 flat 圖不畫圓輪廓', () => {
+    expect(renderSvg(twoCircle('flat'))).not.toContain('fill="none"');
+  });
+
+  it('AC7 translucent 即使帶 fill 也不畫圓輪廓', () => {
+    expect(renderSvg(twoCircle('translucent', '#ffffff'))).not.toContain('fill="none"');
+  });
+});
+
+describe('renderSvg：AC8 flat 的字色依區域亮度取黑白', () => {
+  function groupTag(svg: string, mask: number): string {
+    return svg.match(new RegExp(`<g data-region="${mask}"[^>]*>`))![0]!;
+  }
+
+  function flatWithFill(fill: string) {
+    return { ...defaultState(2), style: 'flat' as const, texts: { '3': { t: '交集', fill } } };
+  }
+
+  it('淺色區（#ffffff，亮度 1.0）用黑字且不加光暈', () => {
+    const tag = groupTag(renderSvg(flatWithFill('#ffffff')), 3);
+
+    expect(tag).toContain('fill="#000000"');
+    expect(tag).not.toContain('filter="url(#glow)"');
+  });
+
+  it('深色區（#e6a92e，亮度 0.454）維持白字＋黑光暈', () => {
+    const tag = groupTag(renderSvg(flatWithFill('#e6a92e')), 3);
+
+    expect(tag).toContain('fill="#ffffff"');
+    expect(tag).toContain('filter="url(#glow)"');
+  });
+
+  it('沒有 override 的 flat 區（自動混色）維持白字＋黑光暈', () => {
+    const state = { ...defaultState(2), style: 'flat' as const, texts: { '3': { t: '交集' } } };
+
+    expect(groupTag(renderSvg(state), 3)).toContain('filter="url(#glow)"');
+  });
+
+  it('translucent 帶淺色 fill 時字色不變（fill 不生效）', () => {
+    const state = {
+      ...defaultState(2),
+      style: 'translucent' as const,
+      texts: { '3': { t: '交集', fill: '#ffffff' } },
+    };
+    const tag = groupTag(renderSvg(state), 3);
+
+    expect(tag).toContain('fill="#ffffff"');
+    expect(tag).toContain('filter="url(#glow)"');
+  });
+
+  it('outline 維持黑字無光暈', () => {
+    const state = { ...defaultState(2), style: 'outline' as const, texts: { '3': { t: '交集' } } };
+    const tag = groupTag(renderSvg(state), 3);
+
+    expect(tag).toContain('fill="#000000"');
+    expect(tag).not.toContain('filter=');
+  });
+});
+
+describe('relativeLuminance', () => {
+  it('黑是 0、白是 1', () => {
+    expect(relativeLuminance('#000000')).toBeCloseTo(0, 10);
+    expect(relativeLuminance('#ffffff')).toBeCloseTo(1, 10);
+  });
+
+  it('PALETTE 最亮的 #e6a92e 是 0.454', () => {
+    expect(relativeLuminance('#e6a92e')).toBeCloseTo(0.454, 3);
+  });
+
+  it('AC8 前提：PALETTE 與其所有 mixColors 組合都在 0.6 門檻以下（所以全部維持白字）', () => {
+    const too_bright: string[] = [];
+    for (let mask = 1; mask < 1 << PALETTE.length; mask++) {
+      const members = PALETTE.filter((_, i) => mask & (1 << i));
+      const color = mixColors(members);
+      if (relativeLuminance(color) >= 0.6) too_bright.push(`${color} (mask ${mask})`);
+    }
+
+    expect(too_bright).toEqual([]);
+  });
+});
+
+describe('regionColor：AC2 該區在目前樣式下的實際顏色', () => {
+  const base = { ...defaultState(2), texts: { '3': { t: '交集' } } };
+
+  it('flat 交集區沒 fill 時是自動混色，有 fill 時是 override', () => {
+    const flat = { ...base, style: 'flat' as const };
+
+    expect(regionColor(flat, 3)).toBe(mixColors([PALETTE[0]!, PALETTE[1]!]));
+    expect(regionColor({ ...flat, texts: { '3': { t: '交集', fill: '#abcdef' } } }, 3)).toBe(
+      '#abcdef',
+    );
+  });
+
+  it('單圈列在任何樣式下都是該圈的顏色', () => {
+    for (const style of STYLES) {
+      expect(regionColor({ ...base, style }, 1)).toBe(PALETTE[0]);
+      expect(regionColor({ ...base, style }, 2)).toBe(PALETTE[1]);
+    }
+  });
+
+  it('outline 沒有填色，交集區取背景色', () => {
+    expect(regionColor({ ...base, style: 'outline', bg: '#101010' }, 3)).toBe('#101010');
+  });
+
+  it('translucent 不透明時交集區等於最上層那圈的顏色（依圈序 source-over）', () => {
+    const state = { ...base, style: 'translucent' as const, opacity: 1 };
+
+    expect(regionColor(state, 3)).toBe(PALETTE[1]);
+  });
+
+  it('translucent 全透明時交集區等於背景色', () => {
+    const state = { ...base, style: 'translucent' as const, opacity: 0, bg: '#101010' };
+
+    expect(regionColor(state, 3)).toBe('#101010');
+  });
+
+  it('translucent 半透明時是背景與成員色依序合成的結果', () => {
+    const state = {
+      ...base,
+      style: 'translucent' as const,
+      opacity: 0.5,
+      bg: '#000000',
+      colors: ['#ffffff', '#000000'],
+    };
+
+    // 0.5*255 + 0.5*0 = 127.5 → 再疊一層黑：0.5*0 + 0.5*127.5 = 63.75 → #404040
+    expect(regionColor(state, 3)).toBe('#404040');
   });
 });
 

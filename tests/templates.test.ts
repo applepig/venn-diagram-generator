@@ -102,6 +102,13 @@ describe('isPristine', () => {
     expect(isPristine(s)).toBe(false);
   });
 
+  it('AC10 文字沒變但指定過區域填色就不是 pristine', () => {
+    const s = sampleState(2);
+    s.texts['3'] = { t: '拖到\n明天', fill: '#ffffff' };
+
+    expect(isPristine(s)).toBe(false);
+  });
+
   it('少一格或多一格都不是 pristine', () => {
     const fewer = sampleState(2);
     delete fewer.texts['3'];
