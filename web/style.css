@@ -532,13 +532,6 @@ select {
   cursor: pointer;
 }
 
-.hint {
-  color: var(--muted);
-  font-weight: 400;
-  font-size: 13px;
-  margin: 0;
-}
-
 /* sticky 小圖條整塊只存在於窄版面 */
 .peek {
   display: none;
