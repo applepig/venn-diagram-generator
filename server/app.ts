@@ -8,9 +8,12 @@ import { escapeXml, renderSvg } from '../shared/render-svg';
 import { StateError } from '../shared/state-codec';
 import { decodeState, encodeState } from '../shared/state-codec-node';
 import type { VennState } from '../shared/types';
+import { OG_HEIGHT, OG_WIDTH, renderOgPng } from './render-og';
 
 export interface AppOptions {
   fontFile: string;
+  /** OG 合成底圖；production 指向 Vite dist，dev 指向 web/public */
+  ogBaseFile?: string;
   /** Vite build 產物目錄；沒給就只跑 API（測試用） */
   distDir?: string;
   /** og:image／og:url 用的對外 origin；沒給就照 forwarded 標頭推導 */
@@ -104,6 +107,7 @@ function jsonLd(origin: string): string {
 
 export function createApp(opts: AppOptions): Hono {
   const app = new Hono();
+  const og_base = opts.ogBaseFile ? readFileSync(opts.ogBaseFile) : null;
 
   let index_html: string | null = null;
   const readIndexHtml = (): string => {
@@ -119,23 +123,27 @@ export function createApp(opts: AppOptions): Hono {
 
   let in_flight = 0;
 
+  const no_store = { 'cache-control': 'no-store' };
+
   app.get('/api/png', async (c) => {
     const s = c.req.query('s');
-    if (!s) return c.json({ error: '缺少狀態參數 s' }, 400);
+    if (!s) return c.json({ error: '缺少狀態參數 s' }, 400, no_store);
     // 長度是 HTTP 層的信任邊界：超長的一律不進 decode
-    if (s.length > MAX_STATE_PARAM_LEN) return c.json({ error: '狀態參數過長' }, 400);
+    if (s.length > MAX_STATE_PARAM_LEN)
+      return c.json({ error: '狀態參數過長' }, 400, no_store);
 
     let state: VennState;
     try {
       state = decodeState(s);
     } catch (err) {
       const message = err instanceof StateError ? err.message : '狀態參數無效';
-      return c.json({ error: message }, 400);
+      return c.json({ error: message }, 400, no_store);
     }
 
     if (in_flight >= MAX_CONCURRENT_RENDERS) {
       return c.json({ error: '目前渲染忙碌，請稍後再試' }, 503, {
         'retry-after': String(RETRY_AFTER_SECONDS),
+        'cache-control': 'no-store',
       });
     }
 
@@ -143,6 +151,46 @@ export function createApp(opts: AppOptions): Hono {
     let png: Uint8Array;
     try {
       png = await renderPng(state, opts.fontFile);
+    } finally {
+      in_flight--;
+    }
+
+    return c.body(png as unknown as ArrayBuffer, 200, {
+      'content-type': 'image/png',
+      'cache-control': CACHE_FOREVER,
+    });
+  });
+
+  app.get('/api/og.png', async (c) => {
+    const s = c.req.query('s');
+    let state: VennState;
+    if (s === undefined) {
+      state = sampleState();
+    } else {
+      if (s.length > MAX_STATE_PARAM_LEN)
+        return c.json({ error: '狀態參數過長' }, 400, no_store);
+      try {
+        state = decodeState(s);
+      } catch (err) {
+        const message = err instanceof StateError ? err.message : '狀態參數無效';
+        return c.json({ error: message }, 400, no_store);
+      }
+    }
+
+    if (!og_base) {
+      return c.json({ error: 'OG 底圖未設定' }, 500, no_store);
+    }
+    if (in_flight >= MAX_CONCURRENT_RENDERS) {
+      return c.json({ error: '目前渲染忙碌，請稍後再試' }, 503, {
+        'retry-after': String(RETRY_AFTER_SECONDS),
+        'cache-control': 'no-store',
+      });
+    }
+
+    in_flight++;
+    let png: Uint8Array;
+    try {
+      png = await renderOgPng(state, opts.fontFile, og_base);
     } finally {
       in_flight--;
     }
@@ -171,7 +219,9 @@ export function createApp(opts: AppOptions): Hono {
     }
 
     const origin = originOf(c, opts.publicOrigin);
-    const image_url = `${origin}/api/png?s=${param}`;
+    const image_url = shared
+      ? `${origin}/api/og.png?v=1&s=${encodeState(state)}`
+      : `${origin}/api/og.png?v=1`;
     // og:url 一律帶 s，分享出去的卡片點回來就是那張圖；canonical 是給搜尋引擎的，首頁收斂到 /
     const share_url = `${origin}/?s=${param}`;
     const canonical_url = shared ? share_url : `${origin}/`;
@@ -184,8 +234,8 @@ export function createApp(opts: AppOptions): Hono {
       `<meta property="og:description" content="${escapeXml(DESCRIPTION)}">`,
       `<meta property="og:image" content="${escapeXml(image_url)}">`,
       `<meta property="og:image:type" content="image/png">`,
-      `<meta property="og:image:width" content="${state.size}">`,
-      `<meta property="og:image:height" content="${state.size}">`,
+      `<meta property="og:image:width" content="${OG_WIDTH}">`,
+      `<meta property="og:image:height" content="${OG_HEIGHT}">`,
       `<meta property="og:image:alt" content="${escapeXml(IMAGE_ALT)}">`,
       `<meta property="og:url" content="${escapeXml(share_url)}">`,
       `<meta name="twitter:card" content="summary_large_image">`,

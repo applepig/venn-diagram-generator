@@ -11,7 +11,7 @@ SVG 是唯一的渲染真相。`shared/render-svg.ts` 的 `renderSvg(state)` 是
 ```
 shared/   types、defaults、layout、render-svg、state-codec（前後端都只 import 這裡）
 web/      Vite + vanilla TS 編輯器
-server/   Hono：靜態檔、GET / 的 og meta 注射、GET /api/png
+server/   Hono：靜態檔、GET / 的 og meta 注射、GET /api/png 與 /api/og.png
 ```
 
 ## URL 狀態格式
@@ -47,6 +47,10 @@ server/   Hono：靜態檔、GET / 的 og meta 注射、GET /api/png
 
 `GET /api/png?s=<state>` 回 `image/png`，尺寸等於 `state.size`，帶 `Cache-Control: public, max-age=31536000, immutable`（參數即內容，可以永久快取）。缺 `s`、解不開、schema 不合都回 400 JSON `{ "error": "..." }`。
 
+`GET /api/og.png?v=1&s=<state>` 是社群預覽用的 `1200 × 630` 橫幅：以品牌底圖加上透明背景的文氏圖內容。缺 `s` 時輸出首頁預設範例；有效 `s` 則輸出該分享 state。成功圖片同樣帶一年期 immutable cache，`v` 是合成版型的 cache 版號；底圖或版型改版時會 bump `v`。無效 `s` 回 400 JSON 並帶 `Cache-Control: no-store`。
+
+首頁的 `og:image` 與 `twitter:image` 共用 `/api/og.png?v=1`；分享頁會再附上對應的 `s`。`/api/png` 繼續只負責下載／複製用的正方形圖片。
+
 ```bash
 # 先在瀏覽器編好圖，複製連結拿到 s，或用 Node 產一個
 S=$(pnpm exec tsx -e "
@@ -55,6 +59,9 @@ import { sampleState } from './shared/defaults';
 process.stdout.write(encodeState(sampleState()));")
 
 curl -o venn.png "http://localhost:3000/api/png?s=$S"
+
+# 社群橫幅；拿掉 &s=$S 就是預設範例
+curl -o og.png "http://localhost:3000/api/og.png?v=1&s=$S"
 ```
 
 ## 本機開發

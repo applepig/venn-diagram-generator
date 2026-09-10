@@ -18,6 +18,7 @@ async function main(): Promise<void> {
   if (!DEV) {
     const app = createApp({
       fontFile: resolve(FONT_FILE),
+      ogBaseFile: resolve(DIST_DIR, 'og-base.png'),
       distDir: resolve(DIST_DIR),
       publicOrigin: PUBLIC_ORIGIN,
       gtmId: GTM_ID,
@@ -44,6 +45,7 @@ async function main(): Promise<void> {
 
   const app = createApp({
     fontFile: resolve(FONT_FILE),
+    ogBaseFile: resolve('web/public/og-base.png'),
     publicOrigin: PUBLIC_ORIGIN,
     gtmId: GTM_ID,
     loadIndexHtml: dev.loadIndexHtml,
