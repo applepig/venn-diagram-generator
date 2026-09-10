@@ -3,9 +3,10 @@ import { describe, expect, it } from 'vitest';
 import { createApp } from '../server/app';
 import { encodeState } from '../shared/state-codec-node';
 import { encodeBase64Url } from '../shared/state-codec';
-import { defaultState, sampleState } from '../shared/defaults';
+import { MAX_STATE_PARAM_LEN, defaultState, sampleState } from '../shared/defaults';
 import type { VennState } from '../shared/types';
 import { FONT_FILE } from './helpers/font';
+import { bombParam, paramOfLength } from './helpers/state-param';
 
 const app = createApp({ fontFile: FONT_FILE });
 
@@ -273,5 +274,75 @@ describe('非 XML 字元不得穿透到渲染層', () => {
 
     expect(res.status).toBe(200);
     expect(res.headers.get('content-type')).toBe('image/png');
+  });
+});
+
+describe('AC1 壓縮炸彈：s 短、解開很大', () => {
+  // 2MB 的空白壓完只剩約 2,700 字元，過得了長度閘，只有解壓上限攔得住
+  const bomb = bombParam(2 * 1024 * 1024);
+
+  it('前提：這顆炸彈短到長度閘擋不住，擋下它的只能是解壓上限', () => {
+    expect(bomb.length).toBeLessThan(MAX_STATE_PARAM_LEN);
+  });
+
+  it('/api/png 回 400 JSON', async () => {
+    const res = await get(`/api/png?s=${bomb}`);
+
+    expect(res.status).toBe(400);
+    expect(res.headers.get('content-type')).toContain('application/json');
+    expect(await res.json()).toHaveProperty('error');
+  });
+
+  it('首頁不掛掉，退回預設範例圖', async () => {
+    const res = await get(`/?s=${bomb}`);
+    const html = await res.text();
+
+    expect(res.status).toBe(200);
+    expect(html).toContain(`content="${ORIGIN}/api/png?s=${encodeState(sampleState())}"`);
+  });
+});
+
+describe('AC2 s 參數長度閘', () => {
+  it('長度剛好等於上限的合法 s 照常出圖', async () => {
+    const s = paramOfLength(MAX_STATE_PARAM_LEN);
+    const res = await get(`/api/png?s=${s}`);
+
+    expect(res.status).toBe(200);
+    expect(res.headers.get('content-type')).toBe('image/png');
+  });
+
+  it('超過上限的合法 s → /api/png 回 400，錯誤講的是長度而不是解碼失敗', async () => {
+    const s = paramOfLength(MAX_STATE_PARAM_LEN + 2);
+    const res = await get(`/api/png?s=${s}`);
+
+    expect(res.status).toBe(400);
+    expect(await res.json()).toMatchObject({ error: expect.stringContaining('過長') });
+  });
+
+  it('超過上限的 s → 首頁退回預設範例圖，不把超長參數放進 og:image', async () => {
+    const s = paramOfLength(MAX_STATE_PARAM_LEN + 2);
+    const res = await get(`/?s=${s}`);
+    const html = await res.text();
+
+    expect(res.status).toBe(200);
+    expect(html).toContain(`content="${ORIGIN}/api/png?s=${encodeState(sampleState())}"`);
+    expect(html).not.toContain(s);
+  });
+});
+
+describe('AC3 og origin 由 publicOrigin 決定', () => {
+  const fixed = createApp({ fontFile: FONT_FILE, publicOrigin: ORIGIN });
+
+  it('設了 publicOrigin 時，forwarded 標頭改不動輸出的 origin', async () => {
+    const html = await (
+      await fixed.request('http://localhost/', {
+        headers: { 'x-forwarded-proto': 'https', 'x-forwarded-host': 'evil.example.com' },
+      })
+    ).text();
+
+    expect(html).not.toContain('evil.example.com');
+    expect(html).toContain(`<meta property="og:image" content="${ORIGIN}/api/png?s=`);
+    expect(html).toContain(`<meta property="og:url" content="${ORIGIN}/?s=`);
+    expect(html).toContain(`<meta name="twitter:image" content="${ORIGIN}/api/png?s=`);
   });
 });

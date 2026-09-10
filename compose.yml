@@ -5,6 +5,8 @@ services:
     restart: unless-stopped
     environment:
       - PORT=3000
+      # og:image／og:url 的 origin 鎖死在這，不讓 X-Forwarded-Host 決定
+      - PUBLIC_ORIGIN=https://venn.applepig.net
     labels:
       - "traefik.enable=true"
       - "traefik.docker.network=web"

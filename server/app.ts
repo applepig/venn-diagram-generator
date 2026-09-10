@@ -3,7 +3,7 @@ import { join } from 'node:path';
 import { renderAsync } from '@resvg/resvg-js';
 import { Hono } from 'hono';
 import type { Context } from 'hono';
-import { sampleState } from '../shared/defaults';
+import { MAX_STATE_PARAM_LEN, sampleState } from '../shared/defaults';
 import { escapeXml, renderSvg } from '../shared/render-svg';
 import { StateError } from '../shared/state-codec';
 import { decodeState, encodeState } from '../shared/state-codec-node';
@@ -13,6 +13,8 @@ export interface AppOptions {
   fontFile: string;
   /** Vite build 產物目錄；沒給就只跑 API（測試用） */
   distDir?: string;
+  /** og:image／og:url 用的對外 origin；沒給就照 forwarded 標頭推導 */
+  publicOrigin?: string;
 }
 
 const CACHE_FOREVER = 'public, max-age=31536000, immutable';
@@ -21,8 +23,12 @@ const CACHE_FOREVER = 'public, max-age=31536000, immutable';
 const MAX_CONCURRENT_RENDERS = 3;
 const RETRY_AFTER_SECONDS = 2;
 
-/** 走在 Traefik / Cloudflare Tunnel 後面，絕對 URL 要看 forwarded 標頭 */
-function originOf(c: Context): string {
+/**
+ * 對外 origin：設了 PUBLIC_ORIGIN 就以它為準，任何 forwarded 標頭都改不動；
+ * 沒設才退回標頭推導（本機開發沒有固定 hostname）。
+ */
+function originOf(c: Context, public_origin?: string): string {
+  if (public_origin) return public_origin;
   const url = new URL(c.req.url);
   const proto = c.req.header('x-forwarded-proto') ?? url.protocol.replace(':', '');
   const host = c.req.header('x-forwarded-host') ?? c.req.header('host') ?? url.host;
@@ -74,6 +80,8 @@ export function createApp(opts: AppOptions): Hono {
   app.get('/api/png', async (c) => {
     const s = c.req.query('s');
     if (!s) return c.json({ error: '缺少狀態參數 s' }, 400);
+    // 長度是 HTTP 層的信任邊界：超長的一律不進 decode
+    if (s.length > MAX_STATE_PARAM_LEN) return c.json({ error: '狀態參數過長' }, 400);
 
     let state: VennState;
     try {
@@ -109,6 +117,7 @@ export function createApp(opts: AppOptions): Hono {
     let param: string;
     try {
       if (!s) throw new StateError('沒有狀態參數');
+      if (s.length > MAX_STATE_PARAM_LEN) throw new StateError('狀態參數過長');
       state = decodeState(s);
       param = s;
     } catch {
@@ -117,7 +126,7 @@ export function createApp(opts: AppOptions): Hono {
       param = encodeState(state);
     }
 
-    const origin = originOf(c);
+    const origin = originOf(c, opts.publicOrigin);
     const image_url = `${origin}/api/png?s=${param}`;
     const title = titleOf(state);
     const description = '填字就有的文氏圖 meme 產生器，狀態直接編在網址裡。';

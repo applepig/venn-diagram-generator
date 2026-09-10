@@ -5,6 +5,7 @@ services:
     restart: unless-stopped
     environment:
       - PORT=3000
+      - PUBLIC_ORIGIN=https://venn.dev.example
     labels:
       # 本機 Traefik 走 websecure，憑證是 certs/ 裡的 *.dev.example wildcard
       - "traefik.enable=true"

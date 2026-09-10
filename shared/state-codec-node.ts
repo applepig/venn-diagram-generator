@@ -6,10 +6,17 @@ export function encodeState(state: VennState): string {
   return encodeBase64Url(new Uint8Array(deflateRawSync(stateToBytes(state))));
 }
 
+/**
+ * 解壓輸出上限：最壞的合法 state 展開也只有幾 KB，32KB 已經很寬。
+ * 沒有這道上限，幾 KB 的 s 就能逼 server 同步配置好幾 MB。
+ */
+const MAX_INFLATED_BYTES = 32 * 1024;
+
 export function decodeState(s: string): VennState {
   let raw: Uint8Array;
   try {
-    raw = new Uint8Array(inflateRawSync(decodeBase64Url(s)));
+    const options = { maxOutputLength: MAX_INFLATED_BYTES };
+    raw = new Uint8Array(inflateRawSync(decodeBase64Url(s), options));
   } catch {
     throw new StateError('狀態參數解壓縮失敗');
   }

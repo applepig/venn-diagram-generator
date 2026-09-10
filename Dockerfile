@@ -26,5 +26,8 @@ COPY --from=build /app/dist ./dist
 COPY --from=build /app/dist-server ./dist-server
 COPY assets/fonts ./assets/fonts
 
+# node:24-slim 內建 uid 1000 的 node 使用者；server 只讀檔案，不需要 root
+USER node
+
 EXPOSE 3000
 CMD ["node", "dist-server/index.mjs"]

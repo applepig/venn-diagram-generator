@@ -30,6 +30,12 @@ export const RADIUS_MIN = 0.2;
 export const RADIUS_MAX = 0.35;
 export const MAX_TEXT_LEN = 80;
 
+/**
+ * server route 收 `s` 參數的長度上限。最壞的合法 state（13 槽塞滿不重複中文＋fs/dx/dy）
+ * 實測編出來 2,200 字元，留 1.8 倍餘裕；壓縮炸彈得靠上萬字元才打得動，這道閘讓它連 decode 都進不去。
+ */
+export const MAX_STATE_PARAM_LEN = 4000;
+
 export const SIZE_CHOICES = [800, 1200, 1600];
 
 export const EDITOR_PLACEHOLDER = '點此輸入';

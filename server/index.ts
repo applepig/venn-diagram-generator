@@ -7,7 +7,13 @@ const PORT = Number(process.env.PORT ?? 3000);
 const DIST_DIR = process.env.VENN_DIST ?? 'dist';
 const FONT_FILE = process.env.VENN_FONT ?? 'assets/fonts/NotoSansTC-Bold.otf';
 
-const app = createApp({ fontFile: resolve(FONT_FILE), distDir: resolve(DIST_DIR) });
+const PUBLIC_ORIGIN = process.env.PUBLIC_ORIGIN || undefined;
+
+const app = createApp({
+  fontFile: resolve(FONT_FILE),
+  distDir: resolve(DIST_DIR),
+  publicOrigin: PUBLIC_ORIGIN,
+});
 
 // createApp 已先註冊 /api/png 與 /，這裡只接沒被吃掉的靜態資源
 app.use('/*', serveStatic({ root: DIST_DIR }));

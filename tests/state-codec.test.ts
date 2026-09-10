@@ -6,8 +6,15 @@ import {
   decodeState as decodeStateWeb,
   encodeState as encodeStateWeb,
 } from '../shared/state-codec-web';
-import { defaultState, sampleState } from '../shared/defaults';
-import type { VennState } from '../shared/types';
+import {
+  MAX_STATE_PARAM_LEN,
+  MAX_TEXT_LEN,
+  SLOT_MASKS,
+  defaultState,
+  sampleState,
+} from '../shared/defaults';
+import type { TextSlot, VennState } from '../shared/types';
+import { bombParam } from './helpers/state-param';
 
 const rich: VennState = {
   ...defaultState(4),
@@ -211,5 +218,33 @@ describe('validateState：schema 檢查', () => {
     const packed = packJson({ ...sampleState(), texts: { '1': { t: '字'.repeat(81) } } });
 
     expect(() => decodeState(packed)).toThrow(StateError);
+  });
+});
+
+describe('decodeState：解壓輸出上限（AC1）', () => {
+  it('解開後 8MB 的壓縮炸彈拋 StateError，不把記憶體配下去', () => {
+    expect(() => decodeState(bombParam(8 * 1024 * 1024))).toThrow(StateError);
+  });
+
+  it('解開後仍在上限內的 state 照常解得回來', () => {
+    const state = decodeState(bombParam(16 * 1024));
+
+    expect(state).toEqual({ ...sampleState(), size: 400 });
+  });
+
+  it('最壞的合法 state（13 槽各 80 個不重複中文＋fs/dx/dy）編得出、解得回，且不超過參數長度上限', () => {
+    let code_point = 0x4e00;
+    const texts: Record<string, TextSlot> = {};
+    for (const mask of SLOT_MASKS[4]) {
+      const t = Array.from({ length: MAX_TEXT_LEN }, () => String.fromCodePoint(code_point++)).join(
+        '',
+      );
+      texts[String(mask)] = { t, fs: 0.037, dx: -0.011, dy: 0.023 };
+    }
+    const worst: VennState = { ...defaultState(4), texts };
+
+    const s = encodeState(worst);
+    expect(decodeState(s)).toEqual(worst);
+    expect(s.length).toBeLessThanOrEqual(MAX_STATE_PARAM_LEN);
   });
 });
