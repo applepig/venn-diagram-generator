@@ -137,6 +137,8 @@ export function createColorControl(options: ColorControlOptions): ColorControl {
     if (was_open) return;
     pop.setAttribute('data-open', '');
     open_pop = pop;
+    // 開在視窗下緣外時使用者只會看到「按了沒反應」，把它捲進來
+    pop.scrollIntoView({ block: 'nearest' });
   });
 
   return {
