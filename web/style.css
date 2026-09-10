@@ -562,23 +562,34 @@ select {
 
   .stage {
     order: 1;
-    padding: 12px 12px 0;
+    padding: 12px 12px 16px;
   }
 
-  /* 捲過大圖之後才黏在頂端，之後調控制項都還看得到圖有沒有變 */
+  /*
+   * 大圖捲出視窗後才滑進來（stuck 由 IntersectionObserver 標在 body 上），
+   * 之後調控制項都還看得到圖有沒有變。fixed 不佔文件空間，所以顯示與隱藏都不會推動面板。
+   */
   .peek {
     order: 2;
     display: flex;
     align-items: center;
     gap: 10px;
-    position: sticky;
+    position: fixed;
     top: 0;
+    left: 0;
+    right: 0;
     z-index: 20;
-    margin-top: 12px;
+    transform: translateY(-100%);
+    transition: transform 0.18s ease;
     background: var(--bg);
     border-bottom: 1px solid var(--line);
     padding: 8px 12px;
     cursor: pointer;
+  }
+
+  body[data-peek='stuck'] .peek,
+  body[data-preview='open'] .peek {
+    transform: none;
   }
 
   .panel {

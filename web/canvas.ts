@@ -37,6 +37,17 @@ export function createCanvas(els: CanvasElements, handlers: CanvasHandlers): Can
   };
   setOpen(false);
 
+  // 小圖條是 fixed 的，不佔文件空間：大圖還看得到時就藏起來，免得畫面上同時有兩個預覽。
+  // 用 fixed 而不是 sticky＋display:none，是因為切換 sticky 元素的顯示會改變文件高度，面板會跳。
+  document.body.dataset.peek = 'hidden';
+  const stage = els.main.closest('.stage')!;
+  new IntersectionObserver(
+    ([entry]) => {
+      document.body.dataset.peek = entry?.isIntersecting ? 'hidden' : 'stuck';
+    },
+    { threshold: 0 },
+  ).observe(stage);
+
   els.main.addEventListener('click', (event) => {
     const mask = maskOf(event.target);
     if (mask !== null) handlers.onRegionPicked(mask);
