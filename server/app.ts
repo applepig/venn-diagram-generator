@@ -190,7 +190,8 @@ function gtmBody(id: string): string {
 
 /**
  * 首頁的 structured data。只有 / 給，帶 s 的分享頁是 noindex，不需要也不該宣告成獨立作品。
- * 內容全是常數，沒有使用者輸入會進到這個 script。
+ * 文案是常數，但 origin 可能是從 forwarded 標頭推導的：`<` 一律跳成 `<`，
+ * `</script>` 才不會讓瀏覽器提前結束這個 script（JSON 的語意不變，爬蟲照樣讀得到）。
  */
 function jsonLd(origin: string, locale: Locale): string {
   const data = {
@@ -205,7 +206,8 @@ function jsonLd(origin: string, locale: Locale): string {
     inLanguage: htmlLang(locale),
     isAccessibleForFree: true,
   };
-  return `<script type="application/ld+json">${JSON.stringify(data)}</script>`;
+  const json = JSON.stringify(data).replace(/</g, '\\u003c');
+  return `<script type="application/ld+json">${json}</script>`;
 }
 
 /**

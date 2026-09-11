@@ -230,7 +230,8 @@ export function createToolbar(root: HTMLElement, handlers: ToolbarHandlers): Too
     handlers.onPatch({ opacity: o }),
   );
   // radius 的範圍依排列而定（row 的圓比 ring 小），所以每次 update 都依 state 重設
-  const radius = sliderField(ts('field.radius'), ...radiusRange('ring'), 0.005, (r) =>
+  // 步進 0.001：row 的預設半徑（row(6) 0.1187）不落在 0.005 的格子上，粗步進會把 thumb 吸走
+  const radius = sliderField(ts('field.radius'), ...radiusRange('ring'), 0.001, (r) =>
     handlers.onPatch({ radius: r }),
   );
   const overlap = sliderField(ts('field.overlap'), OVERLAP_MIN, OVERLAP_MAX, 0.01, (o) =>
@@ -319,10 +320,13 @@ export function createToolbar(root: HTMLElement, handlers: ToolbarHandlers): Too
   let rows: SlotRow[] = [];
   let too_long = false;
 
-  /** 只有槽數變動才需要重建槽列，其餘情況沿用既有節點（保住展開狀態與游標） */
+  /**
+   * 只有槽表真的換了才重建槽列，其餘情況沿用既有節點（保住展開狀態與游標）。
+   * 比的是 mask 陣列不是長度：不同組合可能槽數相同而 mask 不同，只看長度會留下對錯 mask 的列。
+   */
   function syncRows(state: VennState): void {
     const masks = slotMasks(arrOf(state), state.n);
-    if (rows.length !== masks.length) {
+    if (rows.map((row) => row.mask).join() !== masks.join()) {
       rows = masks.map((mask) =>
         createSlotRow(mask, {
           onPatchSlot: handlers.onPatchSlot,

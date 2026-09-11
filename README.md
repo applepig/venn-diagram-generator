@@ -93,11 +93,15 @@ docker run --rm -p 3000:3000 -e VENN_WATERMARK=venn.example.com venn-diagram-gen
 
 `deploy/compose.yml` builds that image and publishes it behind a reverse proxy (Traefik labels, external network `web`, TLS terminated upstream). Every site-specific value in it is an environment variable — it will refuse to start until you supply `VENN_PUBLIC_HOST`. `deploy/compose.dev.yml` skips the image entirely: it mounts the source into `node:24-slim` and runs `tsx watch server/index.ts`, so both front-end HMR and server restarts work without rebuilding.
 
+Running compose by hand: it only auto-loads the `.env` sitting next to the compose file (`deploy/.env`), so pass the repository-root one explicitly — `docker compose --env-file .env -f deploy/compose.yml up -d --build`.
+
 `deploy/deploy.sh` is the whole deployment story — there is no registry. It rsyncs the working tree to a host over ssh (skipping `.env`, so the host keeps its own) and runs compose there with `--env-file .env`:
 
 ```bash
 VENN_DEPLOY_HOST=my-host VENN_DEPLOY_PATH=/srv/apps/venn ./deploy/deploy.sh
 ```
+
+The script sources the repository-root `.env` first, so those two variables can live there instead of being typed every time (values in `.env` win over ones already exported).
 
 Prerequisites on that host: the ssh user must be able to run Docker without an interactive password — either in the `docker` group or with passwordless sudo — and `${VENN_DEPLOY_PATH}/.env` must already exist. The script checks that the file declares `VENN_PUBLIC_HOST`, `VENN_GTM_ID` and `VENN_WATERMARK` (empty values are fine, missing keys are not) and exits 1 naming the missing ones before touching anything: a silently dropped watermark would be baked into a year-long cached `og:image`.
 

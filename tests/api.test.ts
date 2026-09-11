@@ -502,6 +502,24 @@ describe('AC13 SEO：canonical、robots、structured data', () => {
     expect(html).toContain(`<title>文氏圖產生器｜找不到哏圖不會自己做嗎？</title>`);
   });
 
+  /**
+   * AC19：JSON-LD 寫在 `<script>` 裡，`</script>` 一出現瀏覽器就結束這個 script。
+   * origin 是從 forwarded 標頭推導的（沒設 PUBLIC_ORIGIN 時），代理層塞得進去。
+   */
+  it('origin 含 </script> 時 JSON-LD 不提前收尾，也不吐出可執行的 script', async () => {
+    const evil = 'evil.test/</script><script>alert(1)</script>';
+    const html = await (
+      await app.request(`https://venn.example.com/`, { headers: { 'x-forwarded-host': evil } })
+    ).text();
+    const ld = html.match(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/)![1]!;
+
+    expect(ld).not.toContain('</script');
+    expect(ld).toContain('\\u003c/script');
+    expect(html).not.toContain('<script>alert(1)</script>');
+    // 內容仍是合法 JSON，爬蟲讀得到（跳脫的是 JSON 字串裡的 `<`，不是把資料弄壞）
+    expect(JSON.parse(ld).url).toBe(`https://${evil}/`);
+  });
+
   it('分享頁 canonical 指自己、noindex，且不宣告成獨立作品', async () => {
     const s = encodeState(sampleState());
     const html = await (await get(`/?s=${s}`)).text();

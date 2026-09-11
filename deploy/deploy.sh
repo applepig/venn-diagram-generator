@@ -3,6 +3,18 @@
 # repo 沒有 git remote，也沒有 image registry，所以部署就是 rsync + 在該機 build。
 set -euo pipefail
 
+cd "$(dirname "$0")/.."
+
+# repo 根目錄的 .env 是這台開發機的部署設定（VENN_DEPLOY_HOST／PATH 寫在這裡就不用每次打）。
+# 用 if 而不是 `[[ -f .env ]] && ...`：沒有 .env 時後者的非零結束碼會被 set -e 當成失敗。
+# .env 裡的值會蓋掉指令列先設好的同名變數，要臨時改目標就直接改 .env 或註解掉那一行。
+if [[ -f .env ]]; then
+  set -a
+  # shellcheck disable=SC1091
+  source .env
+  set +a
+fi
+
 # 目標主機與路徑沒有預設值：部署目標屬於各自的環境，不寫進 repo。
 missing=()
 [[ -n "${VENN_DEPLOY_HOST:-}" ]] || missing+=(VENN_DEPLOY_HOST)
@@ -15,8 +27,6 @@ fi
 
 HOST="$VENN_DEPLOY_HOST"
 DEST="$VENN_DEPLOY_PATH"
-
-cd "$(dirname "$0")/.."
 
 # 主機的 .env 是這個部署的唯一設定來源，少一把 key 不會讓 compose 失敗，
 # 只會讓浮水印或 GTM 靜默消失——而 og:image 帶一年期快取，錯了要等一年才過期。
@@ -36,7 +46,7 @@ REMOTE
 if [[ -n "$missing_keys" ]]; then
   echo "deploy.sh: ${HOST}:${DEST}/.env is missing required keys:" >&2
   echo "$missing_keys" | sed 's/^/  /' >&2
-  echo "copy .env.example to ${DEST}/.env on the host and fill it in (empty values are fine)." >&2
+  echo "create ${DEST}/.env on the host with these keys (see .env.example in this repo); empty values are fine." >&2
   exit 1
 fi
 

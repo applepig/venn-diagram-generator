@@ -92,11 +92,15 @@ docker run --rm -p 3000:3000 -e VENN_WATERMARK=venn.example.com venn-diagram-gen
 
 `deploy/compose.yml` 用這份 Dockerfile build 出正式站容器，掛在反向代理後面（Traefik label、external network `web`，TLS 在上游終止）。裡面所有與站點有關的值都是環境變數，沒給 `VENN_PUBLIC_HOST` 就直接拒絕啟動。`deploy/compose.dev.yml` 不 build image：把原始碼掛進 `node:24-slim` 直接跑 `tsx watch server/index.ts`，改前端走 HMR、改 server 由 tsx 重啟，都不必重 build。
 
+手動跑 compose 時要自帶 `--env-file .env`：compose 只會自動讀 compose 檔旁邊那份（`deploy/.env`），根目錄的它不看——`docker compose --env-file .env -f deploy/compose.yml up -d --build`。
+
 `deploy/deploy.sh` 就是全部的部署流程——沒有 image registry。它把工作目錄 rsync 到遠端主機（跳過 `.env`，主機保留自己那份），再在那台機器上以 `--env-file .env` 跑 `docker compose up -d --build`：
 
 ```bash
 VENN_DEPLOY_HOST=my-host VENN_DEPLOY_PATH=/srv/apps/venn ./deploy/deploy.sh
 ```
+
+script 開頭會先 source repo 根目錄的 `.env`，所以這兩個變數可以寫在那裡，不必每次打（`.env` 裡的值會蓋掉指令列先設好的）。
 
 主機端的前置條件：ssh 使用者要能免密碼跑 Docker（在 `docker` group 裡，或有免密 sudo），而且 `${VENN_DEPLOY_PATH}/.env` 必須先存在。script 會先檢查那份檔案有沒有宣告 `VENN_PUBLIC_HOST`、`VENN_GTM_ID`、`VENN_WATERMARK`（值可以是空的，key 不能少），缺了就印出缺哪幾把並 exit 1，不會先動主機——浮水印靜默消失會被烤進一年期快取的 `og:image`。
 
