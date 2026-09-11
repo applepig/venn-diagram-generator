@@ -1,0 +1,98 @@
+{
+  "note": "AC1 golden：以 07 sprint 重構前的程式產出，任何 milestone 都不得修改。測試紅了是實作錯，不是 golden 錯。",
+  "slot_masks_4": [
+    1,
+    2,
+    4,
+    8,
+    3,
+    5,
+    10,
+    12,
+    7,
+    11,
+    13,
+    14,
+    15
+  ],
+  "palette": [
+    "#2e9be6",
+    "#e6a92e",
+    "#e04848",
+    "#3cb54a"
+  ],
+  "cases": [
+    {
+      "id": "tpl-2",
+      "ac": "a",
+      "label": "2 圈 zh template 預設連結",
+      "s": "XcmxasJQGEDhdzlZfyS5gYD_q9QON3qVQEgk9ypqyCAtXUo7i3MXHdutz9O0PoZksIMcOMvXskYToUKN4MO2dCjz0gaEemmnRdii8SgT6rVrSrtEk5ERGjsrVn6gVJjWZd149IHIuHHuMoTIZXZsHI9CvkCJ5nYIwRc7hyYmjoXgNsGjLcmwgHI5ffb746T6Oz7_fL_SCeZGv09fd5T-0-G9_zhNqv7l7XI-03XdFQ",
+      "svg_sha256": "0f18debab173efebe731400b2cd82b2877ea5c1aeb5f33bc71ffca84f7a531e2",
+      "png_sha256": "930f97bd37aaf800b398351c4fa1a297ca2e0f7ca89c481ef58687dd05d3353f",
+      "og_png_sha256": "8a953075850111c9a1bc844774dc35773427d9def96b1e431e1c2a2a084c2876"
+    },
+    {
+      "id": "tpl-3",
+      "ac": "a",
+      "label": "3 圈 zh template 預設連結",
+      "s": "TYrNasJAFIXf5WR7kcwYU3NfpbgY09sSCIlkRvGHLETsrvQFuiq0G8GCuOjG-jKm2LeQEVLkwuF837kLTMCKUIC7BOtmuYDhKlPYfJxK4UAoRybN3AwcdmJCOZEqNyOw6qgeoTIP2dj6TSeEtMzLyoLvEWhJhhKDEEhsEi3XFkb9qI8BYfgERvBo_IFgs7mAlQ5DgpOps-AFlA8Hxvlz2Rw3qAn6Vn0cvOr-q93ec3Tzcvo5Nts3b3ut_Xu-ctzy7_rd813Lp--X5vXrvDqgrusL",
+      "svg_sha256": "c9704eb9d7317eae8642b6f3b23166ed7979a60822d82a47a05e9f35d1f87d98",
+      "png_sha256": "70109667e9b628577f334a9ae2aed11e152156f9b62e1ac4b2f6770d292c181c",
+      "og_png_sha256": "50c45c683f258528a4e7d9d7b78c95c39df0af22ecfe71425079c852e5d9a707"
+    },
+    {
+      "id": "tpl-4",
+      "ac": "a",
+      "label": "4 圈 zh template 預設連結",
+      "s": "TU9dSwJBFP0tXl-H2F030Xnppaf-QtvDalMIMivuKlkIWlFqayU9BCWB9OlqVpAl1vpn2hnHfxFTbciFyz33nnM4dweKgFUEFLCOwHZKWQIYrIKTzVACCKycmc44JcDKQhyBVST5rJmTKIEgb65nCrYEsRiCtJW18jbgVYhqJJkicUAQJXEzqZGfSdETekJOsXRqUTdhDUFqEzBEN0xZgMDObBPAqqYoCByy5diAd0CVzQEMyytQRqCFcNaoiI5rUH76xlxPnmLh6avispt7NnibDu94rWVQUfXZrR_5qjQlTw950_o9G_XkanFOKqo-P9zltRZrPxhUeF7wUZmNP9n58dKfQSJks5Meez5hj12D8kaDP12KzrXY7wWjI4NOL_aZ5zPPlwpVmc9WuxWDs99gnjft94Oxy_udMJ6qzXGDUVNUfdF94e093q4blF28zg6b0nzi8qt2qPl_QOaoHxlU1Opi-B5MDiIRKJfL3w",
+      "svg_sha256": "5e1ab3875b3562ebcb5541d2eb2967636b10dc58d591094255cdc2862a9f2780",
+      "png_sha256": "55dfe6893b1678ce977d61840b175fdaf1165b71d385e8d01f196dd6c5a9b5d3",
+      "og_png_sha256": "a8ad14da6cb212f0a59d0fb2a10b14c7903c8bf17ff35eb5d21cd292109c9a2e"
+    },
+    {
+      "id": "full-translucent",
+      "ac": "b",
+      "label": "4 圈 13 槽全填，translucent ＋ 深色背景 ＋ 自訂透明度",
+      "s": "XVDLbsJADPyX4WqQNw-63V9BPYRkt4oUEZQEBEV7QFX_oJf-Aeee6P-0qvoXlZNAAokU2fGMZzwHbGEUYQUTEepmX1gYNFWyqotNalcNCOU6SfNmD8OzKCaUW1sVyVpaTaiSLN_U0oQhIS2LsqphFpioIIziOQiTZJlm1knF7JzWUjnHPJ_jibB8hsFEJSoJLAh1_mJhVMBMaOyuqWEOUPJpYPD7_glPCC7999cHCK7V50dPCEfIfpgXhSi49hF2dGWfBZDtWnbgCfGYfR6tjjvYlGesCFmbBStPeLjVE5In6EHhiA4_7SUUj7x344tDxfIKX6n7tcfBSyiAYHSDTOVfeOu-1-6uay_obXAs6OjGx50VrdO0C0tdM_l5O_29ngYf0bA8vGYi5ZC41szw3v8D",
+      "svg_sha256": "5b1c5fb5028a2e4ca779ffd749abf3b92c13af48a86fbbda66f2265a3d4d2356",
+      "png_sha256": "7fae3fee725e713f0681090f9ffc1ccf711b804e95d1882eef8846a7ebcd0aed",
+      "og_png_sha256": "225af65b900d0f1620d30065e0907097c95374ab14572db6b9a8b134f3566e10"
+    },
+    {
+      "id": "full-flat",
+      "ac": "b",
+      "label": "4 圈 13 槽全填，flat ＋ fill override ＋ size 800",
+      "s": "XVBBboMwEPzLcN1EawzU9VeqHgjgCgmVKJAoaeRDVPUHvfQHOfeU_qdV1V9UCySQ2JK1653Zmd09NrCK8AwbEZp2VxWwcFXaglAv06xsd7A8Twj1plhV6VIyQ1ilebluJNGakNVVvWpgHxCoUEdxAkKQLrK8cBIxO2eMRM4xJwkeCYsnWAQulQtCU74UsIaZ0BbbtoHdQ8nTwuL3_ROeEJ7z768PEFwnz_eeoCfIoVhWVSfQHWFHF_ZJAPm2Y4eeEE_Zp0nruIfNeM6KkHebYOUJd9d6QvIEMyoc0ONng4Tiife-fHaoWK7wlbptexi9aAGEkxmkKn_62v2g3U_XTTDY4FjQ0ZWPGyvGZFm_LHXZyc_b8e_1OPqIxub6shMJx40bwwzv_T8",
+      "svg_sha256": "149965a9f00c439dcdd3af6fd033a049ca710ec22956aaa0841cfd984242887b",
+      "png_sha256": "b5f81d1f0434294156198586f59e9991850a2c0a03dd404b0498077947bf00c1",
+      "og_png_sha256": "845e0c458a3bdf4462321bc00d40fa69e1ca495534d1e7f52b94d226b0e9130b"
+    },
+    {
+      "id": "full-outline",
+      "ac": "b",
+      "label": "4 圈 13 槽全填，outline",
+      "s": "XVBBbsIwEPzLcF3QOk5S119BPYQkriJFBJGAoMgHVPUHvfQHnHui_2lV9RfVJoEEbMna9c7szO4BW1hFWMKGhLrZlzksqk1TFsschGqVpEWzh-VZTKi2-bpMVpIZwjrJik0tidaEtCqrdQ07x0QFOoxiECbJIs1yJxGzc8ZI5BxzHOOJsHiGxcQlckGoi5ccVgXMhCbfNTXsAUqeBha_75_whOCSf399gOBafX70BD1C9sWiLFuF9gg7vLLPAsh2LTvwhGjMPo9aRx1syjNWhKxdBStPeLjVE5InmEHhiA4_7SUUj7x35YtDxXKFr9R92-PgRQsgGM0gVfnTt-577W66doLeBkeCDm983FkxJk27ZanrTn7eTn-vp8FHODTX151IOGzcGGZ47_8B",
+      "svg_sha256": "5c0ee035062f83e519cad3865d07f11f9a029cb943c6050175cb0919e90b94cd",
+      "png_sha256": "8009fea39b3a5ecf05c3ad1f5a0e1144a587a927afdfb30a2d763e41b4e4a314",
+      "og_png_sha256": "fc75189593dc644e5124743d0c6db45a82e0644b82b001dbd66d7fb0d7061e1b"
+    },
+    {
+      "id": "overlap-min",
+      "ac": "c",
+      "label": "4 圈 overlap 0.6（下限）",
+      "s": "XVBLTsMwEL3L63ZajeMkGF8FsUjzQZGiBiVu1VJ5USFuwIYbdM2q3AeEuAWaJG3S2pI143lv3pvZYwOrCCvYkNC6XZXDwjXJqq3Wab5yINTPSVq6HSwvYkK9yZsqeR6yJsnKdSuJ1oS0ruqmhX3ATAU6jGIQZskyzfJCIuaiMEaiomCOYzwSlk-wmBWJXBDa8iWHVQEzweVb18LuoeRxsPh9_4QnBOf8--sDhKLT53tP0BPkUCyrqlPojrDDC_skgGzbsQNPiKbs06R11MPmvGBFyLpVsPKEu2s9IXmCGRUO6PHzQULxxHtfPjtULFf4St22PYxetACCyQxSlT997X7Q7qfrJhhscCTo8MrHjRVj0rRflrrs5Oft-Pd6HH2EY3N92YmE48aNYYb3_h8",
+      "svg_sha256": "4946539d78ca1ebd44d05ab7eae5b507cbbe846ea5a6d960bf5531ae484acd93",
+      "png_sha256": "71083a8ef4a9b80c8f912d31eb550d5c4cbf6a4f2df69c8efa1e37051c5e05e3",
+      "og_png_sha256": "372ccb2656e95fea02e47b6694fa23ba8b18796124c59f5cc8994df806d50645"
+    },
+    {
+      "id": "overlap-max",
+      "ac": "c",
+      "label": "4 圈 overlap 1.6（上限，五個區域消失）",
+      "s": "XVDLTsMwEPyX6XVbrfPC-FcQhzSJUaSoQYlbtVQ-VIg_4MIf9Myp_A8I8Rdok7RJG0vR2juzMzt7bGAUYQUTEVq3qwoYuCZdtdU6K1YOhPo5zUq3g-FFQqg3RVOlzzBKbk2al-tWWmFIyOqqblqYB8xUEEZxAsIsXWZ5YaVitlZrqaxlThI8EpZPMJjZVA4IbflSwKiAmeCKrWth9lDyczD4ff-EJwTn-_fXBwi20-d7TwgnyKFZVlWn0H3Cji7skwDybccOPCGesk-T0XEPm_OCFSHvomDlCXfXekLyBD0qHNDj54OE4on3vn12qFiO8JW6HXsYvYQCCCY7SFfewmv3g3a_XbfBYINjQUdXPm6saJ1lfVjqksnP2_Hv9Tj6iMbh4SUTKcfEtWaG9_4f",
+      "svg_sha256": "e27c64d451bf4032125091bd398ddfd315d11ed15f7f839fd112fc340a90a921",
+      "png_sha256": "68fa64f65ec7ed7dc414dd353ad580e21f848732a60264774417a77c89ec877c",
+      "og_png_sha256": "8312dd929f44aad8276ac7b93e949e118a5f18b3adadfeb6281636f1b62d5286"
+    }
+  ]
+}
