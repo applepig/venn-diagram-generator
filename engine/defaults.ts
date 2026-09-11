@@ -1,10 +1,4 @@
-import type { CircleCount } from './types';
-
-/** prototype 鎖定的預設半徑（畫布寬比例）；4 圈放大到 0.33 才放得下中央的長句 */
-export const DEFAULT_RADIUS: Record<CircleCount, number> = { 2: 0.3, 3: 0.29, 4: 0.33 };
-
-/** prototype 鎖定的預設重疊度（圓心距 / r）；4 圈壓到 0.8 把中央四重區撐開 */
-export const DEFAULT_OVERLAP: Record<CircleCount, number> = { 2: 1.2, 3: 1.15, 4: 0.8 };
+/** 預設半徑與重疊度依「排列 × 圈數」而定，見 engine/shapes/ */
 
 export const DEFAULT_BG = '#fafafa';
 export const DEFAULT_OPACITY = 0.6;
@@ -38,16 +32,7 @@ export const MAX_STATE_PARAM_LEN = 4000;
 
 export const SIZE_CHOICES = [800, 1200, 1600];
 
-/**
- * 各圈數的預設文字槽（成員 bitmask）。
- * 4 圈是 2×2 花瓣排列：4 單圈 ＋ 4 相鄰雙圈 ＋ 4 三重 ＋ 中央四重；
- * 對角雙圈（0+3、1+2）在 overlap ≤ 1 時區域根本不存在，不給槽。
- */
-export const SLOT_MASKS: Record<CircleCount, number[]> = {
-  2: [1, 2, 3],
-  3: [1, 2, 4, 3, 5, 6, 7],
-  4: [1, 2, 4, 8, 3, 5, 10, 12, 7, 11, 13, 14, 15],
-};
+/** 各組合的合法文字槽由 `slotMasks(arr, n)` 從預設幾何推出，見 engine/layout.ts */
 
 export function popCount(mask: number): number {
   let n = 0;

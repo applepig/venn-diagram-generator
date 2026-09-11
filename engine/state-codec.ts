@@ -6,9 +6,10 @@ import {
   RADIUS_MIN,
   SIZE_MAX,
   SIZE_MIN,
-  SLOT_MASKS,
 } from './defaults';
-import type { CircleCount, TextSlot, VennState, VennStyle } from './types';
+import { slotMasks } from './layout';
+import { circleCountRange, isArrangement, isCircleCount, isShape } from './shapes/index';
+import type { Arrangement, TextSlot, VennState, VennStyle } from './types';
 
 export class StateError extends Error {
   constructor(message: string) {
@@ -105,8 +106,19 @@ export function validateState(input: unknown): VennState {
   if (!isRecord(input)) throw new StateError('狀態必須是物件');
   if (input.v !== 1) throw new StateError('不支援的狀態版本');
 
+  // 排列與圈數的訊息用英文：API 是機器介面，不走 i18n
   const n = input.n;
-  if (n !== 2 && n !== 3 && n !== 4) throw new StateError('圈數必須是 2、3 或 4');
+  if (!isCircleCount(n)) throw new StateError('n must be an integer between 2 and 6');
+
+  // 缺席＝ring，所以舊連結不必帶這個欄位
+  if (input.arr !== undefined && !isArrangement(input.arr)) {
+    throw new StateError('arr must be "ring" or "row"');
+  }
+  const arr: Arrangement = input.arr ?? 'ring';
+  if (!isShape(arr, n)) {
+    const [min_n, max_n] = circleCountRange(arr);
+    throw new StateError(`${arr} arrangement supports ${min_n} to ${max_n} circles, not ${n}`);
+  }
 
   const style = input.style;
   if (typeof style !== 'string' || !STYLES.includes(style as VennStyle)) {
@@ -122,16 +134,16 @@ export function validateState(input: unknown): VennState {
   const colors = input.colors.map((c, i) => requireHex(c, `第 ${i + 1} 圈的顏色`));
 
   if (!isRecord(input.texts)) throw new StateError('文字槽必須是物件');
-  const allowed = new Set(SLOT_MASKS[n as CircleCount].map(String));
+  const allowed = new Set(slotMasks(arr, n).map(String));
   const texts: Record<string, TextSlot> = {};
   for (const [key, raw] of Object.entries(input.texts)) {
     if (!allowed.has(key)) throw new StateError(`文字槽 ${key} 不屬於 ${n} 圈版面`);
     texts[key] = parseSlot(key, raw);
   }
 
-  return {
+  const state: VennState = {
     v: 1,
-    n: n as CircleCount,
+    n,
     style: style as VennStyle,
     opacity: requireNumber(input.opacity, '透明度', 0, 1),
     overlap: requireNumber(input.overlap, '重疊度', OVERLAP_MIN, OVERLAP_MAX),
@@ -141,6 +153,9 @@ export function validateState(input: unknown): VennState {
     size,
     texts,
   };
+  // ring 一律不寫進編碼：舊連結的編碼字串因此一個位元都不變
+  if (arr !== 'ring') state.arr = arr;
+  return state;
 }
 
 // ---------- JSON <-> bytes ----------

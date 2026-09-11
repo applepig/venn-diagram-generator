@@ -6,10 +6,11 @@ export interface Template {
 }
 
 /**
- * 每個圈數的預設 meme：文字槽與搭配的樣式，三組各示範一種樣式。
+ * ring 各圈數的預設 meme：文字槽與搭配的樣式，三組各示範一種樣式。
  * 文字裡的 `\n` 是手動換行，避免自動斷成「該做的／事」這種讀不順的行。
+ * 5／6 圈與 row 還沒有 template（只給單圈標籤，M4）：沒有的組合從空白槽開始。
  */
-export const TEMPLATES: Record<CircleCount, Template> = {
+export const TEMPLATES: Partial<Record<CircleCount, Template>> = {
   2: {
     style: 'flat',
     texts: {

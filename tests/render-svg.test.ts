@@ -1,7 +1,8 @@
 import { Resvg } from '@resvg/resvg-js';
 import { describe, expect, it } from 'vitest';
 import { mixColors, regionColor, relativeLuminance, renderSvg } from '../engine/render-svg';
-import { circlesFor, layout, maskAt } from '../engine/layout';
+import { layout, maskAt } from '../engine/layout';
+import { circlesFor } from '../engine/shapes/index';
 import { PALETTE } from '../content/palette';
 import { defaultState } from '../content/state-presets';
 import type { VennStyle } from '../engine/types';
@@ -62,7 +63,7 @@ describe('renderSvg：flat 平面填色', () => {
   it('相鄰區域的接縫不會透出背景色', () => {
     const size = 800;
     const state = { ...defaultState(4), style: 'flat' as const, size, texts: {} };
-    const circles = circlesFor(4, state.radius, state.overlap);
+    const circles = circlesFor('ring', 4, state.radius, state.overlap);
     const pixels = new Resvg(renderSvg(state)).render().pixels;
 
     // 接縫像素只能是兩側區域色的混合，所以不得亮過「鄰近區域裡最亮的那個色」；

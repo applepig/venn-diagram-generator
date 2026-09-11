@@ -1,15 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import {
-  DEFAULT_OVERLAP,
-  DEFAULT_RADIUS,
-  MIN_FS,
-  SLOT_MASKS,
-  popCount,
-} from '../engine/defaults';
-import { nextStateForCircleCount } from '../content/next-state';
+import { MIN_FS, popCount } from '../engine/defaults';
+import { nextStateForShape } from '../content/next-state';
 import { isPristine, sampleState } from '../content/state-presets';
 import { TEMPLATES } from '../content/templates/zh-TW';
-import { layout } from '../engine/layout';
+import { layout, slotMasks } from '../engine/layout';
+import { shapeDefaults } from '../engine/shapes/index';
 import type { CircleCount } from '../engine/types';
 
 /**
@@ -69,8 +64,8 @@ describe('sampleState', () => {
 
   it('template 的槽都在該圈數的合法槽位內', () => {
     for (const n of [2, 3, 4] as CircleCount[]) {
-      const allowed = new Set(SLOT_MASKS[n].map(String));
-      for (const key of Object.keys(TEMPLATES[n].texts)) expect(allowed.has(key)).toBe(true);
+      const allowed = new Set(slotMasks('ring', n).map(String));
+      for (const key of Object.keys(TEMPLATES[n]!.texts)) expect(allowed.has(key)).toBe(true);
     }
   });
 });
@@ -136,9 +131,9 @@ describe('isPristine', () => {
   });
 });
 
-describe('nextStateForCircleCount', () => {
+describe('nextStateForShape', () => {
   it('pristine 時 2→3 換成 3 圈 template 與其樣式', () => {
-    const next = nextStateForCircleCount(sampleState(2), 3);
+    const next = nextStateForShape(sampleState(2), 'ring', 3);
 
     expect(next.n).toBe(3);
     expect(next.style).toBe('translucent');
@@ -146,24 +141,40 @@ describe('nextStateForCircleCount', () => {
   });
 
   it('pristine 時 2→4 換成 4 圈 template 與 outline 樣式', () => {
-    const next = nextStateForCircleCount(sampleState(2), 4);
+    const next = nextStateForShape(sampleState(2), 'ring', 4);
 
     expect(next.style).toBe('outline');
     expect(next.texts).toEqual(TEXTS_4);
   });
 
-  it('切圈數回到該圈數的預設幾何與對應數量的顏色', () => {
-    const next = nextStateForCircleCount({ ...sampleState(2), radius: 0.2, overlap: 1.6 }, 4);
+  it('切形狀回到目標組合的預設幾何與對應數量的顏色', () => {
+    const next = nextStateForShape({ ...sampleState(2), radius: 0.2, overlap: 1.6 }, 'ring', 4);
 
-    expect(next.radius).toBeCloseTo(DEFAULT_RADIUS[4], 10);
-    expect(next.overlap).toBeCloseTo(DEFAULT_OVERLAP[4], 10);
+    expect(next.radius).toBeCloseTo(shapeDefaults('ring', 4).radius, 10);
+    expect(next.overlap).toBeCloseTo(shapeDefaults('ring', 4).overlap, 10);
     expect(next.colors).toHaveLength(4);
+  });
+
+  it('切成 row 時用 row 的預設幾何，並把 arr 寫進 state', () => {
+    const next = nextStateForShape(sampleState(4), 'row', 4);
+
+    expect(next.arr).toBe('row');
+    expect(next.n).toBe(4);
+    expect(next.radius).toBeCloseTo(shapeDefaults('row', 4).radius, 10);
+    expect(next.overlap).toBeCloseTo(shapeDefaults('row', 4).overlap, 10);
+  });
+
+  it('AC1 切回 ring 時 state 不留 arr 欄位（編碼字串才不變）', () => {
+    const row = nextStateForShape(sampleState(4), 'row', 4);
+    const back = nextStateForShape(row, 'ring', 4);
+
+    expect('arr' in back).toBe(false);
   });
 
   it('使用者改過文字時保留使用者的字、不動樣式', () => {
     const dirty = { ...sampleState(2), style: 'flat' as const };
     dirty.texts = { '1': { t: '貓' }, '2': { t: '狗' }, '3': { t: '毛' } };
-    const next = nextStateForCircleCount(dirty, 3);
+    const next = nextStateForShape(dirty, 'ring', 3);
 
     expect(next.style).toBe('flat');
     expect(next.texts).toEqual({ '1': { t: '貓' }, '2': { t: '狗' }, '3': { t: '毛' } });
@@ -178,25 +189,42 @@ describe('nextStateForCircleCount', () => {
       '3': { t: '要錢' },
       '7': { t: '不存在' },
     };
-    const next = nextStateForCircleCount(dirty, 2);
+    const next = nextStateForShape(dirty, 'ring', 2);
 
     expect(Object.keys(next.texts).sort()).toEqual(['1', '2', '3']);
     expect(next.texts['3']).toEqual({ t: '要錢' });
   });
 
+  it('切排列時按目標組合的槽表過濾使用者的字', () => {
+    const dirty = sampleState(4);
+    dirty.texts = { '1': { t: '甲' }, '3': { t: '甲乙' }, '15': { t: '全部' } };
+    const next = nextStateForShape(dirty, 'row', 4);
+
+    // row(4) 沒有四重區，那一格得丟掉，否則 encode 出來的連結自己解不開
+    expect(slotMasks('row', 4)).not.toContain(15);
+    expect(Object.keys(next.texts).sort()).toEqual(['1', '3']);
+  });
+
   it('不改動傳入的 state', () => {
     const before = sampleState(2);
-    nextStateForCircleCount(before, 4);
+    nextStateForShape(before, 'ring', 4);
 
     expect(before.n).toBe(2);
     expect(before.texts).toEqual(TEXTS_2);
   });
 
   it('回傳的 texts 是新物件，改動不會污染 TEMPLATES', () => {
-    const next = nextStateForCircleCount(sampleState(2), 4);
+    const next = nextStateForShape(sampleState(2), 'ring', 4);
     next.texts['15'] = { t: '被改掉' };
 
-    expect(TEMPLATES[4].texts['15']).toEqual({ t: '把手\n舉起來!!' });
+    expect(TEMPLATES[4]!.texts['15']).toEqual({ t: '把手\n舉起來!!' });
+  });
+
+  it('沒有 template 的組合（row、5／6 圈）從空白槽開始，樣式不動', () => {
+    const next = nextStateForShape(sampleState(2), 'row', 3);
+
+    expect(next.texts).toEqual({});
+    expect(next.style).toBe('flat');
   });
 });
 
@@ -204,7 +232,7 @@ describe('AC4 三組 template 在預設幾何下都不觸字級下限', () => {
   for (const n of [2, 3, 4] as CircleCount[]) {
     it(`${n} 圈 template 每個有文字的槽字級都高於下限`, () => {
       const blocks = layout(sampleState(n));
-      const slots = Object.keys(TEMPLATES[n].texts).map(Number);
+      const slots = Object.keys(TEMPLATES[n]!.texts).map(Number);
 
       expect(blocks.map((b) => b.mask).sort((a, b) => a - b)).toEqual(
         [...slots].sort((a, b) => a - b),

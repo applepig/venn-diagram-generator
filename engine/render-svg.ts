@@ -1,6 +1,7 @@
 import { LINE_HEIGHT } from './defaults';
-import { centerShift, circlesFor, layout } from './layout';
+import { centerShift, layout } from './layout';
 import { regionPaths } from './region-geometry';
+import { circlesForState } from './shapes/index';
 import type { Circle, VennState } from './types';
 
 const FONT_FAMILY = 'Noto Sans TC';
@@ -184,7 +185,7 @@ export interface RenderOptions {
 export function renderSvg(state: VennState, opts: RenderOptions = {}): string {
   const { background = true, watermark: watermark_text = '' } = opts;
   const size = state.size;
-  const circles = circlesFor(state.n, state.radius, state.overlap);
+  const circles = circlesForState(state);
   const is_outline = state.style === 'outline';
 
   let defs = '';

@@ -190,6 +190,23 @@ describe('GET /api/png：AC3 壞輸入回 400 JSON', () => {
       expect(await res.json()).toHaveProperty('error');
     });
   }
+
+  const bad_shape: [string, unknown][] = [
+    ['row(2) 不是合法組合', { ...defaultState(2), arr: 'row' }],
+    ['ring(7) 不是合法組合', { ...defaultState(2), n: 7 }],
+    ['arr 不認得', { ...defaultState(3), arr: 'spiral' }],
+  ];
+
+  for (const [name, value] of bad_shape) {
+    it(`${name} → 400，錯誤訊息是英文`, async () => {
+      const res = await get(`/api/png?s=${packJson(value)}`);
+
+      expect(res.status).toBe(400);
+      const body = (await res.json()) as { error: string };
+      // API 是機器介面，不走 i18n：訊息只用 ASCII 可列印字元
+      expect(body.error).toMatch(/^[\x20-\x7e]+$/);
+    });
+  }
 });
 
 describe('GET /api/png：AC1b 非同步渲染與並行上限', () => {

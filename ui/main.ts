@@ -1,8 +1,9 @@
 import './style.css';
-import { nextStateForCircleCount } from '../content/next-state';
+import { nextStateForShape } from '../content/next-state';
 import { sampleState } from '../content/state-presets';
 import { STRINGS } from '../content/strings/zh-TW';
 import { renderSvg } from '../engine/render-svg';
+import { arrOf } from '../engine/shapes/index';
 import { decodeState, encodeState } from '../engine/state-codec-web';
 import type { CircleCount, TextSlot, VennState } from '../engine/types';
 import { createCanvas } from './canvas';
@@ -48,7 +49,8 @@ function setState(patch: Partial<VennState>): void {
 
 function setCircleCount(n: CircleCount): void {
   if (n === state.n) return;
-  state = nextStateForCircleCount(state, n);
+  // 排列選擇器是 M4；目前只換圈數，排列沿用現在的
+  state = nextStateForShape(state, arrOf(state), n);
   render();
 }
 

@@ -10,7 +10,7 @@ import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { createApp } from '../server/app';
 import { renderSvg } from '../engine/render-svg';
-import { decodeState } from '../engine/state-codec-node';
+import { decodeState, encodeState } from '../engine/state-codec-node';
 import type { VennState } from '../engine/types';
 import { FONT_FILE } from './helpers/font';
 
@@ -74,6 +74,8 @@ describe('AC1 golden：重構前後的輸出逐位元相同', () => {
       async () => {
         const state = decodeState(item.s);
 
+        // 解開再編回去必須是同一個字串：`arr` 進 state 後 ring 一律省略，編碼才沒變
+        expect(encodeState(state)).toBe(item.s);
         expect(sha256(svgOf(state))).toBe(item.svg_sha256);
         expect(await pngSha256(`/api/png?s=${item.s}`)).toBe(item.png_sha256);
         expect(await pngSha256(`/api/og.png?s=${item.s}`)).toBe(item.og_png_sha256);

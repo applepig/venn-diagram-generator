@@ -1,23 +1,21 @@
 import { describe, expect, it } from 'vitest';
 import {
   centerShift,
-  circlesFor,
   estimateWidth,
   fitText,
   layout,
   regionBox,
+  slotMasks,
   wrapText,
 } from '../engine/layout';
 import {
-  DEFAULT_OVERLAP,
-  DEFAULT_RADIUS,
   INTERSECTION_ASPECT,
   INTERSECTION_START_FS,
   LABEL_START_FS,
   LINE_HEIGHT,
   MIN_FS,
-  SLOT_MASKS,
 } from '../engine/defaults';
+import { circlesFor, shapeDefaults } from '../engine/shapes/index';
 import { defaultState, sampleState } from '../content/state-presets';
 import type { CircleCount, VennState } from '../engine/types';
 
@@ -31,7 +29,7 @@ function stateWith(n: CircleCount, texts: Record<string, string>): VennState {
 
 /** 每個槽都填同一段文字，用來壓測所有區域 */
 function fillAllSlots(n: CircleCount, text: string): VennState {
-  return stateWith(n, Object.fromEntries(SLOT_MASKS[n].map((m) => [String(m), text])));
+  return stateWith(n, Object.fromEntries(slotMasks('ring', n).map((m) => [String(m), text])));
 }
 
 describe('wrapText', () => {
@@ -112,7 +110,7 @@ describe('AC8 fitText 的手動換行是硬換行', () => {
   /** 4 圈預設幾何下 mask 3 的相鄰交集框，是 template 兩行文字的實際容器 */
   function intersectionBox(mask: number) {
     return regionBox(
-      circlesFor(4, DEFAULT_RADIUS[4], DEFAULT_OVERLAP[4]),
+      circlesFor('ring', 4, shapeDefaults('ring', 4).radius, shapeDefaults('ring', 4).overlap),
       mask,
       INTERSECTION_ASPECT,
     )!;
@@ -292,7 +290,7 @@ describe('AC9 括號置中補償 centerShift', () => {
 
 describe('circlesFor', () => {
   it('2 圈水平並排、圓心距等於 overlap × r', () => {
-    const cs = circlesFor(2, 0.3, 1.2);
+    const cs = circlesFor('ring', 2, 0.3, 1.2);
 
     expect(cs).toHaveLength(2);
     expect(cs[0]!.y).toBeCloseTo(cs[1]!.y, 10);
@@ -300,7 +298,7 @@ describe('circlesFor', () => {
   });
 
   it('3 圈正三角排列：三邊等長', () => {
-    const cs = circlesFor(3, 0.29, 1.15);
+    const cs = circlesFor('ring', 3, 0.29, 1.15);
     const d = (a: number, b: number) => Math.hypot(cs[a]!.x - cs[b]!.x, cs[a]!.y - cs[b]!.y);
 
     expect(cs).toHaveLength(3);
@@ -309,7 +307,7 @@ describe('circlesFor', () => {
   });
 
   it('4 圈為 2×2 花瓣：四個相鄰邊等長，對角較遠', () => {
-    const cs = circlesFor(4, 0.27, 1.15);
+    const cs = circlesFor('ring', 4, 0.27, 1.15);
     const d = (a: number, b: number) => Math.hypot(cs[a]!.x - cs[b]!.x, cs[a]!.y - cs[b]!.y);
 
     expect(cs).toHaveLength(4);
@@ -321,7 +319,7 @@ describe('circlesFor', () => {
 
 describe('regionBox', () => {
   it('區域不存在時回傳 null：兩圓完全分離就沒有交集區', () => {
-    const cs = circlesFor(2, 0.2, 1.6);
+    const cs = circlesFor('ring', 2, 0.2, 1.6);
     const separated = [
       { ...cs[0]!, x: 0.1 },
       { ...cs[1]!, x: 0.9 },
@@ -331,7 +329,7 @@ describe('regionBox', () => {
   });
 
   it('文字框中心落在該區域內', () => {
-    const cs = circlesFor(3, 0.29, 1.15);
+    const cs = circlesFor('ring', 3, 0.29, 1.15);
     const box = regionBox(cs, 0b111, 1.3);
 
     expect(box).not.toBeNull();
@@ -340,7 +338,7 @@ describe('regionBox', () => {
   });
 
   it('文字框四角都仍在該區域內（不溢出到鄰區）', () => {
-    const cs = circlesFor(3, 0.29, 1.15);
+    const cs = circlesFor('ring', 3, 0.29, 1.15);
     const box = regionBox(cs, 0b011, 1.3)!;
     const mask_at = (x: number, y: number) =>
       cs.reduce((m, c, i) => (Math.hypot(x - c.x, y - c.y) <= c.r ? m | (1 << i) : m), 0);
@@ -397,7 +395,7 @@ describe('layout：AC1 不溢框', () => {
 
       // 這幾組參數下每個槽的區域都存在，避免空陣列讓下面的迴圈空轉通過
       expect(blocks.map((b) => b.mask).sort((a, b) => a - b)).toEqual(
-        [...SLOT_MASKS[state.n]].sort((a, b) => a - b),
+        [...slotMasks('ring', state.n)].sort((a, b) => a - b),
       );
       for (const block of blocks) {
         const longest = Math.max(...block.lines.map((l) => estimateWidth(l, block.fs)));

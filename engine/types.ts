@@ -1,6 +1,9 @@
 export type VennStyle = 'translucent' | 'flat' | 'outline';
 
-export type CircleCount = 2 | 3 | 4;
+export type CircleCount = 2 | 3 | 4 | 5 | 6;
+
+/** 圓的排列方式：環狀（含 2 圈並排與 4 圈方陣）或水平一列 */
+export type Arrangement = 'ring' | 'row';
 
 /**
  * 一個文字槽。`fs`／`dx`／`dy` 只在使用者手動調整過時存在，
@@ -21,6 +24,11 @@ export interface TextSlot {
 
 export interface VennState {
   v: 1;
+  /**
+   * 排列方式；缺席＝`ring`。編碼時 `ring` 一律省略，
+   * 所以 `v` 維持 1、舊連結的編碼字串也一個位元都不變。
+   */
+  arr?: Arrangement;
   n: CircleCount;
   style: VennStyle;
   opacity: number;

@@ -5,10 +5,10 @@ import {
   LABEL_START_FS,
   LINE_HEIGHT,
   MIN_FS,
-  SLOT_MASKS,
   popCount,
 } from './defaults';
-import type { Circle, CircleCount, RegionBox, TextBlock, VennState } from './types';
+import { arrOf, circlesFor, circlesForState, shapeDefaults } from './shapes/index';
+import type { Arrangement, Circle, CircleCount, RegionBox, TextBlock, VennState } from './types';
 
 /**
  * 全部幾何都在「單位空間」計算：畫布寬 = 1，字級與座標都是畫布寬比例。
@@ -199,39 +199,6 @@ export function fitText(
   return { fs: min_fs, lines: wrapText(text, min_fs, box.w) };
 }
 
-export function circlesFor(n: CircleCount, radius: number, overlap: number): Circle[] {
-  const cx = 0.5;
-  const cy = 0.5;
-  const r = radius;
-  const d = overlap * r;
-
-  if (n === 2) {
-    return [
-      { x: cx - d / 2, y: cy, r },
-      { x: cx + d / 2, y: cy, r },
-    ];
-  }
-
-  if (n === 3) {
-    const ring = d / Math.sqrt(3);
-    // 整體下移，讓上方那顆圓的標籤有頂部空間
-    const gy = cy + ring * 0.25;
-    return [-90, 150, 30].map((deg) => {
-      const a = (deg * Math.PI) / 180;
-      return { x: cx + ring * Math.cos(a), y: gy + ring * Math.sin(a), r };
-    });
-  }
-
-  // 4 圈：2×2 花瓣
-  const h = d / 2;
-  return [
-    { x: cx - h, y: cy - h, r },
-    { x: cx + h, y: cy - h, r },
-    { x: cx - h, y: cy + h, r },
-    { x: cx + h, y: cy + h, r },
-  ];
-}
-
 export function maskAt(circles: Circle[], x: number, y: number): number {
   let mask = 0;
   for (let i = 0; i < circles.length; i++) {
@@ -305,23 +272,55 @@ function startFsFor(kind: 'label' | 'intersection'): number {
   return kind === 'label' ? LABEL_START_FS : INTERSECTION_START_FS;
 }
 
+function kindOf(mask: number): 'label' | 'intersection' {
+  return popCount(mask) === 1 ? 'label' : 'intersection';
+}
+
 function aspectFor(kind: 'label' | 'intersection'): number {
   return kind === 'label' ? LABEL_ASPECT : INTERSECTION_ASPECT;
 }
 
+// 每個 (arr, n) 的槽表是常數，但一組要掃 2^n 個 mask × 200×200 取樣：算過就留著
+const slot_masks_cache = new Map<string, readonly number[]>();
+
+/**
+ * 該 (arr, n) 的合法文字槽（成員 bitmask），依 popCount 遞增、同 popCount 依 mask 遞增排序。
+ *
+ * 判準只有一條：在該組合的**預設幾何**下 `regionBox()` 非 null，不設面積門檻
+ * （2／3／4 圈加門檻反而會多擋掉三重區）。絕不吃 state 的實際幾何：
+ * 4 圈 overlap ≥ 1.5 時有五個區域消失，照實際幾何推導會讓這些合法舊連結直接 400。
+ */
+export function slotMasks(arr: Arrangement, n: CircleCount): readonly number[] {
+  const key = `${arr}-${n}`;
+  const cached = slot_masks_cache.get(key);
+  if (cached) return cached;
+
+  const { radius, overlap } = shapeDefaults(arr, n);
+  const circles = circlesFor(arr, n, radius, overlap);
+  const masks: number[] = [];
+  for (let mask = 1; mask < 1 << n; mask++) {
+    if (regionBox(circles, mask, aspectFor(kindOf(mask))) !== null) masks.push(mask);
+  }
+  masks.sort((a, b) => popCount(a) - popCount(b) || a - b);
+
+  const frozen = Object.freeze(masks);
+  slot_masks_cache.set(key, frozen);
+  return frozen;
+}
+
 export function layout(state: VennState): TextBlock[] {
-  const circles = circlesFor(state.n, state.radius, state.overlap);
+  const circles = circlesForState(state);
   const blocks: TextBlock[] = [];
 
   // 單圈標籤先排，交集後排：交集是主角，畫在上層
-  const masks = [...SLOT_MASKS[state.n]].sort((a, b) => popCount(a) - popCount(b));
+  const masks = slotMasks(arrOf(state), state.n);
 
   for (const mask of masks) {
     const slot = state.texts[String(mask)];
     const text = slot?.t ?? '';
     if (text.trim() === '') continue;
 
-    const kind = popCount(mask) === 1 ? 'label' : 'intersection';
+    const kind = kindOf(mask);
     const box = regionBox(circles, mask, aspectFor(kind));
     if (!box) continue;
 

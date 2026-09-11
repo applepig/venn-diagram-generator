@@ -6,12 +6,12 @@ import {
   RADIUS_MAX,
   RADIUS_MIN,
   SIZE_CHOICES,
-  SLOT_MASKS,
   popCount,
 } from '../engine/defaults';
 import { BG_SWATCHES } from '../content/palette';
 import { STRINGS } from '../content/strings/zh-TW';
-import { circlesFor, layout, regionBox } from '../engine/layout';
+import { layout, regionBox, slotMasks } from '../engine/layout';
+import { arrOf, circlesForState } from '../engine/shapes/index';
 import type { CircleCount, TextSlot, VennState, VennStyle } from '../engine/types';
 import { createColorControl } from './color-control';
 import { createSlotRow, type SlotRow } from './slot-row';
@@ -237,9 +237,9 @@ export function createToolbar(root: HTMLElement, handlers: ToolbarHandlers): Too
   let latest_state: VennState | null = null;
   let rows: SlotRow[] = [];
 
-  /** 只有圈數變動才需要重建槽列，其餘情況沿用既有節點（保住展開狀態與游標） */
+  /** 只有槽數變動才需要重建槽列，其餘情況沿用既有節點（保住展開狀態與游標） */
   function syncRows(state: VennState): void {
-    const masks = SLOT_MASKS[state.n];
+    const masks = slotMasks(arrOf(state), state.n);
     if (rows.length !== masks.length) {
       rows = masks.map((mask) =>
         createSlotRow(mask, {
@@ -255,7 +255,7 @@ export function createToolbar(root: HTMLElement, handlers: ToolbarHandlers): Too
       slots_el.replaceChildren(...rows.map((row) => row.root));
     }
 
-    const circles = circlesFor(state.n, state.radius, state.overlap);
+    const circles = circlesForState(state);
     const blocks = new Map(layout(state).map((block) => [block.mask, block]));
     for (const row of rows) {
       const aspect = popCount(row.mask) === 1 ? LABEL_ASPECT : INTERSECTION_ASPECT;

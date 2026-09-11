@@ -13,7 +13,7 @@ import { fileURLToPath } from 'node:url';
 import { createApp } from '../server/app';
 import { PALETTE } from '../content/palette';
 import { sampleState } from '../content/state-presets';
-import { SLOT_MASKS } from '../engine/defaults';
+import { slotMasks } from '../engine/layout';
 import { renderSvg } from '../engine/render-svg';
 import { decodeState, encodeState } from '../engine/state-codec-node';
 import type { CircleCount, TextSlot, VennState, VennStyle } from '../engine/types';
@@ -141,7 +141,7 @@ for (const item of CASES) {
 
 const golden = {
   note: 'AC1 golden：以 07 sprint 重構前的程式產出，任何 milestone 都不得修改。測試紅了是實作錯，不是 golden 錯。',
-  slot_masks_4: SLOT_MASKS[4],
+  slot_masks_4: [...slotMasks('ring', 4)],
   palette: PALETTE,
   cases,
 };

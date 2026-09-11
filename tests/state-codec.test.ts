@@ -6,9 +6,11 @@ import {
   decodeState as decodeStateWeb,
   encodeState as encodeStateWeb,
 } from '../engine/state-codec-web';
-import { MAX_STATE_PARAM_LEN, MAX_TEXT_LEN, SLOT_MASKS } from '../engine/defaults';
+import { MAX_STATE_PARAM_LEN, MAX_TEXT_LEN } from '../engine/defaults';
+import { slotMasks } from '../engine/layout';
+import { shapeDefaults } from '../engine/shapes/index';
 import { defaultState, sampleState } from '../content/state-presets';
-import type { TextSlot, VennState } from '../engine/types';
+import type { CircleCount, TextSlot, VennState } from '../engine/types';
 import { bombParam } from './helpers/state-param';
 
 const rich: VennState = {
@@ -133,7 +135,7 @@ describe('validateState：schema 檢查', () => {
     ['字串', 'nope'],
     ['缺 v', { ...sampleState(), v: undefined }],
     ['v 不是 1', { ...sampleState(), v: 2 }],
-    ['n 不在 2/3/4', { ...sampleState(), n: 5 }],
+    ['n 超出 2～6', { ...sampleState(), n: 7 }],
     ['style 不認得', { ...sampleState(), style: 'neon' }],
     ['size 太小', { ...sampleState(), size: 399 }],
     ['size 太大', { ...sampleState(), size: 2001 }],
@@ -244,6 +246,119 @@ describe('validateState：schema 檢查', () => {
   });
 });
 
+describe('arr：排列進 state', () => {
+  /** 只有 ASCII 可列印字元＝沒有中文；API 是機器介面，不走 i18n */
+  const ASCII_ONLY = /^[\x20-\x7e]+$/;
+
+  /** PALETTE 目前只有四色（5／6 圈的配色是 M4），測試自帶六色 */
+  const SIX_COLORS = ['#2e9be6', '#e6a92e', '#e04848', '#3cb54a', '#8b5cf6', '#e05fa0'];
+
+  function rowState(n: 3 | 4 | 5 | 6): VennState {
+    const { radius, overlap } = shapeDefaults('row', n);
+    return {
+      v: 1,
+      arr: 'row',
+      n,
+      style: 'translucent',
+      opacity: 0.6,
+      overlap,
+      radius,
+      colors: SIX_COLORS.slice(0, n),
+      bg: '#fafafa',
+      size: 1200,
+      texts: { '1': { t: '甲' } },
+    };
+  }
+
+  it('AC1 不帶 arr 的舊 state 解出來仍然不帶 arr（編碼字串不變）', () => {
+    const encoded = encodeState(sampleState(4));
+    const state = decodeState(encoded);
+
+    expect('arr' in state).toBe(false);
+    expect(encodeState(state)).toBe(encoded);
+  });
+
+  it('AC1 明確帶 arr: ring 與完全不帶 arr 編出同一個字串', () => {
+    const plain = sampleState(3);
+
+    expect(encodeState({ ...plain, arr: 'ring' })).toBe(encodeState(plain));
+  });
+
+  it('row 的 arr 會保留，round-trip 後原樣回來', () => {
+    const state = rowState(4);
+
+    expect(decodeState(encodeState(state))).toEqual(state);
+    expect(decodeState(encodeState(state)).v).toBe(1);
+  });
+
+  it('ring 2～6 與 row 3～6 都是合法組合', () => {
+    for (const n of [2, 3, 4, 5, 6] as CircleCount[]) {
+      const state = { ...defaultState(2), n, colors: SIX_COLORS.slice(0, n), texts: {} };
+      expect(() => validateState(state), `ring(${n})`).not.toThrow();
+    }
+    for (const n of [3, 4, 5, 6] as const) {
+      expect(() => validateState(rowState(n)), `row(${n})`).not.toThrow();
+    }
+  });
+
+  it('row(2) 被拒，訊息是英文', () => {
+    const state = { ...defaultState(2), arr: 'row' as const };
+
+    expect(() => validateState(state)).toThrow(StateError);
+    try {
+      validateState(state);
+    } catch (err) {
+      const message = (err as StateError).message;
+      expect(message).toMatch(ASCII_ONLY);
+      expect(message).toContain('row');
+    }
+  });
+
+  it('圈數超出 2～6 被拒，訊息是英文', () => {
+    for (const n of [1, 7, 3.5]) {
+      const state = { ...defaultState(2), n };
+      expect(() => validateState(state), `n=${n}`).toThrow(StateError);
+      try {
+        validateState(state);
+      } catch (err) {
+        expect((err as StateError).message, `n=${n}`).toMatch(ASCII_ONLY);
+      }
+    }
+  });
+
+  it('arr 不是 ring／row 就被拒，訊息是英文', () => {
+    for (const arr of ['spiral', 1, null]) {
+      const state = { ...defaultState(3), arr };
+      expect(() => validateState(state), `arr=${String(arr)}`).toThrow(StateError);
+      try {
+        validateState(state);
+      } catch (err) {
+        expect((err as StateError).message, `arr=${String(arr)}`).toMatch(ASCII_ONLY);
+      }
+    }
+  });
+
+  it('槽位白名單跟著 (arr, n) 走：ring(4) 有的 15 在 row(4) 被拒', () => {
+    const row = { ...rowState(4), texts: { '15': { t: '全部' } } };
+
+    expect(slotMasks('ring', 4)).toContain(15);
+    expect(slotMasks('row', 4)).not.toContain(15);
+    expect(() => validateState(row)).toThrow(StateError);
+  });
+
+  it('AC1 4 圈 overlap 1.6 的舊連結，實際幾何下消失的區域仍是合法槽', () => {
+    const state = {
+      ...defaultState(4),
+      overlap: 1.6,
+      texts: Object.fromEntries(
+        [7, 11, 13, 14, 15].map((mask) => [String(mask), { t: '甲' }]),
+      ),
+    };
+
+    expect(() => validateState(state)).not.toThrow();
+  });
+});
+
 describe('decodeState：解壓輸出上限（AC1）', () => {
   it('解開後 8MB 的壓縮炸彈拋 StateError，不把記憶體配下去', () => {
     expect(() => decodeState(bombParam(8 * 1024 * 1024))).toThrow(StateError);
@@ -260,7 +375,7 @@ describe('decodeState：解壓輸出上限（AC1）', () => {
     let code_point = 0x20000;
     let fill_seed = 0x123457;
     const texts: Record<string, TextSlot> = {};
-    for (const mask of SLOT_MASKS[4]) {
+    for (const mask of slotMasks('ring', 4)) {
       const t = Array.from({ length: MAX_TEXT_LEN }, () => String.fromCodePoint(code_point++)).join(
         '',
       );

@@ -1,7 +1,7 @@
 import { Resvg } from '@resvg/resvg-js';
 import { describe, expect, it } from 'vitest';
-import { SLOT_MASKS } from '../engine/defaults';
-import { circlesFor, maskAt } from '../engine/layout';
+import { maskAt, slotMasks } from '../engine/layout';
+import { circlesFor } from '../engine/shapes/index';
 import { regionPaths } from '../engine/region-geometry';
 import type { Circle } from '../engine/types';
 
@@ -84,38 +84,38 @@ function scan(circles: Circle[], size = SIZE) {
 
 describe('regionPaths：區域邊界由弧段串成', () => {
   it('2 圈預設幾何：3 個區域各自填對顏色，彼此之間沒有縫隙', () => {
-    const { wrong, seen } = scan(circlesFor(2, 0.3, 1.2));
+    const { wrong, seen } = scan(circlesFor('ring', 2, 0.3, 1.2));
 
     expect(wrong).toEqual([]);
     expect(seen).toEqual([0, 1, 2, 3]);
   });
 
   it('3 圈預設幾何：7 個區域全部存在且填對顏色', () => {
-    const { wrong, seen } = scan(circlesFor(3, 0.29, 1.15));
+    const { wrong, seen } = scan(circlesFor('ring', 3, 0.29, 1.15));
 
     expect(wrong).toEqual([]);
     expect(seen).toEqual([0, 1, 2, 3, 4, 5, 6, 7]);
   });
 
   it('4 圈預設幾何：spec 的 9 個文字槽區域都填得出來', () => {
-    const circles = circlesFor(4, 0.27, 1.15);
+    const circles = circlesFor('ring', 4, 0.27, 1.15);
     const { wrong, seen } = scan(circles);
     const paths = regionPaths(circles, SIZE);
 
     expect(wrong).toEqual([]);
-    for (const mask of SLOT_MASKS[4]) expect(paths.has(mask)).toBe(true);
+    for (const mask of slotMasks('ring', 4)) expect(paths.has(mask)).toBe(true);
     expect(seen).toContain(15);
   });
 
   it('4 圈 overlap 拉到 1.6：對角兩圈不再相交，仍不出現縫隙', () => {
     // 對角圓心距 = 1.6r × √2 > 2r，這組幾何裡「有些圓對沒有交點」
-    const { wrong } = scan(circlesFor(4, 0.27, 1.6));
+    const { wrong } = scan(circlesFor('ring', 4, 0.27, 1.6));
 
     expect(wrong).toEqual([]);
   });
 
   it('overlap 縮到 1.0 讓區域極度重疊時仍填得正確', () => {
-    const { wrong } = scan(circlesFor(3, 0.29, 1.0));
+    const { wrong } = scan(circlesFor('ring', 3, 0.29, 1.0));
 
     expect(wrong).toEqual([]);
   });
@@ -165,7 +165,7 @@ describe('regionPaths：沒有交點的圓', () => {
 
 describe('regionPaths：輸出形式', () => {
   it('每個區域是單一 path，只用弧段指令，不用 clipPath', () => {
-    const paths = regionPaths(circlesFor(3, 0.29, 1.15), 1200);
+    const paths = regionPaths(circlesFor('ring', 3, 0.29, 1.15), 1200);
 
     for (const d of paths.values()) {
       expect(d.startsWith('M')).toBe(true);
@@ -177,7 +177,7 @@ describe('regionPaths：輸出形式', () => {
   });
 
   it('路徑座標隨 size 等比放大', () => {
-    const circles = circlesFor(2, 0.3, 1.2);
+    const circles = circlesFor('ring', 2, 0.3, 1.2);
     const numbers = (d: string) => d.match(/-?[\d.]+/g)!.map(Number);
     const small = numbers(regionPaths(circles, 400).get(3)!);
     const big = numbers(regionPaths(circles, 800).get(3)!);
