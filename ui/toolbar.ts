@@ -21,7 +21,7 @@ import { ts, uiLocale } from './i18n';
 import { createColorControl } from './color-control';
 import { createSlotRow, type SlotRow } from './slot-row';
 
-// 文案在 createToolbar 裡才取：模組載入時語言還沒決定（uiLocale 要讀 DOM 與 localStorage）
+// 文案在 createToolbar 裡才取：模組載入時語言還沒決定（uiLocale 要讀 DOM 上的 <html lang>）
 function styleLabels(): [VennStyle, string][] {
   return [
     ['translucent', ts('style.translucent')],

@@ -2,7 +2,7 @@
 
 [中文說明](./README.zh-TW.md) · Live: <https://venn.applepig.net>
 
-A single-page WYSIWYG Venn diagram generator. Pick an arrangement (ring or row) and 2–6 circles, click any region on the canvas to type, drag text around, tune font sizes, then download a PNG you can paste anywhere. The whole editor state is compressed into the URL's `s` parameter, so a share link *is* the picture: paste it into a chat app and `og:image` renders a preview. No login, no account, stateless server. UI available in Traditional Chinese, English and Japanese, picked from the language dropdown in the panel (remembered in `localStorage`), `?lang=`, or `Accept-Language`.
+A single-page WYSIWYG Venn diagram generator. Pick an arrangement (ring or row) and 2–6 circles, click any region on the canvas to type, drag text around, tune font sizes, then download a PNG you can paste anywhere. The whole editor state is compressed into the URL's `s` parameter, so a share link *is* the picture: paste it into a chat app and `og:image` renders a preview. No login, no account, stateless server. UI available in Traditional Chinese, English and Japanese, picked from the language dropdown in the panel (remembered in the `venn.lang` cookie), `?lang=`, or `Accept-Language`.
 
 ## Architecture
 

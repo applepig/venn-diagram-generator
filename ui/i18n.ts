@@ -1,28 +1,10 @@
 import { clientLocale, t, type Locale, type StringKey } from '../content/locale';
-import { searchWithLang } from './share-url';
-
-/** localStorage 的 key；記住的是使用者用 `?lang=` 選過的語言 */
-const STORAGE_KEY = 'venn.lang';
-
-function readStored(): string | null {
-  try {
-    return localStorage.getItem(STORAGE_KEY);
-  } catch {
-    // 隱私模式下讀 localStorage 會丟例外，語言不是必要功能，靜靜退回下一個來源
-    return null;
-  }
-}
-
-function remember(locale: Locale): void {
-  try {
-    localStorage.setItem(STORAGE_KEY, locale);
-  } catch {
-    // 同上：記不住就只是下次要再帶 ?lang=
-  }
-}
+import { searchWithLang, searchWithState } from './share-url';
 
 /**
- * client 的語言：`?lang=` → localStorage → server 寫進 `<html lang>` 的值。
+ * client 的語言：`?lang=` → server 寫進 `<html lang>` 的值。
+ * 記憶由 server 的 cookie `venn.lang` 負責（AC14），client 不再自己存一份——
+ * 存了 server 也讀不到，兩邊會分歧成「介面一種語言、meta 另一種」的半翻譯頁。
  * 只在載入時算一次：整份介面與 template 都依這個值，中途變動只會讓面板和圖不同語言。
  */
 let locale: Locale | null = null;
@@ -31,9 +13,7 @@ export function uiLocale(): Locale {
   if (locale !== null) return locale;
 
   const from_query = new URLSearchParams(location.search).get('lang');
-  locale = clientLocale(from_query, readStored(), document.documentElement.lang);
-  // 帶過 ?lang= 就記住：分享連結不帶 lang，下次點別人的連結也還是自己的語言
-  if (from_query) remember(locale);
+  locale = clientLocale(from_query, document.documentElement.lang);
   return locale;
 }
 
@@ -43,12 +23,15 @@ export function ts(key: StringKey): string {
 }
 
 /**
- * 切語言：記住選擇，把 `lang` 寫進網址（保留 `s`）後整頁 reload。
+ * 切語言：把 `lang` 寫進網址後整頁 reload，server 收到 `?lang=` 順手寫 cookie。
  * 不在 client 再做一套字串注入——`<html lang>`、meta、`data-i18n` 全部由 server 那一套換，
  * reload 是讓兩邊只有一份注入邏輯的代價，也順便把已算好的 template 換成該語言。
+ *
+ * `encoded` 由呼叫端給目前這份 state 的編碼，不從 `location.search` 讀：
+ * `syncUrl()` 是非同步的，網址上的 `s` 可能還是上一筆編輯（AC19）。
  */
-export function switchLocale(next: Locale): void {
+export function switchLocale(next: Locale, encoded: string): void {
   if (next === uiLocale()) return;
-  remember(next);
-  location.search = searchWithLang(location.search, next);
+  const search = encoded ? searchWithState(location.search, encoded) : location.search;
+  location.search = searchWithLang(search, next);
 }

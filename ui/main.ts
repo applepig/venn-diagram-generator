@@ -1,4 +1,5 @@
 import './style.css';
+import type { Locale } from '../content/locale';
 import { nextStateForLocale, nextStateForShape } from '../content/next-state';
 import { sampleState } from '../content/state-presets';
 import { renderSvg } from '../engine/render-svg';
@@ -21,6 +22,8 @@ let state: VennState = sampleState(2, locale);
 let encoded = '';
 /** 編碼是非同步的，用 token 丟掉過期結果，避免慢的那次蓋掉新的 */
 let encode_token = 0;
+/** 最近一次的網址同步；切語言要等它做完才知道正確的 `s` */
+let pending_sync: Promise<void> = Promise.resolve();
 
 // 面板只建一次，之後只做增量更新：在 input 事件裡重建節點會中斷拖曳手勢與游標
 const toolbar = createToolbar(panel_el, {
@@ -30,7 +33,7 @@ const toolbar = createToolbar(panel_el, {
   onCopyImage: () => void copyImage(),
   onCopyLink: () => void copyLink(),
   onDownloadSvg: () => downloadSvg(),
-  onLocale: (next) => switchLocale(next),
+  onLocale: (next) => void changeLocale(next),
 });
 
 const canvas = createCanvas(
@@ -98,10 +101,21 @@ async function copyLink(): Promise<void> {
   }
 }
 
+/**
+ * 切語言前要用「目前這份 state」的編碼，不能用網址上的 `s`——`syncUrl()` 是非同步的，
+ * 最後一筆編輯可能還沒寫回網址就被整頁 reload 帶走（AC19）。
+ */
+async function changeLocale(next: Locale): Promise<void> {
+  // 編碼失敗不該擋住切語言：`switchLocale` 在 encoded 為空時會沿用網址上的 s
+  await pending_sync.catch(() => {});
+  switchLocale(next, encoded);
+}
+
 function render(): void {
   canvas.render();
   toolbar.update(state, pngUrl());
-  void syncUrl();
+  pending_sync = syncUrl();
+  pending_sync.catch(console.error);
 }
 
 async function syncUrl(): Promise<void> {

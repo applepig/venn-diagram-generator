@@ -122,65 +122,73 @@ describe('AC6 normalizeLang', () => {
   });
 });
 
-describe('AC6 server 的語言 precedence：?lang= → Accept-Language → zh-TW', () => {
-  it('?lang= 優先於 Accept-Language', () => {
-    expect(serverLocale('en', 'zh-TW,zh;q=0.9')).toBe('en');
-    expect(serverLocale('zh-TW', 'en-US,en;q=0.9')).toBe('zh-TW');
+describe('AC14 server 的語言 precedence：?lang= → cookie → Accept-Language → zh-TW', () => {
+  it('?lang= 優先於 cookie 與 Accept-Language', () => {
+    expect(serverLocale('en', 'ja', 'zh-TW,zh;q=0.9')).toBe('en');
+    expect(serverLocale('zh-TW', 'ja', 'en-US,en;q=0.9')).toBe('zh-TW');
   });
 
-  it('沒有 ?lang= 時看 Accept-Language', () => {
-    expect(serverLocale(null, 'en-US,en;q=0.9')).toBe('en');
-    expect(serverLocale(null, 'zh-TW,zh;q=0.9,en;q=0.8')).toBe('zh-TW');
-    expect(serverLocale(null, 'ja,en;q=0.8')).toBe('ja');
-    expect(serverLocale(null, 'ja-JP,ja;q=0.9,en;q=0.8')).toBe('ja');
+  it('沒有 ?lang= 時 cookie 勝過 Accept-Language', () => {
+    expect(serverLocale(null, 'ja', 'zh-TW,zh;q=0.9')).toBe('ja');
+    expect(serverLocale(null, 'en', 'zh-TW')).toBe('en');
+  });
+
+  it('沒有 ?lang= 也沒有 cookie 時看 Accept-Language', () => {
+    expect(serverLocale(null, null, 'en-US,en;q=0.9')).toBe('en');
+    expect(serverLocale(null, null, 'zh-TW,zh;q=0.9,en;q=0.8')).toBe('zh-TW');
+    expect(serverLocale(null, null, 'ja,en;q=0.8')).toBe('ja');
+    expect(serverLocale(null, null, 'ja-JP,ja;q=0.9,en;q=0.8')).toBe('ja');
+  });
+
+  it('不認得的 cookie 值被忽略，退到 Accept-Language', () => {
+    expect(serverLocale(null, 'not-a-lang', 'en-US,en;q=0.9')).toBe('en');
+    expect(serverLocale(null, '', 'ja')).toBe('ja');
+    expect(serverLocale(null, 'fr', null)).toBe(DEFAULT_LOCALE);
   });
 
   it('AC12 ?lang=ja 與 Accept-Language: ja 都收斂到 ja', () => {
-    expect(serverLocale('ja', 'en-US,en;q=0.9')).toBe('ja');
-    expect(serverLocale('ja-JP', null)).toBe('ja');
-    expect(serverLocale(null, 'ja;q=0.8,en;q=0.5')).toBe('ja');
+    expect(serverLocale('ja', null, 'en-US,en;q=0.9')).toBe('ja');
+    expect(serverLocale('ja-JP', null, null)).toBe('ja');
+    expect(serverLocale(null, null, 'ja;q=0.8,en;q=0.5')).toBe('ja');
+    expect(serverLocale(null, 'ja-JP', null)).toBe('ja');
   });
 
   it('Accept-Language 依 q 值取最高的支援語言，不是依出現順序', () => {
-    expect(serverLocale(null, 'zh-TW;q=0.4,en;q=0.9')).toBe('en');
-    expect(serverLocale(null, 'en;q=0.3,zh-TW;q=0.8')).toBe('zh-TW');
+    expect(serverLocale(null, null, 'zh-TW;q=0.4,en;q=0.9')).toBe('en');
+    expect(serverLocale(null, null, 'en;q=0.3,zh-TW;q=0.8')).toBe('zh-TW');
   });
 
   it('跳過不支援的語言與 q=0', () => {
-    expect(serverLocale(null, 'fr-FR,fr;q=0.9,en;q=0.5')).toBe('en');
-    expect(serverLocale(null, 'en;q=0,zh-TW;q=0.5')).toBe('zh-TW');
+    expect(serverLocale(null, null, 'fr-FR,fr;q=0.9,en;q=0.5')).toBe('en');
+    expect(serverLocale(null, null, 'en;q=0,zh-TW;q=0.5')).toBe('zh-TW');
   });
 
-  it('兩個來源都沒有可用語言時回 zh-TW', () => {
-    expect(serverLocale(null, null)).toBe(DEFAULT_LOCALE);
-    expect(serverLocale('fr', 'fr-FR,de;q=0.8')).toBe(DEFAULT_LOCALE);
-    expect(serverLocale('', '')).toBe(DEFAULT_LOCALE);
+  it('三個來源都沒有可用語言時回 zh-TW', () => {
+    expect(serverLocale(null, null, null)).toBe(DEFAULT_LOCALE);
+    expect(serverLocale('fr', 'de', 'fr-FR,de;q=0.8')).toBe(DEFAULT_LOCALE);
+    expect(serverLocale('', '', '')).toBe(DEFAULT_LOCALE);
   });
 });
 
-describe('AC6 client 的語言 precedence：?lang= → localStorage → <html lang>', () => {
-  it('?lang= 勝過 localStorage 與 <html lang>', () => {
-    expect(clientLocale('en', 'zh-TW', 'zh-Hant')).toBe('en');
-    expect(clientLocale('zh-TW', 'en', 'en')).toBe('zh-TW');
+describe('AC14 client 的語言 precedence：?lang= → <html lang>', () => {
+  it('?lang= 勝過 <html lang>', () => {
+    expect(clientLocale('en', 'zh-Hant')).toBe('en');
+    expect(clientLocale('zh-TW', 'en')).toBe('zh-TW');
   });
 
-  it('沒有 ?lang= 時看 localStorage', () => {
-    expect(clientLocale(null, 'en', 'zh-Hant')).toBe('en');
-    expect(clientLocale(null, 'zh-TW', 'en')).toBe('zh-TW');
+  it('沒有 ?lang= 時用 server 寫進 <html lang> 的值（語言記憶在 cookie，由 server 決定）', () => {
+    expect(clientLocale(null, 'en')).toBe('en');
+    expect(clientLocale(null, 'zh-Hant')).toBe('zh-TW');
+    expect(clientLocale(null, 'ja')).toBe('ja');
   });
 
-  it('前兩者都沒有時看 server 寫進 <html lang> 的值', () => {
-    expect(clientLocale(null, null, 'en')).toBe('en');
-    expect(clientLocale(null, null, 'zh-Hant')).toBe('zh-TW');
+  it('兩個來源都不可用時回 zh-TW', () => {
+    expect(clientLocale(null, null)).toBe(DEFAULT_LOCALE);
+    expect(clientLocale('fr', 'ko')).toBe(DEFAULT_LOCALE);
   });
 
-  it('三個來源都不可用時回 zh-TW', () => {
-    expect(clientLocale(null, null, null)).toBe(DEFAULT_LOCALE);
-    expect(clientLocale('fr', 'de', 'ko')).toBe(DEFAULT_LOCALE);
-  });
-
-  it('不看 Accept-Language（client 沒有這個來源）也不看 navigator，壞掉的 localStorage 值被忽略', () => {
-    expect(clientLocale(null, 'not-a-lang', 'en')).toBe('en');
+  it('不認得的 ?lang= 退到 <html lang>', () => {
+    expect(clientLocale('fr', 'ja')).toBe('ja');
   });
 });
 

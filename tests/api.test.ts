@@ -910,6 +910,105 @@ describe('07 M7 i18n：ja 首頁每個語言面都跟著換（AC12）', () => {
   });
 });
 
+/**
+ * AC14 語言同源：記憶從 localStorage 搬到 cookie，server 與 client 才會看到同一個語言。
+ * 產圖端點刻意不看 cookie——固定 URL 配一年期快取，cookie 進不了 CDN 的 cache key。
+ */
+describe('AC14 語言記憶走 cookie venn.lang', () => {
+  const ui_index = readFileSync(resolve('ui/index.html'), 'utf8');
+  const site = createApp({
+    fontFiles: FONT_FILES,
+    ogBaseFile: OG_BASE_FILE,
+    publicOrigin: ORIGIN,
+    loadIndexHtml: () => ui_index,
+  });
+
+  function home(query = '', headers: Record<string, string> = {}) {
+    return site.request(`${ORIGIN}/${query}`, { headers });
+  }
+
+  it('?lang=ja 的回應把語言寫進 cookie（一年、Path=/、SameSite=Lax）', async () => {
+    const res = await home('?lang=ja');
+    const cookie = res.headers.get('set-cookie') ?? '';
+
+    expect(cookie).toContain('venn.lang=ja');
+    expect(cookie).toContain('Path=/');
+    expect(cookie).toContain('Max-Age=31536000');
+    expect(cookie).toContain('SameSite=Lax');
+  });
+
+  it('沒帶 ?lang= 時不寫 cookie（沒有使用者的選擇可記）', async () => {
+    const res = await home('', { 'accept-language': 'ja' });
+
+    expect(res.headers.get('set-cookie')).toBeNull();
+  });
+
+  it('不認得的 ?lang= 不寫 cookie，也不把 fallback 語言記起來', async () => {
+    const res = await home('?lang=fr');
+
+    expect(res.headers.get('set-cookie')).toBeNull();
+  });
+
+  it('之後帶 cookie、無 ?lang=、Accept-Language 是 zh-TW 的首頁仍出 ja', async () => {
+    const res = await home('', {
+      cookie: 'venn.lang=ja',
+      'accept-language': 'zh-TW,zh;q=0.9',
+    });
+    const html = await res.text();
+
+    expect(html).toContain('<html lang="ja"');
+    expect(html).toContain(`<title>${t('site.homeTitle', 'ja')}</title>`);
+    expect(html).toContain('<meta property="og:locale" content="ja_JP">');
+  });
+
+  it('cookie 混在其他 cookie 之間也讀得到', async () => {
+    const html = await (
+      await home('', { cookie: '_ga=GA1.1.x; venn.lang=en; other=1' })
+    ).text();
+
+    expect(html).toContain('<html lang="en"');
+  });
+
+  it('非法的 cookie 值被忽略，退回 Accept-Language', async () => {
+    const html = await (
+      await home('', { cookie: 'venn.lang=fr', 'accept-language': 'ja' })
+    ).text();
+
+    expect(html).toContain('<html lang="ja"');
+  });
+
+  it('?lang= 勝過 cookie，並把新選擇寫回 cookie', async () => {
+    const res = await home('?lang=en', { cookie: 'venn.lang=ja' });
+    const html = await res.text();
+
+    expect(html).toContain('<html lang="en"');
+    expect(res.headers.get('set-cookie')).toContain('venn.lang=en');
+  });
+
+  it('/api/og.png 帶 cookie 不帶 lang 仍是 zh-TW（cookie 進不了 CDN 的 cache key）', async () => {
+    async function hash(headers: Record<string, string> = {}): Promise<string> {
+      const res = await get('/api/og.png?v=5', headers);
+      expect(res.status).toBe(200);
+      return createHash('sha256').update(new Uint8Array(await res.arrayBuffer())).digest('hex');
+    }
+
+    const [with_cookie, zh] = await Promise.all([
+      hash({ cookie: 'venn.lang=ja' }),
+      hash({}),
+    ]);
+
+    expect(with_cookie).toBe(zh);
+  }, 30_000);
+
+  it('/api/png 不因 cookie 改變輸出，也不寫 cookie', async () => {
+    const s = encodeState(sampleState(2));
+    const res = await get(`/api/png?s=${s}`, { cookie: 'venn.lang=ja' });
+
+    expect(res.status).toBe(200);
+    expect(res.headers.get('set-cookie')).toBeNull();
+  }, 30_000);
+});
+
 describe('07 M5 產圖端點的語言只從 query lang 讀（AC6）', () => {
   /** 比雜湊而不是比 Buffer：800KB 的 PNG 一旦不相等，deep equal 的 diff 會跑到天荒地老 */
   async function pngHash(path: string, headers: Record<string, string> = {}): Promise<string> {

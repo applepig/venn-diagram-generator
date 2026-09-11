@@ -69,23 +69,32 @@ function fromAcceptLanguage(header: string | null | undefined): Locale | null {
   return ranked[0]?.locale ?? null;
 }
 
-/** server 的語言：`?lang=` → `Accept-Language` → zh-TW（server 讀不到 localStorage） */
+/** 語言記憶的 cookie 名稱；server 寫、server 讀，client 不再自己存一份 */
+export const LOCALE_COOKIE = 'venn.lang';
+
+/** server 的語言：`?lang=` → cookie → `Accept-Language` → zh-TW */
 export function serverLocale(
   query_lang: string | null | undefined,
+  cookie_lang: string | null | undefined,
   accept_language: string | null | undefined,
 ): Locale {
-  return normalizeLang(query_lang) ?? fromAcceptLanguage(accept_language) ?? DEFAULT_LOCALE;
+  return (
+    normalizeLang(query_lang) ??
+    normalizeLang(cookie_lang) ??
+    fromAcceptLanguage(accept_language) ??
+    DEFAULT_LOCALE
+  );
 }
 
-/** client 的語言：`?lang=` → localStorage → server 寫進 `<html lang>` 的值 */
+/**
+ * client 的語言：`?lang=` → server 寫進 `<html lang>` 的值。
+ * 記憶在 cookie 而不是 localStorage：server 讀得到才不會出現「介面日文、meta 中文」的半翻譯頁。
+ */
 export function clientLocale(
   query_lang: string | null | undefined,
-  stored: string | null | undefined,
   html_lang: string | null | undefined,
 ): Locale {
-  return (
-    normalizeLang(query_lang) ?? normalizeLang(stored) ?? normalizeLang(html_lang) ?? DEFAULT_LOCALE
-  );
+  return normalizeLang(query_lang) ?? normalizeLang(html_lang) ?? DEFAULT_LOCALE;
 }
 
 /** `<html lang>` 與 JSON-LD `inLanguage` 用的標記 */

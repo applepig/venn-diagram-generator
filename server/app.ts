@@ -3,8 +3,11 @@ import { join } from 'node:path';
 import { renderAsync } from '@resvg/resvg-js';
 import { Hono } from 'hono';
 import type { Context } from 'hono';
+import { getCookie, setCookie } from 'hono/cookie';
 import {
+  LOCALE_COOKIE,
   htmlLang,
+  normalizeLang,
   ogLocale,
   serverLocale,
   t,
@@ -73,20 +76,40 @@ function originOf(c: Context, public_origin?: string): string {
   return `${proto}://${host}`;
 }
 
+/** 語言 cookie 的壽命：一年，和「記住我的語言」這件事的期待一致 */
+const LOCALE_COOKIE_MAX_AGE = 31536000;
+
 /**
- * 語言決策（AC6）：`?lang=` → `Accept-Language` → zh-TW。
+ * 語言決策（AC6、AC14）：`?lang=` → cookie `venn.lang` → `Accept-Language` → zh-TW。
  * 產圖端點另有一條更窄的規則，見 `imageLocaleOf()`。
  */
 function localeOf(c: Context): Locale {
-  return serverLocale(c.req.query('lang'), c.req.header('accept-language') ?? null);
+  return serverLocale(
+    c.req.query('lang'),
+    getCookie(c, LOCALE_COOKIE) ?? null,
+    c.req.header('accept-language') ?? null,
+  );
 }
 
 /**
- * 產圖端點的語言只從 query `lang` 讀，刻意不看 `Accept-Language`：
+ * 使用者明確帶了認得的 `?lang=` 才記住（AC14）：這是他選的，不是推測出來的。
+ * 記在 cookie 而不是 localStorage，server 才讀得到同一個值。
+ */
+function rememberLocale(c: Context, locale: Locale): void {
+  if (normalizeLang(c.req.query('lang')) === null) return;
+  setCookie(c, LOCALE_COOKIE, locale, {
+    path: '/',
+    maxAge: LOCALE_COOKIE_MAX_AGE,
+    sameSite: 'Lax',
+  });
+}
+
+/**
+ * 產圖端點的語言只從 query `lang` 讀，刻意不看 `Accept-Language` 與 cookie：
  * 固定 URL 配 `CACHE_FOREVER`，語言不在 key 裡就會被第一個爬蟲的語言污染。
  */
 function imageLocaleOf(c: Context): Locale {
-  return serverLocale(c.req.query('lang'), null);
+  return serverLocale(c.req.query('lang'), null, null);
 }
 
 /**
@@ -301,6 +324,7 @@ export function createApp(opts: AppOptions): Hono {
   app.get('/', async (c) => {
     const s = c.req.query('s');
     const locale = localeOf(c);
+    rememberLocale(c, locale);
     let state: VennState;
     let param: string;
     let shared = true;
