@@ -1,14 +1,12 @@
-import {
-  MAX_TEXT_LEN,
-  OVERLAP_MAX,
-  OVERLAP_MIN,
-  RADIUS_MAX,
-  RADIUS_MIN,
-  SIZE_MAX,
-  SIZE_MIN,
-} from './defaults';
+import { MAX_TEXT_LEN, OVERLAP_MAX, OVERLAP_MIN, SIZE_MAX, SIZE_MIN } from './defaults';
 import { slotMasks } from './layout';
-import { circleCountRange, isArrangement, isCircleCount, isShape } from './shapes/index';
+import {
+  circleCountRange,
+  isArrangement,
+  isCircleCount,
+  isShape,
+  radiusRange,
+} from './shapes/index';
 import type { Arrangement, TextSlot, VennState, VennStyle } from './types';
 
 export class StateError extends Error {
@@ -141,13 +139,16 @@ export function validateState(input: unknown): VennState {
     texts[key] = parseSlot(key, raw);
   }
 
+  // radius 的範圍依排列而定：row 的圓比 ring 小，ring 的範圍不動（舊連結全是 ring）
+  const [radius_min, radius_max] = radiusRange(arr);
+
   const state: VennState = {
     v: 1,
     n,
     style: style as VennStyle,
     opacity: requireNumber(input.opacity, '透明度', 0, 1),
     overlap: requireNumber(input.overlap, '重疊度', OVERLAP_MIN, OVERLAP_MAX),
-    radius: requireNumber(input.radius, '圓半徑', RADIUS_MIN, RADIUS_MAX),
+    radius: requireNumber(input.radius, '圓半徑', radius_min, radius_max),
     colors,
     bg: requireHex(input.bg, '背景色'),
     size,

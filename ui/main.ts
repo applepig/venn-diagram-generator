@@ -5,7 +5,7 @@ import { STRINGS } from '../content/strings/zh-TW';
 import { renderSvg } from '../engine/render-svg';
 import { arrOf } from '../engine/shapes/index';
 import { decodeState, encodeState } from '../engine/state-codec-web';
-import type { CircleCount, TextSlot, VennState } from '../engine/types';
+import type { Arrangement, CircleCount, TextSlot, VennState } from '../engine/types';
 import { createCanvas } from './canvas';
 import { patchSlotTexts } from './patch-slot';
 import { createToolbar } from './toolbar';
@@ -23,7 +23,7 @@ let encode_token = 0;
 // 面板只建一次，之後只做增量更新：在 input 事件裡重建節點會中斷拖曳手勢與游標
 const toolbar = createToolbar(panel_el, {
   onPatch: (patch) => setState(patch),
-  onCircleCount: (n) => setCircleCount(n),
+  onShape: (arr, n) => setShape(arr, n),
   onPatchSlot: patchSlot,
   onCopyImage: () => void copyImage(),
   onCopyLink: () => void copyLink(),
@@ -47,10 +47,9 @@ function setState(patch: Partial<VennState>): void {
   render();
 }
 
-function setCircleCount(n: CircleCount): void {
-  if (n === state.n) return;
-  // 排列選擇器是 M4；目前只換圈數，排列沿用現在的
-  state = nextStateForShape(state, arrOf(state), n);
+function setShape(arr: Arrangement, n: CircleCount): void {
+  if (arr === arrOf(state) && n === state.n) return;
+  state = nextStateForShape(state, arr, n);
   render();
 }
 

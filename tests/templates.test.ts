@@ -1,11 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { MIN_FS, popCount } from '../engine/defaults';
 import { nextStateForShape } from '../content/next-state';
-import { isPristine, sampleState } from '../content/state-presets';
+import { PALETTE } from '../content/palette';
+import { defaultState, isPristine, sampleState, templateTexts } from '../content/state-presets';
 import { TEMPLATES } from '../content/templates/zh-TW';
 import { layout, slotMasks } from '../engine/layout';
-import { shapeDefaults } from '../engine/shapes/index';
-import type { CircleCount } from '../engine/types';
+import { ARRANGEMENTS, circleCountRange, shapeDefaults } from '../engine/shapes/index';
+import type { Arrangement, CircleCount } from '../engine/types';
 
 /**
  * spec 認可的 template 字面值，不從 TEMPLATES 反查（否則等於拿受測程式自證）。
@@ -65,7 +66,7 @@ describe('sampleState', () => {
   it('template 的槽都在該圈數的合法槽位內', () => {
     for (const n of [2, 3, 4] as CircleCount[]) {
       const allowed = new Set(slotMasks('ring', n).map(String));
-      for (const key of Object.keys(TEMPLATES[n]!.texts)) expect(allowed.has(key)).toBe(true);
+      for (const key of Object.keys(TEMPLATES.ring[n]!.texts)) expect(allowed.has(key)).toBe(true);
     }
   });
 });
@@ -217,14 +218,82 @@ describe('nextStateForShape', () => {
     const next = nextStateForShape(sampleState(2), 'ring', 4);
     next.texts['15'] = { t: '被改掉' };
 
-    expect(TEMPLATES[4]!.texts['15']).toEqual({ t: '把手\n舉起來!!' });
+    expect(TEMPLATES.ring[4]!.texts['15']).toEqual({ t: '把手\n舉起來!!' });
   });
 
-  it('沒有 template 的組合（row、5／6 圈）從空白槽開始，樣式不動', () => {
+  it('AC4 切到 row(3) 時套用該組合的單圈標籤 template', () => {
     const next = nextStateForShape(sampleState(2), 'row', 3);
 
-    expect(next.texts).toEqual({});
-    expect(next.style).toBe('flat');
+    expect(next.texts).toEqual({ '1': { t: '甲' }, '2': { t: '乙' }, '4': { t: '丙' } });
+  });
+
+  it('AC4 切到 6 圈時顏色補滿六色，沒有灰色補位', () => {
+    const next = nextStateForShape(sampleState(2), 'ring', 6);
+
+    expect(next.colors).toHaveLength(6);
+    expect(next.colors).not.toContain('#888888');
+    // 前兩色沿用原本的圈色，其餘從 PALETTE 補
+    expect(next.colors.slice(2)).toEqual(PALETTE.slice(2, 6));
+  });
+});
+
+/**
+ * AC4：ring(5)／ring(6)／row(3～6) 只給單圈標籤，交集留空（spec 非目標排除了這些組合的 meme 文案）。
+ * 標籤字面值取自 spec ADR 的「zh 甲乙丙丁戊己」，不從 TEMPLATES 反查。
+ */
+describe('AC4 單圈標籤 template', () => {
+  const LABELS = ['甲', '乙', '丙', '丁', '戊', '己'];
+  const LABEL_ONLY: [Arrangement, CircleCount][] = [
+    ['ring', 5],
+    ['ring', 6],
+    ['row', 3],
+    ['row', 4],
+    ['row', 5],
+    ['row', 6],
+  ];
+
+  for (const [arr, n] of LABEL_ONLY) {
+    it(`${arr}(${n}) 每個圈有一個標籤、交集全空`, () => {
+      const texts = templateTexts(arr, n);
+      const expected = Object.fromEntries(
+        Array.from({ length: n }, (_, i) => [String(1 << i), { t: LABELS[i]! }]),
+      );
+
+      expect(texts).toEqual(expected);
+    });
+  }
+
+  it('每個組合的 template 槽都在該組合的合法槽表內', () => {
+    for (const arr of ARRANGEMENTS) {
+      const [min_n, max_n] = circleCountRange(arr);
+      for (let n = min_n; n <= max_n; n++) {
+        const allowed = new Set(slotMasks(arr, n as CircleCount).map(String));
+        for (const key of Object.keys(templateTexts(arr, n as CircleCount))) {
+          expect(allowed.has(key), `${arr}(${n}) 槽 ${key}`).toBe(true);
+        }
+      }
+    }
+  }, 30_000);
+
+  it('單圈標籤的組合原樣是 pristine，切圈數時才會整組換掉', () => {
+    for (const [arr, n] of LABEL_ONLY) {
+      const state = nextStateForShape(sampleState(2), arr, n);
+
+      expect(isPristine(state), `${arr}(${n})`).toBe(true);
+    }
+  });
+});
+
+describe('AC4 PALETTE 六色', () => {
+  it('六圈各有自己的顏色，沒有重複也沒有灰色補位', () => {
+    expect(PALETTE).toHaveLength(6);
+    expect(new Set(PALETTE).size).toBe(6);
+    expect(PALETTE).not.toContain('#888888');
+    for (const color of PALETTE) expect(color).toMatch(/^#[0-9a-f]{6}$/);
+  });
+
+  it('defaultState(6) 的六個圈色就是 PALETTE', () => {
+    expect(defaultState(6).colors).toEqual(PALETTE);
   });
 });
 
@@ -232,7 +301,7 @@ describe('AC4 三組 template 在預設幾何下都不觸字級下限', () => {
   for (const n of [2, 3, 4] as CircleCount[]) {
     it(`${n} 圈 template 每個有文字的槽字級都高於下限`, () => {
       const blocks = layout(sampleState(n));
-      const slots = Object.keys(TEMPLATES[n]!.texts).map(Number);
+      const slots = Object.keys(TEMPLATES.ring[n]!.texts).map(Number);
 
       expect(blocks.map((b) => b.mask).sort((a, b) => a - b)).toEqual(
         [...slots].sort((a, b) => a - b),

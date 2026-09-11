@@ -18,9 +18,9 @@ export const SIZE_MAX = 2000;
 // 4 圈預設 0.8：下限放寬到 0.6 讓滑桿與 codec 都吃得下低重疊度
 export const OVERLAP_MIN = 0.6;
 export const OVERLAP_MAX = 1.6;
-export const RADIUS_MIN = 0.2;
-export const RADIUS_MAX = 0.35;
 export const MAX_TEXT_LEN = 80;
+
+/** radius 的合法範圍依排列而定（row 的圓比 ring 小），見 `radiusRange()` */
 
 /**
  * server route 收 `s` 參數的長度上限。最壞的合法 state 是 13 槽各塞滿 80 個不重複的 4-byte code point

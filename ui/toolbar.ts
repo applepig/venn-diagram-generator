@@ -3,16 +3,20 @@ import {
   LABEL_ASPECT,
   OVERLAP_MAX,
   OVERLAP_MIN,
-  RADIUS_MAX,
-  RADIUS_MIN,
   SIZE_CHOICES,
   popCount,
 } from '../engine/defaults';
 import { BG_SWATCHES } from '../content/palette';
 import { STRINGS } from '../content/strings/zh-TW';
 import { layout, regionBox, slotMasks } from '../engine/layout';
-import { arrOf, circlesForState } from '../engine/shapes/index';
-import type { CircleCount, TextSlot, VennState, VennStyle } from '../engine/types';
+import {
+  arrOf,
+  circleCountRange,
+  circlesForState,
+  isShape,
+  radiusRange,
+} from '../engine/shapes/index';
+import type { Arrangement, CircleCount, TextSlot, VennState, VennStyle } from '../engine/types';
 import { createColorControl } from './color-control';
 import { createSlotRow, type SlotRow } from './slot-row';
 
@@ -22,7 +26,12 @@ const STYLE_LABELS: [VennStyle, string][] = [
   ['outline', STRINGS['style.outline']],
 ];
 
-/** 圈數用示意圖而不是文字，一眼看得出 2／3／4 的排列 */
+const ARR_LABELS: [Arrangement, string][] = [
+  ['ring', STRINGS['arr.ring']],
+  ['row', STRINGS['arr.row']],
+];
+
+/** 圈數用示意圖而不是文字，一眼看得出幾個圈；5／6 圈畫成環狀，與 ring 的排列一致 */
 const COUNT_ICONS: [CircleCount, string][] = [
   [2, '<circle cx="15" cy="11" r="8"/><circle cx="25" cy="11" r="8"/>'],
   [
@@ -34,11 +43,24 @@ const COUNT_ICONS: [CircleCount, string][] = [
     '<circle cx="16" cy="8" r="6.5"/><circle cx="24" cy="8" r="6.5"/>' +
       '<circle cx="16" cy="14" r="6.5"/><circle cx="24" cy="14" r="6.5"/>',
   ],
+  [
+    5,
+    '<circle cx="20" cy="6" r="4.5"/><circle cx="24.8" cy="9.5" r="4.5"/>' +
+      '<circle cx="22.9" cy="15" r="4.5"/><circle cx="17.1" cy="15" r="4.5"/>' +
+      '<circle cx="15.2" cy="9.5" r="4.5"/>',
+  ],
+  [
+    6,
+    '<circle cx="20" cy="6" r="4.5"/><circle cx="24.3" cy="8.5" r="4.5"/>' +
+      '<circle cx="24.3" cy="13.5" r="4.5"/><circle cx="20" cy="16" r="4.5"/>' +
+      '<circle cx="15.7" cy="13.5" r="4.5"/><circle cx="15.7" cy="8.5" r="4.5"/>',
+  ],
 ];
 
 export interface ToolbarHandlers {
   onPatch: (patch: Partial<VennState>) => void;
-  onCircleCount: (n: CircleCount) => void;
+  /** 切形狀（排列 × 圈數）；非法組合不會送出（按鈕已停用） */
+  onShape: (arr: Arrangement, n: CircleCount) => void;
   onPatchSlot: (mask: number, patch: Partial<TextSlot>) => void;
   onCopyImage: () => void;
   onCopyLink: () => void;
@@ -54,6 +76,8 @@ export interface ToolbarController {
 interface Segmented<T> {
   root: HTMLElement;
   setActive: (value: T) => void;
+  /** 停用選不到的選項（例如 row 沒有 2 圈），讓面板自己說明合法組合 */
+  setEnabled: (isEnabled: (value: T) => boolean) => void;
 }
 
 function segmented<T extends string | number>(
@@ -79,6 +103,9 @@ function segmented<T extends string | number>(
     root,
     setActive: (current) => {
       for (const [value, btn] of buttons) btn.setAttribute('aria-pressed', String(value === current));
+    },
+    setEnabled: (isEnabled) => {
+      for (const [value, btn] of buttons) btn.disabled = !isEnabled(value);
     },
   };
 }
@@ -140,13 +167,30 @@ function labeledRow(label_text: string, control: HTMLElement): HTMLElement {
 export function createToolbar(root: HTMLElement, handlers: ToolbarHandlers): ToolbarController {
   root.replaceChildren();
 
+  // 排列與圈數都要另一半的目前值才組得出形狀，兩個 handler 都從 latest_state 取
+  const arr_seg = segmented<Arrangement>(
+    'seg',
+    ARR_LABELS,
+    (btn, label) => {
+      btn.textContent = label;
+    },
+    (arr) => {
+      const n = latest_state?.n ?? 2;
+      // row 沒有 2 圈：切過去時退到該排列的最少圈數
+      handlers.onShape(arr, isShape(arr, n) ? n : circleCountRange(arr)[0]);
+    },
+  );
+  const arr_row = document.createElement('div');
+  arr_row.className = 'row';
+  arr_row.append(arr_seg.root);
+
   const count_seg = segmented<CircleCount>(
     'counts',
     COUNT_ICONS,
     (btn, icon) => {
       btn.innerHTML = `<svg viewBox="0 0 40 22" fill="none" stroke="currentColor" stroke-width="1.6">${icon}</svg>`;
     },
-    handlers.onCircleCount,
+    (n) => handlers.onShape(latest_state ? arrOf(latest_state) : 'ring', n),
   );
 
   const style_seg = segmented<VennStyle>(
@@ -172,7 +216,8 @@ export function createToolbar(root: HTMLElement, handlers: ToolbarHandlers): Too
   const opacity = sliderField(STRINGS['field.opacity'], 0.15, 1, 0.05, (o) =>
     handlers.onPatch({ opacity: o }),
   );
-  const radius = sliderField(STRINGS['field.radius'], RADIUS_MIN, RADIUS_MAX, 0.005, (r) =>
+  // radius 的範圍依排列而定（row 的圓比 ring 小），所以每次 update 都依 state 重設
+  const radius = sliderField(STRINGS['field.radius'], ...radiusRange('ring'), 0.005, (r) =>
     handlers.onPatch({ radius: r }),
   );
   const overlap = sliderField(STRINGS['field.overlap'], OVERLAP_MIN, OVERLAP_MAX, 0.01, (o) =>
@@ -220,6 +265,7 @@ export function createToolbar(root: HTMLElement, handlers: ToolbarHandlers): Too
   const divider = () => document.createElement('hr');
 
   root.append(
+    arr_row,
     count_seg.root,
     style_row,
     bg_row,
@@ -267,8 +313,11 @@ export function createToolbar(root: HTMLElement, handlers: ToolbarHandlers): Too
   return {
     update(state, png_url) {
       latest_state = state;
+      const arr = arrOf(state);
 
+      arr_seg.setActive(arr);
       count_seg.setActive(state.n);
+      count_seg.setEnabled((n) => isShape(arr, n));
       style_seg.setActive(state.style);
       bg_color.setValue(state.bg);
 
@@ -276,7 +325,11 @@ export function createToolbar(root: HTMLElement, handlers: ToolbarHandlers): Too
       opacity.value_el.textContent = state.opacity.toFixed(2);
       syncValue(opacity.input, String(state.opacity));
 
-      radius.value_el.textContent = state.radius.toFixed(2);
+      const [radius_min, radius_max] = radiusRange(arr);
+      // 先放範圍再寫值：範圍還是舊的時候寫進去的值會被瀏覽器夾掉
+      radius.input.min = String(radius_min);
+      radius.input.max = String(radius_max);
+      radius.value_el.textContent = state.radius.toFixed(3);
       syncValue(radius.input, String(state.radius));
 
       overlap.value_el.textContent = state.overlap.toFixed(2);

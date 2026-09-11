@@ -22,6 +22,12 @@ const RING_ANGLES: Record<number, number[]> = {
 /** 3 圈整體下移 R·0.25，讓上方那顆圓的標籤有頂部空間（凍結值，見 01-mvp） */
 const RING3_OFFSET_Y = 0.25;
 
+/**
+ * 環狀排列的 radius 合法範圍（codec 與滑桿共用）。
+ * 既有分享連結全是 ring，這兩個數字動了就會擋掉合法舊連結。
+ */
+export const RING_RADIUS_RANGE: [number, number] = [0.2, 0.35];
+
 /** 環狀排列各圈數的預設幾何（畫布寬比例）。2／3／4 圈是既有連結的值，不得改動。 */
 export const RING_DEFAULTS: Record<number, { radius: number; overlap: number }> = {
   2: { radius: 0.3, overlap: 1.2 },

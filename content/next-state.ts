@@ -16,7 +16,8 @@ export function nextStateForShape(state: VennState, arr: Arrangement, n: CircleC
   const next: VennState = {
     ...state,
     n,
-    colors: Array.from({ length: n }, (_, i) => state.colors[i] ?? PALETTE[i] ?? '#888888'),
+    // PALETTE 有六色，最多的圈數也補得滿，不需要灰色補位
+    colors: Array.from({ length: n }, (_, i) => state.colors[i] ?? PALETTE[i]!),
     overlap,
     radius,
     texts: {},
@@ -26,7 +27,7 @@ export function nextStateForShape(state: VennState, arr: Arrangement, n: CircleC
   else next.arr = arr;
 
   if (pristine) {
-    // 還沒有 template 的組合（row、5／6 圈）從空白槽開始，樣式沿用目前的
+    // 每個合法組合都有 template（沒有 meme 的只給單圈標籤）；萬一沒有就沿用目前的樣式
     const template = templateFor(arr, n);
     if (template) next.style = template.style;
     next.texts = templateTexts(arr, n);

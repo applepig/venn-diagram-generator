@@ -250,7 +250,7 @@ describe('arr：排列進 state', () => {
   /** 只有 ASCII 可列印字元＝沒有中文；API 是機器介面，不走 i18n */
   const ASCII_ONLY = /^[\x20-\x7e]+$/;
 
-  /** PALETTE 目前只有四色（5／6 圈的配色是 M4），測試自帶六色 */
+  /** 六色由測試自帶，不從 PALETTE 反查（否則等於拿受測程式自證） */
   const SIX_COLORS = ['#2e9be6', '#e6a92e', '#e04848', '#3cb54a', '#8b5cf6', '#e05fa0'];
 
   function rowState(n: 3 | 4 | 5 | 6): VennState {
@@ -344,6 +344,41 @@ describe('arr：排列進 state', () => {
     expect(slotMasks('ring', 4)).toContain(15);
     expect(slotMasks('row', 4)).not.toContain(15);
     expect(() => validateState(row)).toThrow(StateError);
+  });
+
+  /**
+   * AC4：radius 的合法範圍依 arr 查 registry。row 的圓本來就得比 ring 小
+   * （一列 6 顆的預設 radius 才 0.119），ring 的範圍不動，舊連結才全部照舊解得開。
+   */
+  it('AC4 row 吃得下 0.1 的 radius，ring 在 0.2 以下仍被拒', () => {
+    expect(() => validateState({ ...rowState(6), radius: 0.1 })).not.toThrow();
+    expect(() => validateState({ ...rowState(6), radius: 0.12 })).not.toThrow();
+    expect(() => validateState({ ...defaultState(6), colors: SIX_COLORS, radius: 0.12 })).toThrow(
+      StateError,
+    );
+  });
+
+  it('AC4 row 的 radius 低於 0.1 或高於 0.35 仍被拒', () => {
+    expect(() => validateState({ ...rowState(6), radius: 0.09 })).toThrow(StateError);
+    expect(() => validateState({ ...rowState(6), radius: 0.36 })).toThrow(StateError);
+  });
+
+  it('AC4 每個合法組合的預設 state 都通得過驗證', () => {
+    for (const n of [2, 3, 4, 5, 6] as CircleCount[]) {
+      const { radius, overlap } = shapeDefaults('ring', n);
+      const state = {
+        ...defaultState(2),
+        n,
+        radius,
+        overlap,
+        colors: SIX_COLORS.slice(0, n),
+        texts: {},
+      };
+      expect(() => validateState(state), `ring(${n})`).not.toThrow();
+    }
+    for (const n of [3, 4, 5, 6] as const) {
+      expect(() => validateState(rowState(n)), `row(${n})`).not.toThrow();
+    }
   });
 
   it('AC1 4 圈 overlap 1.6 的舊連結，實際幾何下消失的區域仍是合法槽', () => {

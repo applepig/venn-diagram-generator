@@ -2,11 +2,13 @@ import { Resvg } from '@resvg/resvg-js';
 import { describe, expect, it } from 'vitest';
 import { mixColors, regionColor, relativeLuminance, renderSvg } from '../engine/render-svg';
 import { layout, maskAt } from '../engine/layout';
-import { circlesFor } from '../engine/shapes/index';
+import { circlesFor, circlesForState } from '../engine/shapes/index';
+import { nextStateForShape } from '../content/next-state';
 import { PALETTE } from '../content/palette';
-import { defaultState } from '../content/state-presets';
-import type { VennStyle } from '../engine/types';
+import { defaultState, sampleState } from '../content/state-presets';
+import type { Arrangement, CircleCount, VennStyle } from '../engine/types';
 import { FONT_FILE } from './helpers/font';
+import { pngSize } from './helpers/png';
 
 const STYLES: VennStyle[] = ['translucent', 'flat', 'outline'];
 
@@ -470,5 +472,56 @@ describe('renderSvg：合成用的圖層開關', () => {
     for (const text of ['快', '好', '便宜', '不存在']) expect(stripped).toContain(`>${text}<`);
     expect(stripped.length).toBeLessThan(full.length);
     expect(full).toContain(stripped.replace(/^<svg[^>]*><defs>.*?<\/defs>/, '').replace(/<\/svg>$/, ''));
+  });
+});
+
+/**
+ * AC4：5／6 圈與 row 的新組合要真的畫得出來。判準是「真的 renderer 吃得下」
+ * ＋「點陣化後的像素尺寸等於 state.size」，不是 SVG 字串長怎樣。
+ */
+describe('AC4 新組合（ring 5／6、row 3～6）渲染得出來且尺寸正確', () => {
+  const COMBOS: [Arrangement, CircleCount][] = [
+    ['ring', 5],
+    ['ring', 6],
+    ['row', 3],
+    ['row', 4],
+    ['row', 5],
+    ['row', 6],
+  ];
+
+  for (const [arr, n] of COMBOS) {
+    it(`${arr}(${n}) 的預設 state 經 resvg 渲染不拋錯，輸出 800×800 且每個標籤都畫出來`, () => {
+      const state = { ...nextStateForShape(sampleState(2), arr, n), size: 800 };
+
+      expect(state.n).toBe(n);
+      const svg = renderSvg(state, { watermark: WATERMARK });
+      expect(svg).toContain('width="800"');
+      expect(svg).toContain('height="800"');
+
+      // 每個圈的標籤都要真的排進圖裡：區域消失時 layout 會默默跳過那一格
+      const labels = Object.values(state.texts).map((slot) => slot.t);
+      expect(labels).toHaveLength(n);
+      for (const label of labels) expect(svg, `${arr}(${n}) 標籤 ${label}`).toContain(`>${label}<`);
+
+      let png: Buffer | undefined;
+      expect(() => {
+        png = Buffer.from(renderPng(svg));
+      }).not.toThrow();
+      expect(pngSize(png!)).toEqual({ width: 800, height: 800 });
+    });
+  }
+
+  it('row(n) 的圓在預設幾何下完整落在畫布內，左右各留 ≥ 0.04', () => {
+    for (const n of [3, 4, 5, 6] as CircleCount[]) {
+      const state = nextStateForShape(sampleState(2), 'row', n);
+      const circles = circlesForState(state);
+
+      for (const c of circles) {
+        expect(c.x - c.r, `row(${n}) 左`).toBeGreaterThanOrEqual(0.04 - 1e-12);
+        expect(c.x + c.r, `row(${n}) 右`).toBeLessThanOrEqual(0.96 + 1e-12);
+        expect(c.y - c.r, `row(${n}) 上`).toBeGreaterThanOrEqual(0);
+        expect(c.y + c.r, `row(${n}) 下`).toBeLessThanOrEqual(1);
+      }
+    }
   });
 });

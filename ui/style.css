@@ -81,6 +81,12 @@ body {
   color: var(--fg);
 }
 
+/* 該排列沒有的圈數（row 沒有 2 圈）：留在原位但點不下去 */
+.counts button:disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+
 .counts svg {
   display: block;
   margin: 0 auto;

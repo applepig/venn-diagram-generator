@@ -3,6 +3,9 @@
  * 只放自然語言：符號（＋／−／—）與色碼格式提示留在 ui/，換語言不會動到它們。
  */
 export const STRINGS = {
+  'arr.ring': '環狀',
+  'arr.row': '一列',
+
   'style.translucent': '半透明',
   'style.flat': '平面',
   'style.outline': '線框',

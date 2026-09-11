@@ -1,12 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import { sampleState } from '../content/state-presets';
-import { popCount } from '../engine/defaults';
+import { OVERLAP_MAX, OVERLAP_MIN, popCount } from '../engine/defaults';
 import { layout, slotMasks } from '../engine/layout';
 import {
   ARRANGEMENTS,
   circleCountRange,
   circlesFor,
   isShape,
+  radiusRange,
   shapeDefaults,
 } from '../engine/shapes/index';
 import { ringRadius } from '../engine/shapes/ring';
@@ -196,17 +197,50 @@ describe('形狀 registry：合法組合', () => {
     expect(shapeDefaults('ring', 4)).toEqual({ radius: 0.33, overlap: 0.8 });
   });
 
+  it('AC4 ring 5／6 的預設幾何是 spec 定案的 r0.24／o1.0 與 r0.23／o1.0', () => {
+    expect(shapeDefaults('ring', 5)).toEqual({ radius: 0.24, overlap: 1.0 });
+    expect(shapeDefaults('ring', 6)).toEqual({ radius: 0.23, overlap: 1.0 });
+  });
+
+  it('AC4 radius 的合法範圍由排列宣告：ring 0.2～0.35、row 0.1～0.35', () => {
+    expect(radiusRange('ring')).toEqual([0.2, 0.35]);
+    expect(radiusRange('row')).toEqual([0.1, 0.35]);
+  });
+
+  /**
+   * AC4：row 的一列總寬固定 `2r + (n−1)·overlap·r = 0.92`，overlap 釘在 1.15（Audi 比例），
+   * radius 由總寬反解——所以左右各留 0.04，row(6) 不再與畫布相切。
+   */
+  it('AC4 row(n) 預設 overlap 1.15、radius 由總寬 0.92 反解，左右各留 0.04', () => {
+    for (const n of [3, 4, 5, 6] as CircleCount[]) {
+      const { radius, overlap } = shapeDefaults('row', n);
+      const label = `row(${n})`;
+
+      expect(overlap, `${label} overlap`).toBeCloseTo(1.15, 12);
+      expect(2 * radius + (n - 1) * overlap * radius, `${label} 總寬`).toBeCloseTo(0.92, 12);
+
+      const circles = circlesFor('row', n, radius, overlap);
+      expect(Math.min(...circles.map((c) => c.x - c.r)), `${label} 左邊界`).toBeGreaterThanOrEqual(
+        0.04 - 1e-12,
+      );
+      expect(Math.max(...circles.map((c) => c.x + c.r)), `${label} 右邊界`).toBeLessThanOrEqual(
+        0.96 + 1e-12,
+      );
+    }
+  });
+
   it('每個合法組合的預設幾何都在 codec 允許的範圍內，圓不超出畫布', () => {
     for (const arr of ARRANGEMENTS) {
       const [min_n, max_n] = circleCountRange(arr);
+      const [radius_min, radius_max] = radiusRange(arr);
       for (let n = min_n; n <= max_n; n++) {
         const { radius, overlap } = shapeDefaults(arr, n as CircleCount);
         const label = `${arr}(${n})`;
 
-        expect(radius, `${label} radius`).toBeGreaterThanOrEqual(0.2);
-        expect(radius, `${label} radius`).toBeLessThanOrEqual(0.35);
-        expect(overlap, `${label} overlap`).toBeGreaterThanOrEqual(0.6);
-        expect(overlap, `${label} overlap`).toBeLessThanOrEqual(1.6);
+        expect(radius, `${label} radius`).toBeGreaterThanOrEqual(radius_min);
+        expect(radius, `${label} radius`).toBeLessThanOrEqual(radius_max);
+        expect(overlap, `${label} overlap`).toBeGreaterThanOrEqual(OVERLAP_MIN);
+        expect(overlap, `${label} overlap`).toBeLessThanOrEqual(OVERLAP_MAX);
 
         for (const c of circlesFor(arr, n as CircleCount, radius, overlap)) {
           expect(c.x - c.r, `${label} 左`).toBeGreaterThanOrEqual(-1e-12);
@@ -241,12 +275,11 @@ describe('AC2 slotMasks：從預設幾何推出的常數', () => {
   });
 
   /**
-   * AC4 對新組合只要求「各能產出非空槽表」。
-   * row 的中間圈在預設重疊度下沒有專屬區域（左右鄰圓把它夾掉，剩下的上下兩片薄月牙
-   * 重心落在鄰圓內，`regionBox` 放不下框），所以只對首尾兩圈斷言單圈槽——
-   * 要讓中間圈也有標籤，得把 row 的 radius 下限放寬到 0.2 以下，那是 M4 的預設幾何決策。
+   * AC4：每個組合都要有非空槽表，而且**每個圈都有自己的單圈槽**。
+   * 這條擋的是 row 的中間圈被左右鄰圓夾掉專屬區域（`regionBox` 回 null、標不了字），
+   * 也就是 row 預設 overlap 一定 ≥ 1、radius 由總寬反解的理由。
    */
-  it('每個合法組合都推得出非空槽表，首尾兩圈與交集都有槽', () => {
+  it('每個合法組合都推得出非空槽表，每個圈都有單圈槽，也有交集槽', () => {
     for (const arr of ARRANGEMENTS as Arrangement[]) {
       const [min_n, max_n] = circleCountRange(arr);
       for (let n = min_n; n <= max_n; n++) {
@@ -254,15 +287,11 @@ describe('AC2 slotMasks：從預設幾何推出的常數', () => {
         const label = `${arr}(${n})`;
 
         expect(masks.length, label).toBeGreaterThan(n);
-        expect(masks, `${label} 第一圈`).toContain(1);
-        expect(masks, `${label} 最後一圈`).toContain(1 << (n - 1));
+        for (let i = 0; i < n; i++) expect(masks, `${label} 第 ${i} 圈`).toContain(1 << i);
         expect(
           masks.some((mask) => popCount(mask) > 1),
           `${label} 交集槽`,
         ).toBe(true);
-        if (arr === 'ring') {
-          for (let i = 0; i < n; i++) expect(masks, `${label} 第 ${i} 圈`).toContain(1 << i);
-        }
       }
     }
   }, 30_000);
