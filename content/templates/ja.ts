@@ -27,7 +27,8 @@ export const TEMPLATES: Record<Arrangement, Partial<Record<CircleCount, Template
       texts: {
         '1': { t: 'やるべき\nこと' },
         '2': { t: 'やりたい\nこと' },
-        '3': { t: '明日やる' },
+        // 手動換行：不然 4 字會被自動折成「明日や／る」
+        '3': { t: '明日\nやる' },
       },
     },
     3: {
