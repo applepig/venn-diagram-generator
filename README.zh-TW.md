@@ -90,9 +90,9 @@ pnpm docker:build   # docker build -f deploy/Dockerfile -t venn-diagram-generato
 docker run --rm -p 3000:3000 -e VENN_WATERMARK=venn.example.com venn-diagram-generator
 ```
 
-`deploy/compose.yml` 用這份 Dockerfile build 出正式站容器，掛在反向代理後面（Traefik label、external network `web`，TLS 在上游終止）。`deploy/compose.dev.yml` 不 build image：把原始碼掛進 `node:24-slim` 直接跑 `tsx watch server/index.ts`，改前端走 HMR、改 server 由 tsx 重啟，都不必重 build。
+`deploy/compose.yml` 用這份 Dockerfile build 出正式站容器，掛在反向代理後面（Traefik label、external network `web`，TLS 在上游終止）。裡面所有與站點有關的值都是環境變數，沒給 `VENN_PUBLIC_HOST` 就直接拒絕啟動。`deploy/compose.dev.yml` 不 build image：把原始碼掛進 `node:24-slim` 直接跑 `tsx watch server/index.ts`，改前端走 HMR、改 server 由 tsx 重啟，都不必重 build。
 
-`deploy/deploy.sh` 就是全部的部署流程——沒有 image registry。它把工作目錄 rsync 到遠端主機，再在那台機器上 `docker compose up -d --build`：
+`deploy/deploy.sh` 就是全部的部署流程——沒有 image registry。它把工作目錄 rsync 到遠端主機（跳過 `.env`，主機保留自己那份），再在那台機器上以 `--env-file .env` 跑 `docker compose up -d --build`：
 
 ```bash
 VENN_DEPLOY_HOST=my-host VENN_DEPLOY_PATH=/srv/apps/venn ./deploy/deploy.sh
@@ -100,13 +100,14 @@ VENN_DEPLOY_HOST=my-host VENN_DEPLOY_PATH=/srv/apps/venn ./deploy/deploy.sh
 
 ## 環境變數
 
-把 `.env.example` 複製成 `.env` 再填。以下所有項目都沒有指向他人環境的內建預設值。
+把 `.env.example` 複製成 repo 根目錄的 `.env` 再填——部署主機上 compose 讀的就是這份。這個 repo 裡沒有任何指向他人環境的內建預設值：沒有 hostname、沒有分析 id、沒有浮水印。
 
 | 變數 | 用在 | 必填 | 意義 |
 |---|---|---|---|
+| `VENN_PUBLIC_HOST` | `deploy/compose.yml` | **是** | 你自己站台的對外 hostname，會變成 `PUBLIC_ORIGIN` 與 Traefik 的 `Host()` 規則；沒給 compose 直接報錯。 |
 | `VENN_WATERMARK` | server | 否 | 圖片右下角的浮水印文字。沒設或空字串就不畫。 |
-| `VENN_GTM_ID` | server | 否 | Google Tag Manager 容器 id。開發站刻意不給，數據才不會混進正式站。 |
-| `PUBLIC_ORIGIN` | server、build | 否 | `og:image`／`og:url` 的絕對 origin。沒設就退回看 request header。 |
+| `VENN_GTM_ID` | server | 否 | Google Tag Manager 容器 id。沒設就完全不注入 GTM——不是你自己的容器就別填。 |
+| `PUBLIC_ORIGIN` | server、build | 否 | `og:image`／`og:url` 的絕對 origin。沒設就退回看 request header；`deploy/compose.yml` 會從 `VENN_PUBLIC_HOST` 推出來。 |
 | `PORT` | server | 否 | 監聽的 port，預設 3000。 |
 | `VENN_DEPLOY_HOST` | `deploy/deploy.sh` | **是** | 部署目標主機的 ssh host。缺少時 script 印出缺哪個變數並 exit 1。 |
 | `VENN_DEPLOY_PATH` | `deploy/deploy.sh` | **是** | 要 rsync 進去的遠端目錄。 |
@@ -118,7 +119,8 @@ VENN_DEPLOY_HOST=my-host VENN_DEPLOY_PATH=/srv/apps/venn ./deploy/deploy.sh
 
 - **`ui/public/og-base.png`**：1200 × 630 的社群底圖，上面是原專案的品牌文案。換成你自己的圖（同尺寸），再跑 `pnpm build` 重烤 `dist/og-default-<hash>.png`。
 - **`VENN_WATERMARK`**：改成你自己的網址，或留空不畫浮水印。
-- `PUBLIC_ORIGIN` 與 `deploy/compose.yml`／`VENN_DEV_HOST` 裡的 hostname。
+- **`VENN_GTM_ID`**：填你自己的容器 id，或留空完全不載分析。絕不要沿用別人的。
+- **`VENN_PUBLIC_HOST`**／**`VENN_DEV_HOST`**：你自己的 hostname。沒有預設值可以忘記改。
 
 ## 注意事項
 

@@ -91,9 +91,9 @@ pnpm docker:build   # docker build -f deploy/Dockerfile -t venn-diagram-generato
 docker run --rm -p 3000:3000 -e VENN_WATERMARK=venn.example.com venn-diagram-generator
 ```
 
-`deploy/compose.yml` builds that image and publishes it behind a reverse proxy (Traefik labels, external network `web`, TLS terminated upstream). `deploy/compose.dev.yml` skips the image entirely: it mounts the source into `node:24-slim` and runs `tsx watch server/index.ts`, so both front-end HMR and server restarts work without rebuilding.
+`deploy/compose.yml` builds that image and publishes it behind a reverse proxy (Traefik labels, external network `web`, TLS terminated upstream). Every site-specific value in it is an environment variable — it will refuse to start until you supply `VENN_PUBLIC_HOST`. `deploy/compose.dev.yml` skips the image entirely: it mounts the source into `node:24-slim` and runs `tsx watch server/index.ts`, so both front-end HMR and server restarts work without rebuilding.
 
-`deploy/deploy.sh` is the whole deployment story — there is no registry. It rsyncs the working tree to a host over ssh and runs `docker compose up -d --build` there:
+`deploy/deploy.sh` is the whole deployment story — there is no registry. It rsyncs the working tree to a host over ssh (skipping `.env`, so the host keeps its own) and runs compose there with `--env-file .env`:
 
 ```bash
 VENN_DEPLOY_HOST=my-host VENN_DEPLOY_PATH=/srv/apps/venn ./deploy/deploy.sh
@@ -101,13 +101,14 @@ VENN_DEPLOY_HOST=my-host VENN_DEPLOY_PATH=/srv/apps/venn ./deploy/deploy.sh
 
 ## Environment variables
 
-Copy `.env.example` to `.env` and fill it in. Nothing below has a baked-in default pointing at someone else's infrastructure.
+Copy `.env.example` to `.env` in the repository root and fill it in — on the deployment host, that is the file compose reads. Nothing in this repository has a baked-in default pointing at someone else's infrastructure: no hostname, no analytics id, no watermark.
 
 | Variable | Used by | Required | Meaning |
 |---|---|---|---|
+| `VENN_PUBLIC_HOST` | `deploy/compose.yml` | **yes** | Public hostname of your instance. Becomes `PUBLIC_ORIGIN` and the Traefik `Host()` rule; compose errors out when it is missing. |
 | `VENN_WATERMARK` | server | no | Watermark text at the bottom right of generated images. Unset or empty draws no watermark. |
-| `VENN_GTM_ID` | server | no | Google Tag Manager container id. Leave it unset on dev sites so their traffic stays out of your analytics. |
-| `PUBLIC_ORIGIN` | server, build | no | Absolute origin for `og:image` / `og:url`. Unset falls back to the request headers. |
+| `VENN_GTM_ID` | server | no | Google Tag Manager container id. Unset injects no GTM snippet at all — leave it unset unless it is *your* container. |
+| `PUBLIC_ORIGIN` | server, build | no | Absolute origin for `og:image` / `og:url`. Unset falls back to the request headers; `deploy/compose.yml` derives it from `VENN_PUBLIC_HOST`. |
 | `PORT` | server | no | Listen port, default 3000. |
 | `VENN_DEPLOY_HOST` | `deploy/deploy.sh` | **yes** | ssh target of the deployment host. The script exits 1 and names the missing variable. |
 | `VENN_DEPLOY_PATH` | `deploy/deploy.sh` | **yes** | Directory on that host to rsync into. |
@@ -119,7 +120,8 @@ The visual branding is not generic, so swap these before you publish your own in
 
 - **`ui/public/og-base.png`** — the 1200 × 630 social base image with the original project's branding on it. Replace it with your own artwork (same dimensions), then run `pnpm build` to re-bake `dist/og-default-<hash>.png`.
 - **`VENN_WATERMARK`** — set it to your own hostname, or leave it unset for no watermark.
-- `PUBLIC_ORIGIN` and the hostnames in `deploy/compose.yml` / `VENN_DEV_HOST`.
+- **`VENN_GTM_ID`** — set your own container id, or leave it unset so no analytics load at all. Never inherit someone else's.
+- **`VENN_PUBLIC_HOST`** / **`VENN_DEV_HOST`** — your own hostnames. There are no defaults to forget to change.
 
 ## Notes
 

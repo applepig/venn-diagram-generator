@@ -555,7 +555,7 @@ describe('AC13 SEO：canonical、robots、structured data', () => {
 });
 
 describe('AC13 GTM 只在給了 container id 時注入', () => {
-  const GTM_ID = 'GTM-KTZKC8CH';
+  const GTM_ID = 'GTM-TESTONLY';
   const tagged = createApp({ fontFile: FONT_FILE, publicOrigin: ORIGIN, gtmId: GTM_ID });
 
   it('沒給 id 的部署（開發站、測試）完全不載入 GTM', async () => {

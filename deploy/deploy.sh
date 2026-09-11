@@ -21,8 +21,11 @@ cd "$(dirname "$0")/.."
 rsync -az --delete \
   --exclude '.git' --exclude 'node_modules' --exclude 'dist' --exclude 'dist-server' \
   --exclude 'docs' --exclude '*.log' --exclude 'deploy/compose.dev.yml' \
+  --exclude '.env' \
   ./ "${HOST}:${DEST}/"
 
-ssh "$HOST" "cd '${DEST}' && sudo docker compose -f deploy/compose.yml up -d --build"
+# .env 留在主機上（rsync 不碰）：hostname、GTM id、浮水印屬於該部署，不進 repo。
+# --env-file 相對於 cwd，所以這裡指的是 ${DEST}/.env，不是 deploy/.env。
+ssh "$HOST" "cd '${DEST}' && sudo docker compose --env-file .env -f deploy/compose.yml up -d --build"
 
 echo "deployed → ${HOST}:${DEST}"

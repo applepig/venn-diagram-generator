@@ -14,8 +14,8 @@ services:
       # 開發站 hostname 沒有預設值：由環境提供（例如 .env 的 VENN_DEV_HOST=venn.dev.example）
       - PUBLIC_ORIGIN=https://${VENN_DEV_HOST:?set VENN_DEV_HOST to the dev-site hostname}
       - VENN_DEV=1
-      # 與正式站同一個浮水印：開發站要看得出出圖的真實樣子
-      - VENN_WATERMARK=venn.applepig.net
+      # 浮水印沒預設值：設了才畫，開發站通常跟正式站設一樣，才看得出出圖的真實樣子
+      - VENN_WATERMARK=${VENN_WATERMARK:-}
       # 這裡刻意不給 VENN_GTM_ID：開發站的操作不該混進正式站的數據
     command: ./node_modules/.bin/tsx watch server/index.ts
     labels:
