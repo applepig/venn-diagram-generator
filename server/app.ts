@@ -190,7 +190,7 @@ function gtmBody(id: string): string {
 
 /**
  * 首頁的 structured data。只有 / 給，帶 s 的分享頁是 noindex，不需要也不該宣告成獨立作品。
- * 文案是常數，但 origin 可能是從 forwarded 標頭推導的：`<` 一律跳成 `<`，
+ * 文案是常數，但 origin 可能是從 forwarded 標頭推導的：`<` 一律改寫成 JSON 的 unicode escape（U+003C），
  * `</script>` 才不會讓瀏覽器提前結束這個 script（JSON 的語意不變，爬蟲照樣讀得到）。
  */
 function jsonLd(origin: string, locale: Locale): string {
