@@ -50,4 +50,7 @@ export const STRINGS = {
   'copy.imageUnsupported': '這個瀏覽器不支援複製圖片，請改用「下載 PNG」。',
   'copy.imageFailed': '複製圖片失敗，請改用「下載 PNG」。',
   'copy.linkPrompt': '複製這個連結：',
+
+  /** 編出來的 s 超過 server 收得下的長度時顯示；此時分享與產圖都會被 server 擋掉 */
+  'state.tooLong': '文字太多，超過網址裝得下的長度：刪掉一些字，「複製連結」與「下載 PNG」才會恢復。',
 } as const;

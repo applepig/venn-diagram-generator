@@ -8,9 +8,9 @@ import {
 } from '../engine/state-codec-web';
 import { MAX_STATE_PARAM_LEN, MAX_TEXT_LEN } from '../engine/defaults';
 import { slotMasks } from '../engine/layout';
-import { shapeDefaults } from '../engine/shapes/index';
+import { ARRANGEMENTS, circleCountRange, shapeDefaults } from '../engine/shapes/index';
 import { defaultState, sampleState } from '../content/state-presets';
-import type { CircleCount, TextSlot, VennState } from '../engine/types';
+import type { Arrangement, CircleCount, TextSlot, VennState } from '../engine/types';
 import { bombParam } from './helpers/state-param';
 
 const rich: VennState = {
@@ -405,25 +405,76 @@ describe('decodeState：解壓輸出上限（AC1）', () => {
     expect(state).toEqual({ ...sampleState(), size: 400 });
   });
 
-  it('最壞的合法 state（13 槽各 80 個不重複的 4-byte 字＋fs/dx/dy/fill）編得出、解得回，且不超過參數長度上限', () => {
-    // U+20000 起的擴充漢字每字 4 bytes，是單一 code point 能佔的最大體積，比 3-byte 中文更壞
-    let code_point = 0x20000;
-    let fill_seed = 0x123457;
-    const texts: Record<string, TextSlot> = {};
-    for (const mask of slotMasks('ring', 4)) {
-      const t = Array.from({ length: MAX_TEXT_LEN }, () => String.fromCodePoint(code_point++)).join(
-        '',
-      );
-      // 每槽不同的 fill，壓縮器沒有重複字串可吃，才是真正的最壞案例
-      fill_seed = (fill_seed * 7919) % 0xffffff;
-      const fill = `#${fill_seed.toString(16).padStart(6, '0')}`;
-      texts[String(mask)] = { t, fs: 0.037, dx: -0.011, dy: 0.023, fill };
+  /**
+   * AC15：上限要擋得住壓縮炸彈，又不能擋掉任何合法的 state。
+   * 最壞案例不只有 ring(4)：槽數隨組合變（ring(5) 21 槽、ring(6) 18 槽），
+   * 所以掃過每一個 (arr, n) 取最大值，不是挑一個組合當代表。
+   */
+  describe('AC15 參數長度上限涵蓋所有合法組合的最壞 state', () => {
+    /** 該組合每一槽都塞滿 80 個互不重複的 4-byte 字，加上 fs/dx/dy 與各槽相異的 fill */
+    function worstStateFor(arr: Arrangement, n: CircleCount): VennState {
+      // U+20000 起的擴充漢字每字 4 bytes，是單一 code point 能佔的最大體積，比 3-byte 中文更壞
+      let code_point = 0x20000;
+      let fill_seed = 0x123457;
+      const texts: Record<string, TextSlot> = {};
+      let i = 0;
+      for (const mask of slotMasks(arr, n)) {
+        const t = Array.from({ length: MAX_TEXT_LEN }, () =>
+          String.fromCodePoint(code_point++),
+        ).join('');
+        // 每槽的 fill 與 fs/dx/dy 都不同，壓縮器沒有重複字串可吃，才是真正的最壞案例
+        fill_seed = (fill_seed * 7919) % 0xffffff;
+        const fill = `#${fill_seed.toString(16).padStart(6, '0')}`;
+        texts[String(mask)] = {
+          t,
+          fs: Number((0.0251 + i * 0.0013).toFixed(4)),
+          dx: Number((-0.0731 + i * 0.0017).toFixed(4)),
+          dy: Number((0.0619 - i * 0.0011).toFixed(4)),
+          fill,
+        };
+        i++;
+      }
+      const { radius, overlap } = shapeDefaults(arr, n);
+      const base = defaultState(n);
+      return {
+        ...base,
+        ...(arr === 'ring' ? {} : { arr }),
+        radius,
+        overlap,
+        texts,
+      };
     }
-    const worst: VennState = { ...defaultState(4), texts };
 
-    const s = encodeState(worst);
-    expect(decodeState(s)).toEqual(worst);
-    expect(s.length).toBeLessThanOrEqual(MAX_STATE_PARAM_LEN);
+    function shapes(): [Arrangement, CircleCount][] {
+      const all: [Arrangement, CircleCount][] = [];
+      for (const arr of ARRANGEMENTS) {
+        const [min, max] = circleCountRange(arr);
+        for (let n = min; n <= max; n++) all.push([arr, n as CircleCount]);
+      }
+      return all;
+    }
+
+    const lengths = shapes().map(
+      ([arr, n]) => [arr, n, encodeState(worstStateFor(arr, n)).length] as const,
+    );
+    const worst_len = Math.max(...lengths.map(([, , len]) => len));
+
+    it('每個組合的最壞 state 都編得出、解得回，且在上限內', () => {
+      for (const [arr, n] of shapes()) {
+        const worst = worstStateFor(arr, n);
+        const s = encodeState(worst);
+
+        expect(decodeState(s), `${arr}(${n})`).toEqual(worst);
+        expect(s.length, `${arr}(${n})`).toBeLessThan(MAX_STATE_PARAM_LEN);
+      }
+    });
+
+    it('上限留有餘裕但不放空：最壞值的 1.05～1.3 倍之間', () => {
+      const headroom = MAX_STATE_PARAM_LEN / worst_len;
+
+      expect(headroom, `worst=${worst_len} ${JSON.stringify(lengths)}`).toBeGreaterThanOrEqual(1.05);
+      expect(headroom, `worst=${worst_len}`).toBeLessThanOrEqual(1.3);
+    });
   });
 });
 

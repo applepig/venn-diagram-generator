@@ -46,4 +46,7 @@ export const STRINGS = {
   'copy.imageUnsupported': 'このブラウザーは画像のコピーに対応していません。「PNG を保存」を使ってください。',
   'copy.imageFailed': '画像のコピーに失敗しました。「PNG を保存」を使ってください。',
   'copy.linkPrompt': 'このリンクをコピーしてください：',
+
+  'state.tooLong':
+    'テキストが多すぎて URL に収まりません。減らすと「リンクをコピー」と「PNG を保存」が使えるようになります。',
 } as const;

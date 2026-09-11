@@ -77,6 +77,11 @@ export interface ToolbarHandlers {
 
 export interface ToolbarController {
   update: (state: VennState, png_url: string) => void;
+  /**
+   * 編出來的 `s` 超過 server 收得下的長度時停用會用到它的動作並說明原因（AC15）：
+   * 分享連結與 `/api/png` 這時都會被 server 以 400 擋掉，讓按鈕維持可按只會換來壞掉的結果。
+   */
+  setTooLong: (too_long: boolean) => void;
   /** 展開某一列並捲到看得見（點預覽上的文字時用） */
   openSlot: (mask: number) => void;
 }
@@ -275,12 +280,20 @@ export function createToolbar(root: HTMLElement, handlers: ToolbarHandlers): Too
     return btn;
   };
 
+  const copy_link = actionButton(ts('action.copyLink'), handlers.onCopyLink);
+
   actions.append(
     download_png,
     actionButton(ts('action.downloadSvg'), handlers.onDownloadSvg),
     actionButton(ts('action.copyImage'), handlers.onCopyImage),
-    actionButton(ts('action.copyLink'), handlers.onCopyLink),
+    copy_link,
   );
+
+  // 超長提示：平常隱藏，只有 s 塞不進網址時才出現在動作列上方
+  const too_long_hint = document.createElement('p');
+  too_long_hint.className = 'note warn';
+  too_long_hint.textContent = ts('state.tooLong');
+  too_long_hint.hidden = true;
 
   const divider = () => document.createElement('hr');
 
@@ -297,12 +310,14 @@ export function createToolbar(root: HTMLElement, handlers: ToolbarHandlers): Too
     divider(),
     lang_row,
     size_row,
+    too_long_hint,
     actions,
   );
 
   // 色票與槽列的 handler 都需要最新的 colors，但自己不該持有 state 副本
   let latest_state: VennState | null = null;
   let rows: SlotRow[] = [];
+  let too_long = false;
 
   /** 只有槽數變動才需要重建槽列，其餘情況沿用既有節點（保住展開狀態與游標） */
   function syncRows(state: VennState): void {
@@ -359,7 +374,18 @@ export function createToolbar(root: HTMLElement, handlers: ToolbarHandlers): Too
       syncRows(state);
       syncValue(size_select, String(state.size));
 
-      download_png.href = png_url;
+      // 超長時不給 href：<a> 沒有 disabled，拿掉連結才真的點不動
+      if (too_long) download_png.removeAttribute('href');
+      else download_png.href = png_url;
+    },
+
+    setTooLong(next) {
+      too_long = next;
+      too_long_hint.hidden = !next;
+      copy_link.disabled = next;
+      download_png.setAttribute('aria-disabled', String(next));
+      download_png.classList.toggle('disabled', next);
+      if (next) download_png.removeAttribute('href');
     },
 
     openSlot(mask) {

@@ -47,4 +47,7 @@ export const STRINGS = {
   'copy.imageUnsupported': 'This browser cannot copy images. Use “Download PNG” instead.',
   'copy.imageFailed': 'Copying the image failed. Use “Download PNG” instead.',
   'copy.linkPrompt': 'Copy this link:',
+
+  'state.tooLong':
+    'Too much text to fit in a share link. Delete some to re-enable “Copy link” and “Download PNG”.',
 } as const;

@@ -2,6 +2,7 @@ import './style.css';
 import type { Locale } from '../content/locale';
 import { nextStateForLocale, nextStateForShape } from '../content/next-state';
 import { sampleState } from '../content/state-presets';
+import { MAX_STATE_PARAM_LEN } from '../engine/defaults';
 import { renderSvg } from '../engine/render-svg';
 import { arrOf } from '../engine/shapes/index';
 import { decodeState, encodeState } from '../engine/state-codec-web';
@@ -125,6 +126,8 @@ async function syncUrl(): Promise<void> {
   encoded = next;
   // 只改 s：lang 這類參數留著，不然按一下滑桿就把使用者選的語言從網址上抹掉
   history.replaceState(null, '', searchWithState(location.search, encoded));
+  // 超過 server 收得下的長度時，分享連結與 /api/png 都會被擋成 400：先說明再停用（AC15）
+  toolbar.setTooLong(encoded.length > MAX_STATE_PARAM_LEN);
   // 編碼完成後才知道正確的下載連結與 og 分享網址，補一次面板
   toolbar.update(state, pngUrl());
 }

@@ -911,6 +911,52 @@ describe('07 M7 i18n：ja 首頁每個語言面都跟著換（AC12）', () => {
 });
 
 /**
+ * AC16：`String.prototype.replace` 的 replacement 字串裡，`$&`／`$'`／`` $` `` 是替換樣式。
+ * 圖上的文字會流進 `<title>` 與 meta，使用者打一個 `$&` 就能把整段 HTML 搬進標題。
+ */
+describe('AC16 首頁組裝不把使用者文字當 replace 樣式', () => {
+  const ui_index = readFileSync(resolve('ui/index.html'), 'utf8');
+  const site = createApp({
+    fontFiles: FONT_FILES,
+    ogBaseFile: OG_BASE_FILE,
+    publicOrigin: ORIGIN,
+    loadIndexHtml: () => ui_index,
+  });
+
+  /** 三種替換樣式各來一個：`$&`＝整段匹配、`` $` ``＝匹配前文、`$'`＝匹配後文 */
+  const s = encodeState({
+    ...sampleState(2),
+    texts: { '1': { t: '$& 前 $` 後' }, '2': { t: "it's $' x" }, '3': { t: '$& 交集' } },
+  });
+
+  it('分享頁的 <title> 原樣（跳脫後）含使用者打的 $& 與 $\'，沒有塞進別的 HTML', async () => {
+    const html = await (await site.request(`${ORIGIN}/?s=${s}`)).text();
+    const title = html.match(/<title>([\s\S]*?)<\/title>/)![1]!;
+
+    expect(title).toContain('$&amp;');
+    expect(title).toContain("it&apos;s $&apos; x");
+    expect(title).toContain('前 $` 後');
+    expect(title).not.toContain('<');
+  });
+
+  it('整份 HTML 只有一個 </head>（`$&` 沒把 head 或後文再貼一次）', async () => {
+    const html = await (await site.request(`${ORIGIN}/?s=${s}`)).text();
+
+    expect(html.match(/<\/head>/g)).toHaveLength(1);
+    expect(html.match(/<title>/g)).toHaveLength(1);
+    expect(html.match(/<body>/g)).toHaveLength(1);
+  });
+
+  it('og:title 與 twitter:title 也照樣只帶使用者的字', async () => {
+    const html = await (await site.request(`${ORIGIN}/?s=${s}`)).text();
+    const og_title = html.match(/<meta property="og:title" content="([^"]*)"/)![1]!;
+
+    expect(og_title).toContain('$&amp;');
+    expect(og_title).not.toContain('<');
+  });
+});
+
+/**
  * AC14 語言同源：記憶從 localStorage 搬到 cookie，server 與 client 才會看到同一個語言。
  * 產圖端點刻意不看 cookie——固定 URL 配一年期快取，cookie 進不了 CDN 的 cache key。
  */

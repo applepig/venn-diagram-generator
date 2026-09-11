@@ -382,10 +382,12 @@ export function createApp(opts: AppOptions): Hono {
     ].join('');
 
     const base = opts.loadIndexHtml ? await opts.loadIndexHtml(c.req.url) : readIndexHtml();
+    // replacement 一律用 callback：使用者打的 `$&`／`` $` ``／`$'` 在字串型 replacement 裡
+    // 是替換樣式，會把匹配到的 HTML（或 head 前後文）整段塞進 <title> 與 meta（AC16）
     const html = localizeHtml(base, locale)
-      .replace(/<title>[^<]*<\/title>/, `<title>${escapeXml(og_title)}</title>`)
-      .replace('</head>', `${meta}</head>`)
-      .replace('<body>', `<body>${opts.gtmId ? gtmBody(opts.gtmId) : ''}`);
+      .replace(/<title>[^<]*<\/title>/, () => `<title>${escapeXml(og_title)}</title>`)
+      .replace('</head>', () => `${meta}</head>`)
+      .replace('<body>', () => `<body>${opts.gtmId ? gtmBody(opts.gtmId) : ''}`);
     return c.html(html, 200, { 'cache-control': 'no-cache' });
   });
 
