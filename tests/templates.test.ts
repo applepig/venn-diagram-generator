@@ -27,10 +27,10 @@ const TEXTS_3 = {
   '1': { t: '要快' },
   '2': { t: '要好' },
   '4': { t: '要便宜' },
-  '3': { t: '不便宜' },
-  '5': { t: '不會好' },
-  '6': { t: '不會快' },
-  '7': { t: '想得美' },
+  '3': { t: '貴' },
+  '5': { t: '醜' },
+  '6': { t: '慢' },
+  '7': { t: '不可能' },
 };
 
 const TEXTS_4 = {
@@ -97,7 +97,7 @@ describe('isPristine', () => {
 
   it('文字沒變但拖動過位置就不是 pristine', () => {
     const s = sampleState(3);
-    s.texts['7'] = { t: '想得美', dx: 0.02 };
+    s.texts['7'] = { t: '不可能', dx: 0.02 };
 
     expect(isPristine(s)).toBe(false);
   });
