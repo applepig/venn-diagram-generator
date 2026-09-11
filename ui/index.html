@@ -21,8 +21,9 @@
         <div class="canvas-wrap">
           <div class="canvas" id="canvas-mini"></div>
         </div>
-        <p class="peek-hint">預覽 · 點一下放大</p>
-        <button type="button" class="preview-close">關閉預覽</button>
+        <!-- data-i18n 的文字由 server 依語言換掉（content/strings/），這裡的中文是 zh-TW 版本 -->
+        <p class="peek-hint" data-i18n="peek.hint">預覽 · 點一下放大</p>
+        <button type="button" class="preview-close" data-i18n="peek.close">關閉預覽</button>
       </div>
     </div>
     <script type="module" src="/main.ts"></script>

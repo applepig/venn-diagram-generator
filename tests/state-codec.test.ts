@@ -426,3 +426,75 @@ describe('decodeState：解壓輸出上限（AC1）', () => {
     expect(s.length).toBeLessThanOrEqual(MAX_STATE_PARAM_LEN);
   });
 });
+
+/**
+ * 07 M5 AC6／ADR：API 是機器介面，不走 i18n。
+ * `StateError` 的訊息一律英文固定值，這裡涵蓋每一條產生訊息的路徑。
+ */
+describe('07 M5 StateError 的訊息一律英文', () => {
+  const ASCII_ONLY = /^[\x20-\x7e]+$/;
+
+  function messageOf(run: () => unknown): string {
+    try {
+      run();
+    } catch (err) {
+      expect(err).toBeInstanceOf(StateError);
+      return (err as StateError).message;
+    }
+    throw new Error('預期會拋 StateError，但沒有');
+  }
+
+  const schema_cases: [string, unknown][] = [
+    ['不是物件', 'nope'],
+    ['版本不是 1', { ...sampleState(), v: 2 }],
+    ['n 不合法', { ...sampleState(), n: 7 }],
+    ['arr 不認得', { ...sampleState(), arr: 'spiral' }],
+    ['組合不合法', { ...defaultState(2), arr: 'row' }],
+    ['style 不認得', { ...sampleState(), style: 'neon' }],
+    ['size 超界', { ...sampleState(), size: 2001 }],
+    ['size 非整數', { ...sampleState(), size: 1200.5 }],
+    ['opacity 超界', { ...sampleState(), opacity: 1.4 }],
+    ['overlap 超界', { ...sampleState(), overlap: 1.9 }],
+    ['radius 超界', { ...sampleState(), radius: 0.5 }],
+    ['colors 數量不符', { ...sampleState(), colors: ['#ffffff'] }],
+    ['colors 不是 hex', { ...sampleState(), colors: ['red', 'blue'] }],
+    ['bg 不是 hex', { ...sampleState(), bg: 'transparent' }],
+    ['texts 不是物件', { ...sampleState(), texts: [] }],
+    ['槽位不屬於這個版面', { ...sampleState(), texts: { '7': { t: 'x' } } }],
+    ['槽位格式錯誤', { ...sampleState(), texts: { '1': 'x' } }],
+    ['槽位缺 t', { ...sampleState(), texts: { '1': {} } }],
+    ['文字超長', { ...sampleState(), texts: { '1': { t: '字'.repeat(81) } } }],
+    ['文字含控制字元', { ...sampleState(), texts: { '1': { t: `a${String.fromCharCode(0)}b` } } }],
+    ['fs 不是數字', { ...sampleState(), texts: { '1': { t: 'x', fs: 'big' } } }],
+    ['fs 超界', { ...sampleState(), texts: { '1': { t: 'x', fs: 2 } } }],
+    ['dx 超界', { ...sampleState(), texts: { '1': { t: 'x', dx: 2 } } }],
+    ['dy 超界', { ...sampleState(), texts: { '1': { t: 'x', dy: -2 } } }],
+    ['fill 不是 hex', { ...sampleState(), texts: { '1': { t: 'x', fill: 'red' } } }],
+  ];
+
+  for (const [name, input] of schema_cases) {
+    it(`validateState：${name}`, () => {
+      expect(messageOf(() => validateState(input))).toMatch(ASCII_ONLY);
+    });
+  }
+
+  const string_cases: [string, string][] = [
+    ['不是 base64url', '!!!!'],
+    ['base64 但不是 deflate', encodeBase64Url(new Uint8Array([1, 2, 3, 4, 5, 6, 7, 8]))],
+    ['deflate 過但不是 JSON', encodeBase64Url(new Uint8Array(deflateRawSync(Buffer.from('not json'))))],
+  ];
+
+  for (const [name, input] of string_cases) {
+    it(`decodeState：${name}`, () => {
+      expect(messageOf(() => decodeState(input))).toMatch(ASCII_ONLY);
+    });
+  }
+
+  it('壓縮炸彈的訊息也是英文', () => {
+    expect(messageOf(() => decodeState(bombParam(8 * 1024 * 1024)))).toMatch(ASCII_ONLY);
+  });
+
+  it('瀏覽器版的訊息也是英文', async () => {
+    await expect(decodeStateWeb('!!!!')).rejects.toThrow(/^[\x20-\x7e]+$/);
+  });
+});

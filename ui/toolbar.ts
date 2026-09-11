@@ -7,7 +7,6 @@ import {
   popCount,
 } from '../engine/defaults';
 import { BG_SWATCHES } from '../content/palette';
-import { STRINGS } from '../content/strings/zh-TW';
 import { layout, regionBox, slotMasks } from '../engine/layout';
 import {
   arrOf,
@@ -17,19 +16,25 @@ import {
   radiusRange,
 } from '../engine/shapes/index';
 import type { Arrangement, CircleCount, TextSlot, VennState, VennStyle } from '../engine/types';
+import { ts } from './i18n';
 import { createColorControl } from './color-control';
 import { createSlotRow, type SlotRow } from './slot-row';
 
-const STYLE_LABELS: [VennStyle, string][] = [
-  ['translucent', STRINGS['style.translucent']],
-  ['flat', STRINGS['style.flat']],
-  ['outline', STRINGS['style.outline']],
-];
+// 文案在 createToolbar 裡才取：模組載入時語言還沒決定（uiLocale 要讀 DOM 與 localStorage）
+function styleLabels(): [VennStyle, string][] {
+  return [
+    ['translucent', ts('style.translucent')],
+    ['flat', ts('style.flat')],
+    ['outline', ts('style.outline')],
+  ];
+}
 
-const ARR_LABELS: [Arrangement, string][] = [
-  ['ring', STRINGS['arr.ring']],
-  ['row', STRINGS['arr.row']],
-];
+function arrLabels(): [Arrangement, string][] {
+  return [
+    ['ring', ts('arr.ring')],
+    ['row', ts('arr.row')],
+  ];
+}
 
 /** 圈數用示意圖而不是文字，一眼看得出幾個圈；5／6 圈畫成環狀，與 ring 的排列一致 */
 const COUNT_ICONS: [CircleCount, string][] = [
@@ -170,7 +175,7 @@ export function createToolbar(root: HTMLElement, handlers: ToolbarHandlers): Too
   // 排列與圈數都要另一半的目前值才組得出形狀，兩個 handler 都從 latest_state 取
   const arr_seg = segmented<Arrangement>(
     'seg',
-    ARR_LABELS,
+    arrLabels(),
     (btn, label) => {
       btn.textContent = label;
     },
@@ -195,7 +200,7 @@ export function createToolbar(root: HTMLElement, handlers: ToolbarHandlers): Too
 
   const style_seg = segmented<VennStyle>(
     'seg',
-    STYLE_LABELS,
+    styleLabels(),
     (btn, label) => {
       btn.textContent = label;
     },
@@ -211,16 +216,16 @@ export function createToolbar(root: HTMLElement, handlers: ToolbarHandlers): Too
       if (bg) handlers.onPatch({ bg });
     },
   });
-  const bg_row = labeledRow(STRINGS['field.bg'], bg_color.root);
+  const bg_row = labeledRow(ts('field.bg'), bg_color.root);
 
-  const opacity = sliderField(STRINGS['field.opacity'], 0.15, 1, 0.05, (o) =>
+  const opacity = sliderField(ts('field.opacity'), 0.15, 1, 0.05, (o) =>
     handlers.onPatch({ opacity: o }),
   );
   // radius 的範圍依排列而定（row 的圓比 ring 小），所以每次 update 都依 state 重設
-  const radius = sliderField(STRINGS['field.radius'], ...radiusRange('ring'), 0.005, (r) =>
+  const radius = sliderField(ts('field.radius'), ...radiusRange('ring'), 0.005, (r) =>
     handlers.onPatch({ radius: r }),
   );
-  const overlap = sliderField(STRINGS['field.overlap'], OVERLAP_MIN, OVERLAP_MAX, 0.01, (o) =>
+  const overlap = sliderField(ts('field.overlap'), OVERLAP_MIN, OVERLAP_MAX, 0.01, (o) =>
     handlers.onPatch({ overlap: o }),
   );
 
@@ -237,14 +242,14 @@ export function createToolbar(root: HTMLElement, handlers: ToolbarHandlers): Too
   size_select.addEventListener('change', () =>
     handlers.onPatch({ size: Number(size_select.value) }),
   );
-  const size_row = labeledRow(STRINGS['field.size'], size_select);
+  const size_row = labeledRow(ts('field.size'), size_select);
 
   const actions = document.createElement('div');
   actions.className = 'actions';
 
   const download_png = document.createElement('a');
   download_png.className = 'primary';
-  download_png.textContent = STRINGS['action.downloadPng'];
+  download_png.textContent = ts('action.downloadPng');
   download_png.download = 'venn.png';
 
   const actionButton = (label: string, onClick: () => void) => {
@@ -257,9 +262,9 @@ export function createToolbar(root: HTMLElement, handlers: ToolbarHandlers): Too
 
   actions.append(
     download_png,
-    actionButton(STRINGS['action.downloadSvg'], handlers.onDownloadSvg),
-    actionButton(STRINGS['action.copyImage'], handlers.onCopyImage),
-    actionButton(STRINGS['action.copyLink'], handlers.onCopyLink),
+    actionButton(ts('action.downloadSvg'), handlers.onDownloadSvg),
+    actionButton(ts('action.copyImage'), handlers.onCopyImage),
+    actionButton(ts('action.copyLink'), handlers.onCopyLink),
   );
 
   const divider = () => document.createElement('hr');

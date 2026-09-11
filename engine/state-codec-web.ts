@@ -18,7 +18,7 @@ export async function decodeState(s: string): Promise<VennState> {
   try {
     raw = await pipeThrough(decodeBase64Url(s), new DecompressionStream('deflate-raw'));
   } catch {
-    throw new StateError('狀態參數解壓縮失敗');
+    throw new StateError('s could not be decompressed');
   }
   return bytesToState(raw);
 }

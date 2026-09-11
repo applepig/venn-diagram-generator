@@ -9,6 +9,9 @@ import {
 } from './shapes/index';
 import type { Arrangement, TextSlot, VennState, VennStyle } from './types';
 
+/**
+ * 狀態解析失敗。訊息一律英文固定值：API 是機器介面，不走 i18n（07 ADR）。
+ */
 export class StateError extends Error {
   constructor(message: string) {
     super(message);
@@ -29,13 +32,13 @@ export function encodeBase64Url(bytes: Uint8Array): string {
 }
 
 export function decodeBase64Url(s: string): Uint8Array {
-  if (!BASE64URL_RE.test(s)) throw new StateError('狀態參數不是合法的 base64url');
+  if (!BASE64URL_RE.test(s)) throw new StateError('s is not valid base64url');
   const padded = s.replace(/-/g, '+').replace(/_/g, '/');
   let bin: string;
   try {
     bin = atob(padded);
   } catch {
-    throw new StateError('狀態參數不是合法的 base64url');
+    throw new StateError('s is not valid base64url');
   }
   const bytes = new Uint8Array(bin.length);
   for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
@@ -49,14 +52,14 @@ function isRecord(v: unknown): v is Record<string, unknown> {
 }
 
 function requireNumber(v: unknown, name: string, min: number, max: number): number {
-  if (typeof v !== 'number' || !Number.isFinite(v)) throw new StateError(`${name} 必須是數字`);
-  if (v < min || v > max) throw new StateError(`${name} 必須介於 ${min} 與 ${max} 之間`);
+  if (typeof v !== 'number' || !Number.isFinite(v)) throw new StateError(`${name} must be a number`);
+  if (v < min || v > max) throw new StateError(`${name} must be between ${min} and ${max}`);
   return v;
 }
 
 function requireHex(v: unknown, name: string): string {
   if (typeof v !== 'string' || !HEX_RE.test(v)) {
-    throw new StateError(`${name} 必須是 #rrggbb 格式的顏色`);
+    throw new StateError(`${name} must be a #rrggbb color`);
   }
   return v;
 }
@@ -83,28 +86,27 @@ function hasLoneSurrogate(s: string): boolean {
 }
 
 function parseSlot(key: string, raw: unknown): TextSlot {
-  if (!isRecord(raw)) throw new StateError(`文字槽 ${key} 格式錯誤`);
-  if (typeof raw.t !== 'string') throw new StateError(`文字槽 ${key} 缺少文字內容`);
+  if (!isRecord(raw)) throw new StateError(`text slot ${key} must be an object`);
+  if (typeof raw.t !== 'string') throw new StateError(`text slot ${key} is missing t`);
   if ([...raw.t].length > MAX_TEXT_LEN) {
-    throw new StateError(`文字槽 ${key} 超過 ${MAX_TEXT_LEN} 字上限`);
+    throw new StateError(`text slot ${key} exceeds the ${MAX_TEXT_LEN} character limit`);
   }
   if (INVALID_XML_RE.test(raw.t) || hasLoneSurrogate(raw.t)) {
-    throw new StateError(`文字槽 ${key} 含有無法輸出的控制字元`);
+    throw new StateError(`text slot ${key} contains characters that cannot be rendered`);
   }
 
   const slot: TextSlot = { t: raw.t };
-  if (raw.fs !== undefined) slot.fs = requireNumber(raw.fs, `文字槽 ${key} 的字級`, 0.001, 1);
-  if (raw.dx !== undefined) slot.dx = requireNumber(raw.dx, `文字槽 ${key} 的水平偏移`, -1, 1);
-  if (raw.dy !== undefined) slot.dy = requireNumber(raw.dy, `文字槽 ${key} 的垂直偏移`, -1, 1);
-  if (raw.fill !== undefined) slot.fill = requireHex(raw.fill, `文字槽 ${key} 的填色`);
+  if (raw.fs !== undefined) slot.fs = requireNumber(raw.fs, `text slot ${key} fs`, 0.001, 1);
+  if (raw.dx !== undefined) slot.dx = requireNumber(raw.dx, `text slot ${key} dx`, -1, 1);
+  if (raw.dy !== undefined) slot.dy = requireNumber(raw.dy, `text slot ${key} dy`, -1, 1);
+  if (raw.fill !== undefined) slot.fill = requireHex(raw.fill, `text slot ${key} fill`);
   return slot;
 }
 
 export function validateState(input: unknown): VennState {
-  if (!isRecord(input)) throw new StateError('狀態必須是物件');
-  if (input.v !== 1) throw new StateError('不支援的狀態版本');
+  if (!isRecord(input)) throw new StateError('state must be an object');
+  if (input.v !== 1) throw new StateError('unsupported state version');
 
-  // 排列與圈數的訊息用英文：API 是機器介面，不走 i18n
   const n = input.n;
   if (!isCircleCount(n)) throw new StateError('n must be an integer between 2 and 6');
 
@@ -120,22 +122,22 @@ export function validateState(input: unknown): VennState {
 
   const style = input.style;
   if (typeof style !== 'string' || !STYLES.includes(style as VennStyle)) {
-    throw new StateError('不認得的樣式');
+    throw new StateError('unknown style');
   }
 
-  const size = requireNumber(input.size, '尺寸', SIZE_MIN, SIZE_MAX);
-  if (!Number.isInteger(size)) throw new StateError('尺寸必須是整數');
+  const size = requireNumber(input.size, 'size', SIZE_MIN, SIZE_MAX);
+  if (!Number.isInteger(size)) throw new StateError('size must be an integer');
 
   if (!Array.isArray(input.colors) || input.colors.length !== n) {
-    throw new StateError(`顏色數量必須等於圈數（${n}）`);
+    throw new StateError(`colors must have exactly ${n} entries`);
   }
-  const colors = input.colors.map((c, i) => requireHex(c, `第 ${i + 1} 圈的顏色`));
+  const colors = input.colors.map((c, i) => requireHex(c, `color ${i + 1}`));
 
-  if (!isRecord(input.texts)) throw new StateError('文字槽必須是物件');
+  if (!isRecord(input.texts)) throw new StateError('texts must be an object');
   const allowed = new Set(slotMasks(arr, n).map(String));
   const texts: Record<string, TextSlot> = {};
   for (const [key, raw] of Object.entries(input.texts)) {
-    if (!allowed.has(key)) throw new StateError(`文字槽 ${key} 不屬於 ${n} 圈版面`);
+    if (!allowed.has(key)) throw new StateError(`text slot ${key} does not exist in ${arr}(${n})`);
     texts[key] = parseSlot(key, raw);
   }
 
@@ -146,11 +148,11 @@ export function validateState(input: unknown): VennState {
     v: 1,
     n,
     style: style as VennStyle,
-    opacity: requireNumber(input.opacity, '透明度', 0, 1),
-    overlap: requireNumber(input.overlap, '重疊度', OVERLAP_MIN, OVERLAP_MAX),
-    radius: requireNumber(input.radius, '圓半徑', radius_min, radius_max),
+    opacity: requireNumber(input.opacity, 'opacity', 0, 1),
+    overlap: requireNumber(input.overlap, 'overlap', OVERLAP_MIN, OVERLAP_MAX),
+    radius: requireNumber(input.radius, 'radius', radius_min, radius_max),
     colors,
-    bg: requireHex(input.bg, '背景色'),
+    bg: requireHex(input.bg, 'bg'),
     size,
     texts,
   };
@@ -170,7 +172,7 @@ export function bytesToState(bytes: Uint8Array): VennState {
   try {
     parsed = JSON.parse(new TextDecoder().decode(bytes));
   } catch {
-    throw new StateError('狀態參數不是合法的 JSON');
+    throw new StateError('s does not contain valid JSON');
   }
   return validateState(parsed);
 }

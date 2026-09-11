@@ -1,9 +1,5 @@
-import type { Arrangement, CircleCount, TextSlot, VennStyle } from '../../engine/types';
-
-export interface Template {
-  style: VennStyle;
-  texts: Record<string, TextSlot>;
-}
+import type { Arrangement, CircleCount, VennStyle } from '../../engine/types';
+import type { Template } from './types';
 
 /** 沒有 meme 文案的組合用的單圈標籤（spec ADR：zh 甲乙丙丁戊己） */
 const LABELS = ['甲', '乙', '丙', '丁', '戊', '己'];

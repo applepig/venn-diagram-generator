@@ -1,13 +1,14 @@
 import './style.css';
-import { nextStateForShape } from '../content/next-state';
+import { nextStateForLocale, nextStateForShape } from '../content/next-state';
 import { sampleState } from '../content/state-presets';
-import { STRINGS } from '../content/strings/zh-TW';
 import { renderSvg } from '../engine/render-svg';
 import { arrOf } from '../engine/shapes/index';
 import { decodeState, encodeState } from '../engine/state-codec-web';
 import type { Arrangement, CircleCount, TextSlot, VennState } from '../engine/types';
 import { createCanvas } from './canvas';
+import { ts, uiLocale } from './i18n';
 import { patchSlotTexts } from './patch-slot';
+import { searchWithState, shareUrl } from './share-url';
 import { createToolbar } from './toolbar';
 import { watermarkText } from './watermark';
 
@@ -15,7 +16,8 @@ const panel_el = document.getElementById('panel')!;
 const canvas_el = document.getElementById('canvas')!;
 const canvas_mini_el = document.getElementById('canvas-mini')!;
 
-let state: VennState = sampleState();
+const locale = uiLocale();
+let state: VennState = sampleState(2, locale);
 let encoded = '';
 /** 編碼是非同步的，用 token 丟掉過期結果，避免慢的那次蓋掉新的 */
 let encode_token = 0;
@@ -49,7 +51,7 @@ function setState(patch: Partial<VennState>): void {
 
 function setShape(arr: Arrangement, n: CircleCount): void {
   if (arr === arrOf(state) && n === state.n) return;
-  state = nextStateForShape(state, arr, n);
+  state = nextStateForShape(state, arr, n, locale);
   render();
 }
 
@@ -57,8 +59,9 @@ function pngUrl(): string {
   return `/api/png?s=${encoded}`;
 }
 
-function shareUrl(): string {
-  return `${location.origin}/?s=${encoded}`;
+/** 分享連結不帶 lang：收件人用自己的語言看介面 */
+function currentShareUrl(): string {
+  return shareUrl(location.origin, encoded);
 }
 
 /** SVG 由前端這份純函式直接產出，和 /api/png 是同一張圖 */
@@ -75,22 +78,22 @@ function downloadSvg(): void {
 
 async function copyImage(): Promise<void> {
   if (typeof ClipboardItem === 'undefined' || !navigator.clipboard?.write) {
-    alert(STRINGS['copy.imageUnsupported']);
+    alert(ts('copy.imageUnsupported'));
     return;
   }
   try {
     const blob = await (await fetch(pngUrl())).blob();
     await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
   } catch {
-    alert(STRINGS['copy.imageFailed']);
+    alert(ts('copy.imageFailed'));
   }
 }
 
 async function copyLink(): Promise<void> {
   try {
-    await navigator.clipboard.writeText(shareUrl());
+    await navigator.clipboard.writeText(currentShareUrl());
   } catch {
-    prompt(STRINGS['copy.linkPrompt'], shareUrl());
+    prompt(ts('copy.linkPrompt'), currentShareUrl());
   }
 }
 
@@ -105,7 +108,8 @@ async function syncUrl(): Promise<void> {
   const next = await encodeState(state);
   if (token !== encode_token) return;
   encoded = next;
-  history.replaceState(null, '', `?s=${encoded}`);
+  // 只改 s：lang 這類參數留著，不然按一下滑桿就把使用者選的語言從網址上抹掉
+  history.replaceState(null, '', searchWithState(location.search, encoded));
   // 編碼完成後才知道正確的下載連結與 og 分享網址，補一次面板
   toolbar.update(state, pngUrl());
 }
@@ -114,10 +118,11 @@ async function boot(): Promise<void> {
   const s = new URLSearchParams(location.search).get('s');
   if (s) {
     try {
-      state = await decodeState(s);
+      // 沒編輯過的 template 換成目前語言的版本；使用者改過的字一律不動
+      state = nextStateForLocale(await decodeState(s), locale);
     } catch {
       // 壞掉的連結就從範例開始，不要卡在白畫面
-      state = sampleState();
+      state = sampleState(2, locale);
     }
   }
   render();

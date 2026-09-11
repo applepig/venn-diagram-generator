@@ -18,7 +18,7 @@ export function decodeState(s: string): VennState {
     const options = { maxOutputLength: MAX_INFLATED_BYTES };
     raw = new Uint8Array(inflateRawSync(decodeBase64Url(s), options));
   } catch {
-    throw new StateError('狀態參數解壓縮失敗');
+    throw new StateError('s could not be decompressed');
   }
   return bytesToState(raw);
 }

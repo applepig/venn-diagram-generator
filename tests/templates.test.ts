@@ -1,8 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import { MIN_FS, popCount } from '../engine/defaults';
-import { nextStateForShape } from '../content/next-state';
+import { LOCALES, type Locale } from '../content/locale';
+import { nextStateForLocale, nextStateForShape } from '../content/next-state';
 import { PALETTE } from '../content/palette';
-import { defaultState, isPristine, sampleState, templateTexts } from '../content/state-presets';
+import {
+  defaultState,
+  isPristine,
+  sampleState,
+  templateFor,
+  templateTexts,
+} from '../content/state-presets';
 import { TEMPLATES } from '../content/templates/zh-TW';
 import { layout, slotMasks } from '../engine/layout';
 import { ARRANGEMENTS, circleCountRange, shapeDefaults } from '../engine/shapes/index';
@@ -335,4 +342,237 @@ describe('AC4 三組 template 在預設幾何下都不觸字級下限', () => {
     expect(pairs.length).toBeGreaterThan(0);
     for (const block of pairs) expect(center.fs).toBeGreaterThanOrEqual(block.fs);
   });
+});
+
+/**
+ * AC6／AC7 的 en template。字面值取自 spec 的表格，不從 TEMPLATES_EN 反查。
+ * spec 明說「換行位置 developer 可調，判準是 AC7 的不觸底」，所以這裡比對的是
+ * 收掉換行後的文案內容；換行位置由 AC7 的字級測試把關。
+ */
+const EN_TEXTS_2 = {
+  '1': { t: 'Things I should do' },
+  '2': { t: 'Things I want to do' },
+  '3': { t: 'Tomorrow' },
+};
+
+const EN_TEXTS_3 = {
+  '1': { t: 'Fast' },
+  '2': { t: 'Good' },
+  '4': { t: 'Cheap' },
+  '3': { t: 'Not cheap' },
+  '5': { t: 'Not good' },
+  '6': { t: 'Not fast' },
+  '7': { t: 'Dream on' },
+};
+
+/**
+ * 4 圈：spec 表格的原句在預設幾何下有四格觸到 `MIN_FS`（英文比中文寬約 1.8 倍，
+ * 4 圈的區域又最窄），AC7 過不了。以下四格照 spec 的語氣縮短，偏離處逐條註明：
+ * '4' Priest → The priest（避開 `Pries|t` 這種單字硬斷）、
+ * '8' …take off the sweater → …take it off、
+ * '5' …what I'm saying? → …me?、
+ * '12' consequences → trouble。
+ */
+const EN_TEXTS_4 = {
+  '1': { t: 'DJ' },
+  '2': { t: 'Bank robber' },
+  '4': { t: 'The priest' },
+  '8': { t: 'Mom telling her kid to take it off' },
+  '3': { t: 'Everybody listen up!' },
+  '5': { t: 'Do you understand me?' },
+  '10': { t: "Don't make me say it twice!" },
+  '12': { t: 'There will be trouble' },
+  '15': { t: 'Put your hands up!!' },
+};
+
+/** 手動換行只是排版，文案內容以收掉換行後的字串為準 */
+function flatten(texts: Record<string, { t: string }>): Record<string, string> {
+  return Object.fromEntries(
+    Object.entries(texts).map(([mask, slot]) => [mask, slot.t.replace(/\s+/g, ' ').trim()]),
+  );
+}
+
+function flattenExpected(texts: Record<string, { t: string }>): Record<string, string> {
+  return Object.fromEntries(Object.entries(texts).map(([mask, slot]) => [mask, slot.t]));
+}
+
+describe('AC6 en template', () => {
+  const cases: [CircleCount, Record<string, { t: string }>][] = [
+    [2, EN_TEXTS_2],
+    [3, EN_TEXTS_3],
+    [4, EN_TEXTS_4],
+  ];
+
+  for (const [n, expected] of cases) {
+    it(`ring(${n}) 的英文文案與 spec 表格相同`, () => {
+      expect(flatten(templateTexts('ring', n, 'en'))).toEqual(flattenExpected(expected));
+    });
+  }
+
+  it('en 與 zh 的樣式相同（樣式是版型決定，不隨語言變）', () => {
+    for (const n of [2, 3, 4] as CircleCount[]) {
+      expect(templateFor('ring', n, 'en')?.style).toBe(templateFor('ring', n, 'zh-TW')?.style);
+    }
+  });
+
+  it('en 的槽位與 zh 完全對應（同一個版面，只是換文案）', () => {
+    for (const n of [2, 3, 4] as CircleCount[]) {
+      expect(Object.keys(templateTexts('ring', n, 'en')).sort()).toEqual(
+        Object.keys(templateTexts('ring', n, 'zh-TW')).sort(),
+      );
+    }
+  });
+
+  it('ring(5)／ring(6)／row(3～6) 的英文只給 A～F 單圈標籤，交集留空', () => {
+    const labels = ['A', 'B', 'C', 'D', 'E', 'F'];
+    const label_only: [Arrangement, CircleCount][] = [
+      ['ring', 5],
+      ['ring', 6],
+      ['row', 3],
+      ['row', 4],
+      ['row', 5],
+      ['row', 6],
+    ];
+
+    for (const [arr, n] of label_only) {
+      const expected = Object.fromEntries(
+        Array.from({ length: n }, (_, i) => [String(1 << i), { t: labels[i]! }]),
+      );
+      expect(templateTexts(arr, n, 'en'), `${arr}(${n})`).toEqual(expected);
+    }
+  });
+
+  it('每個語言的每個合法組合都有 template，槽位都在該組合的合法槽表內', () => {
+    for (const locale of LOCALES) {
+      for (const arr of ARRANGEMENTS) {
+        const [min_n, max_n] = circleCountRange(arr);
+        for (let n = min_n; n <= max_n; n++) {
+          const texts = templateTexts(arr, n as CircleCount, locale);
+          expect(Object.keys(texts).length, `${locale} ${arr}(${n})`).toBeGreaterThan(0);
+          const allowed = new Set(slotMasks(arr, n as CircleCount).map(String));
+          for (const key of Object.keys(texts)) {
+            expect(allowed.has(key), `${locale} ${arr}(${n}) 槽 ${key}`).toBe(true);
+          }
+        }
+      }
+    }
+  }, 30_000);
+
+  it('sampleState 帶語言時套用該語言的 template', () => {
+    expect(flatten(sampleState(2, 'en').texts)).toEqual(flattenExpected(EN_TEXTS_2));
+    expect(sampleState(2, 'en').style).toBe('flat');
+    expect(sampleState(2).texts).toEqual(TEMPLATES.ring[2]!.texts);
+  });
+});
+
+describe('AC6 isPristine 跨語言', () => {
+  it('任一語言的 template 原樣都算 pristine', () => {
+    for (const locale of LOCALES) {
+      for (const n of [2, 3, 4] as CircleCount[]) {
+        expect(isPristine(sampleState(n, locale)), `${locale} ring(${n})`).toBe(true);
+      }
+    }
+  });
+
+  it('改過英文 template 的任一格就不是 pristine', () => {
+    const state = sampleState(2, 'en');
+    state.texts['3'] = { t: 'Next week' };
+
+    expect(isPristine(state)).toBe(false);
+  });
+});
+
+describe('AC6 nextStateForLocale', () => {
+  it('pristine 時整組換成目標語言的 template', () => {
+    const next = nextStateForLocale(sampleState(2, 'zh-TW'), 'en');
+
+    expect(flatten(next.texts)).toEqual(flattenExpected(EN_TEXTS_2));
+  });
+
+  it('換回來也成立（en → zh 拿回中文 template）', () => {
+    const next = nextStateForLocale(sampleState(3, 'en'), 'zh-TW');
+
+    expect(next.texts).toEqual(TEMPLATES.ring[3]!.texts);
+  });
+
+  it('非 pristine 的 texts 切語言後一個字都不變', () => {
+    const dirty = sampleState(2, 'zh-TW');
+    dirty.texts = { '1': { t: '貓' }, '2': { t: '狗' }, '3': { t: '毛' } };
+
+    expect(nextStateForLocale(dirty, 'en').texts).toEqual(dirty.texts);
+  });
+
+  it('改過字級但文字沒變也算編輯過，切語言不動它', () => {
+    const state = sampleState(2, 'zh-TW');
+    state.texts['3'] = { t: '明天\n再說', fs: 0.08 };
+
+    expect(nextStateForLocale(state, 'en').texts['3']).toEqual({ t: '明天\n再說', fs: 0.08 });
+  });
+
+  it('不改動傳入的 state，也不動樣式與幾何', () => {
+    const before = sampleState(4, 'zh-TW');
+    const next = nextStateForLocale(before, 'en');
+
+    expect(before.texts).toEqual(TEMPLATES.ring[4]!.texts);
+    expect(next.style).toBe(before.style);
+    expect(next.radius).toBe(before.radius);
+    expect(next.overlap).toBe(before.overlap);
+  });
+
+  it('回傳的 texts 是新物件，改動不會污染 TEMPLATES', () => {
+    const next = nextStateForLocale(sampleState(2, 'zh-TW'), 'en');
+    next.texts['3'] = { t: 'mutated' };
+
+    expect(flatten(nextStateForLocale(sampleState(2, 'zh-TW'), 'en').texts)['3']).toBe('Tomorrow');
+  });
+
+  it('row／5／6 圈的單圈標籤也跟著語言換', () => {
+    const row = nextStateForShape(sampleState(2), 'row', 3, 'zh-TW');
+
+    expect(nextStateForLocale(row, 'en').texts).toEqual({
+      '1': { t: 'A' },
+      '2': { t: 'B' },
+      '4': { t: 'C' },
+    });
+  });
+});
+
+describe('AC6 nextStateForShape 用呼叫端的語言取 template', () => {
+  it('英文介面切圈數拿到的是英文 template', () => {
+    const next = nextStateForShape(sampleState(2, 'en'), 'ring', 3, 'en');
+
+    expect(flatten(next.texts)).toEqual(flattenExpected(EN_TEXTS_3));
+  });
+
+  it('省略語言時仍是 zh-TW（既有呼叫端行為不變）', () => {
+    expect(nextStateForShape(sampleState(2), 'ring', 3).texts).toEqual(TEMPLATES.ring[3]!.texts);
+  });
+
+  it('英文的 pristine 判定同樣成立：中文 template 切圈數後也能拿到英文文案', () => {
+    const next = nextStateForShape(sampleState(2, 'zh-TW'), 'ring', 4, 'en');
+
+    expect(flatten(next.texts)).toEqual(flattenExpected(EN_TEXTS_4));
+  });
+});
+
+describe('AC7 zh／en 六組 template 在各自預設幾何下每格都不觸字級下限', () => {
+  for (const locale of ['zh-TW', 'en'] as Locale[]) {
+    for (const n of [2, 3, 4] as CircleCount[]) {
+      it(`${locale} ring(${n}) 每格都排得進去且字級高於下限`, () => {
+        const state = sampleState(n, locale);
+        const blocks = layout(state);
+        const slots = Object.keys(state.texts).map(Number);
+
+        // 空 template 也能讓下面的斷言全過：先確認這一組真的有文案
+        expect(slots.length).toBeGreaterThan(0);
+        // 每個有文字的槽都要真的排出一個 block，否則「不觸底」是因為沒排到
+        expect(blocks.map((b) => b.mask).sort((a, b) => a - b)).toEqual(
+          [...slots].sort((a, b) => a - b),
+        );
+        for (const block of blocks) {
+          expect(block.fs, `${locale} ring(${n}) mask ${block.mask}`).toBeGreaterThan(MIN_FS);
+        }
+      });
+    }
+  }
 });

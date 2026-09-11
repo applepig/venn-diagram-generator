@@ -3,6 +3,14 @@ import { join } from 'node:path';
 import { renderAsync } from '@resvg/resvg-js';
 import { Hono } from 'hono';
 import type { Context } from 'hono';
+import {
+  htmlLang,
+  ogLocale,
+  serverLocale,
+  t,
+  type Locale,
+  type StringKey,
+} from '../content/locale';
 import { sampleState } from '../content/state-presets';
 import { MAX_STATE_PARAM_LEN } from '../engine/defaults';
 import { escapeXml, renderSvg } from '../engine/render-svg';
@@ -61,18 +69,52 @@ function originOf(c: Context, public_origin?: string): string {
   return `${proto}://${host}`;
 }
 
-function titleOf(state: VennState): string {
+/**
+ * 語言決策（AC6）：`?lang=` → `Accept-Language` → zh-TW。
+ * 產圖端點另有一條更窄的規則，見 `imageLocaleOf()`。
+ */
+function localeOf(c: Context): Locale {
+  return serverLocale(c.req.query('lang'), c.req.header('accept-language') ?? null);
+}
+
+/**
+ * 產圖端點的語言只從 query `lang` 讀，刻意不看 `Accept-Language`：
+ * 固定 URL 配 `CACHE_FOREVER`，語言不在 key 裡就會被第一個爬蟲的語言污染。
+ */
+function imageLocaleOf(c: Context): Locale {
+  return serverLocale(c.req.query('lang'), null);
+}
+
+/** 判斷接縫兩側是不是中日韓文字（含全形標點）；英文字之間得留空白，中文不必 */
+const CJK_RE = /[\u3000-\u303f\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff\uff00-\uffef]/;
+
+/**
+ * 手動換行是排版用的，og:title 是單行文字：接縫兩側都是中日韓字就直接接起來
+ * （「該做\n的事」→「該做的事」），否則補一格空白（`Things I\nshould do`
+ * 直接接會變成 `Things Ishould do`）。
+ */
+function joinManualLines(text: string): string {
+  return text
+    .split(/\s*\n\s*/)
+    .filter(Boolean)
+    .reduce((acc, part) => {
+      if (acc === '') return part;
+      const glued = CJK_RE.test(acc[acc.length - 1]!) && CJK_RE.test(part[0]!);
+      return glued ? acc + part : `${acc} ${part}`;
+    }, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function titleOf(state: VennState, locale: Locale): string {
   const labels = Object.entries(state.texts)
     .filter(([mask]) => Number.isInteger(Math.log2(Number(mask))))
-    // 手動換行是排版用的，og:title 是單行文字：換行直接接起來，其餘空白才收成一格
-    .map(([, slot]) =>
-      slot.t
-        .replace(/\s*\n\s*/g, '')
-        .replace(/\s+/g, ' ')
-        .trim(),
-    )
+    .map(([, slot]) => joinManualLines(slot.t))
     .filter(Boolean);
-  return labels.length > 0 ? `${labels.join(' × ')}｜${SITE_NAME}` : SITE_NAME;
+  const site_name = t('site.name', locale);
+  return labels.length > 0
+    ? `${labels.join(' × ')}${t('site.titleJoiner', locale)}${site_name}`
+    : site_name;
 }
 
 /** 點陣化丟到 resvg 的 worker thread，避免大圖把 event loop 卡死（AC 1b） */
@@ -90,11 +132,22 @@ async function renderPng(
 
 const FALLBACK_HTML = `<!doctype html><html lang="zh-Hant"><head><meta charset="utf-8"><title>文氏圖產生器</title></head><body><p>前端尚未 build，請先執行 <code>pnpm build</code>。</p></body></html>`;
 
-const SITE_NAME = '文氏圖產生器';
-const DESCRIPTION = '填字就有的文氏圖產生器，狀態直接編在網址裡。';
-/** 首頁的 <title> 與 og:title 都用 OG 底圖上的品牌文案；分享頁才走 titleOf() 顯示圖上的內容 */
-const HOME_TITLE = '文氏圖產生器｜找不到哏圖不會自己做嗎？';
-const IMAGE_ALT = '文氏圖產生器預覽圖';
+/**
+ * `<html lang>` 與 index.html 裡帶 `data-i18n` 的靜態字串換成該語言的版本。
+ * 只有這一份注入邏輯：dev（Vite transform）與正式站（dist/index.html）走同一條路。
+ */
+const HTML_LANG_RE = /(<html\b[^>]*\blang=")[^"]*(")/;
+const I18N_ELEMENT_RE = /<(\w+)([^>]*?)\sdata-i18n="([^"]+)"([^>]*?)>[\s\S]*?<\/\1>/g;
+
+function localizeHtml(html: string, locale: Locale): string {
+  return html
+    .replace(HTML_LANG_RE, `$1${htmlLang(locale)}$2`)
+    .replace(
+      I18N_ELEMENT_RE,
+      (_whole, tag: string, before: string, key: string, after: string) =>
+        `<${tag}${before} data-i18n="${key}"${after}>${escapeXml(t(key as StringKey, locale))}</${tag}>`,
+    );
+}
 
 /** GTM 的官方 snippet，只有 container id 抽成參數 */
 function gtmHead(id: string): string {
@@ -109,17 +162,17 @@ function gtmBody(id: string): string {
  * 首頁的 structured data。只有 / 給，帶 s 的分享頁是 noindex，不需要也不該宣告成獨立作品。
  * 內容全是常數，沒有使用者輸入會進到這個 script。
  */
-function jsonLd(origin: string): string {
+function jsonLd(origin: string, locale: Locale): string {
   const data = {
     '@context': 'https://schema.org',
     '@type': 'WebApplication',
-    name: SITE_NAME,
+    name: t('site.name', locale),
     url: `${origin}/`,
-    description: DESCRIPTION,
+    description: t('site.description', locale),
     applicationCategory: 'DesignApplication',
     operatingSystem: 'Any',
     browserRequirements: 'Requires JavaScript',
-    inLanguage: 'zh-Hant',
+    inLanguage: htmlLang(locale),
     isAccessibleForFree: true,
   };
   return `<script type="application/ld+json">${JSON.stringify(data)}</script>`;
@@ -163,21 +216,21 @@ export function createApp(opts: AppOptions): Hono {
 
   app.get('/api/png', async (c) => {
     const s = c.req.query('s');
-    if (!s) return c.json({ error: '缺少狀態參數 s' }, 400, no_store);
+    if (!s) return c.json({ error: 'missing state parameter s' }, 400, no_store);
     // 長度是 HTTP 層的信任邊界：超長的一律不進 decode
     if (s.length > MAX_STATE_PARAM_LEN)
-      return c.json({ error: '狀態參數過長' }, 400, no_store);
+      return c.json({ error: 's is too long' }, 400, no_store);
 
     let state: VennState;
     try {
       state = decodeState(s);
     } catch (err) {
-      const message = err instanceof StateError ? err.message : '狀態參數無效';
+      const message = err instanceof StateError ? err.message : 'invalid state parameter';
       return c.json({ error: message }, 400, no_store);
     }
 
     if (in_flight >= MAX_CONCURRENT_RENDERS) {
-      return c.json({ error: '目前渲染忙碌，請稍後再試' }, 503, {
+      return c.json({ error: 'renderer is busy, retry later' }, 503, {
         'retry-after': String(RETRY_AFTER_SECONDS),
         'cache-control': 'no-store',
       });
@@ -201,23 +254,24 @@ export function createApp(opts: AppOptions): Hono {
     const s = c.req.query('s');
     let state: VennState;
     if (s === undefined) {
-      state = sampleState();
+      // 缺 s 就渲染預設 template，語言只從 query lang 讀
+      state = sampleState(2, imageLocaleOf(c));
     } else {
       if (s.length > MAX_STATE_PARAM_LEN)
-        return c.json({ error: '狀態參數過長' }, 400, no_store);
+        return c.json({ error: 's is too long' }, 400, no_store);
       try {
         state = decodeState(s);
       } catch (err) {
-        const message = err instanceof StateError ? err.message : '狀態參數無效';
+        const message = err instanceof StateError ? err.message : 'invalid state parameter';
         return c.json({ error: message }, 400, no_store);
       }
     }
 
     if (!og_base) {
-      return c.json({ error: 'OG 底圖未設定' }, 500, no_store);
+      return c.json({ error: 'OG base image is not configured' }, 500, no_store);
     }
     if (in_flight >= MAX_CONCURRENT_RENDERS) {
-      return c.json({ error: '目前渲染忙碌，請稍後再試' }, 503, {
+      return c.json({ error: 'renderer is busy, retry later' }, 503, {
         'retry-after': String(RETRY_AFTER_SECONDS),
         'cache-control': 'no-store',
       });
@@ -239,62 +293,66 @@ export function createApp(opts: AppOptions): Hono {
 
   app.get('/', async (c) => {
     const s = c.req.query('s');
+    const locale = localeOf(c);
     let state: VennState;
     let param: string;
     let shared = true;
     try {
-      if (!s) throw new StateError('沒有狀態參數');
-      if (s.length > MAX_STATE_PARAM_LEN) throw new StateError('狀態參數過長');
+      if (!s) throw new StateError('missing state parameter s');
+      if (s.length > MAX_STATE_PARAM_LEN) throw new StateError('s is too long');
       state = decodeState(s);
       param = s;
     } catch {
       // 壞掉的分享連結不該讓首頁掛掉，退回預設範例圖
-      state = sampleState();
+      state = sampleState(2, locale);
       param = encodeState(state);
       shared = false;
     }
 
     const origin = originOf(c, opts.publicOrigin);
-    const og_png_url = `${origin}/api/og.png?v=${OG_IMAGE_VERSION}`;
+    // 產圖端點只看 query lang，固定 URL 又配長期快取：語言一定要進 key
+    const og_png_url = `${origin}/api/og.png?v=${OG_IMAGE_VERSION}&lang=${locale}`;
     const default_image_url = baked_og ? `${origin}/${baked_og}` : og_png_url;
     const image_url = shared ? `${og_png_url}&s=${encodeState(state)}` : default_image_url;
     // og:url 一律帶 s，分享出去的卡片點回來就是那張圖；canonical 是給搜尋引擎的，首頁收斂到 /
     const share_url = `${origin}/?s=${param}`;
     const canonical_url = shared ? share_url : `${origin}/`;
-    const og_title = shared ? titleOf(state) : HOME_TITLE;
+    const description = t('site.description', locale);
+    const image_alt = t('site.imageAlt', locale);
+    // 首頁的 <title> 與 og:title 都用 OG 底圖上的品牌文案；分享頁才顯示圖上的內容
+    const og_title = shared ? titleOf(state, locale) : t('site.homeTitle', locale);
     const meta = [
       `<meta property="og:type" content="website">`,
-      `<meta property="og:site_name" content="${escapeXml(SITE_NAME)}">`,
-      `<meta property="og:locale" content="zh_TW">`,
+      `<meta property="og:site_name" content="${escapeXml(t('site.name', locale))}">`,
+      `<meta property="og:locale" content="${ogLocale(locale)}">`,
       `<meta property="og:title" content="${escapeXml(og_title)}">`,
-      `<meta property="og:description" content="${escapeXml(DESCRIPTION)}">`,
+      `<meta property="og:description" content="${escapeXml(description)}">`,
       `<meta property="og:image" content="${escapeXml(image_url)}">`,
       `<meta property="og:image:type" content="image/png">`,
       `<meta property="og:image:width" content="${OG_WIDTH}">`,
       `<meta property="og:image:height" content="${OG_HEIGHT}">`,
-      `<meta property="og:image:alt" content="${escapeXml(IMAGE_ALT)}">`,
+      `<meta property="og:image:alt" content="${escapeXml(image_alt)}">`,
       `<meta property="og:url" content="${escapeXml(share_url)}">`,
       `<meta name="twitter:card" content="summary_large_image">`,
       `<meta name="twitter:title" content="${escapeXml(og_title)}">`,
-      `<meta name="twitter:description" content="${escapeXml(DESCRIPTION)}">`,
+      `<meta name="twitter:description" content="${escapeXml(description)}">`,
       `<meta name="twitter:image" content="${escapeXml(image_url)}">`,
-      `<meta name="twitter:image:alt" content="${escapeXml(IMAGE_ALT)}">`,
-      `<meta name="description" content="${escapeXml(DESCRIPTION)}">`,
+      `<meta name="twitter:image:alt" content="${escapeXml(image_alt)}">`,
+      `<meta name="description" content="${escapeXml(description)}">`,
       `<link rel="canonical" href="${escapeXml(canonical_url)}">`,
       // 分享連結是使用者產生的無限 URL 空間，索引它們只會稀釋首頁；follow 保留讓爬蟲走回首頁
       shared
         ? `<meta name="robots" content="noindex, follow">`
         : `<meta name="robots" content="index, follow">`,
-      shared ? '' : jsonLd(origin),
+      shared ? '' : jsonLd(origin, locale),
       // 畫布預覽與「下載 SVG」由前端自己 renderSvg，浮水印文字要跟 /api/png 同一個來源才 WYSIWYG
       opts.watermark ? `<meta name="venn:watermark" content="${escapeXml(opts.watermark)}">` : '',
       opts.gtmId ? gtmHead(opts.gtmId) : '',
     ].join('');
 
-    const title = shared ? og_title : HOME_TITLE;
     const base = opts.loadIndexHtml ? await opts.loadIndexHtml(c.req.url) : readIndexHtml();
-    const html = base
-      .replace(/<title>[^<]*<\/title>/, `<title>${escapeXml(title)}</title>`)
+    const html = localizeHtml(base, locale)
+      .replace(/<title>[^<]*<\/title>/, `<title>${escapeXml(og_title)}</title>`)
       .replace('</head>', `${meta}</head>`)
       .replace('<body>', `<body>${opts.gtmId ? gtmBody(opts.gtmId) : ''}`);
     return c.html(html, 200, { 'cache-control': 'no-cache' });

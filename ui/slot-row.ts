@@ -5,9 +5,9 @@ import {
   popCount,
 } from '../engine/defaults';
 import { SWATCH_COLORS } from '../content/palette';
-import { STRINGS } from '../content/strings/zh-TW';
 import { regionColor } from '../engine/render-svg';
 import type { TextBlock, TextSlot, VennState } from '../engine/types';
+import { ts } from './i18n';
 import { createColorControl } from './color-control';
 
 /** 每按一次 ± 的字級倍率，與 01 的畫布工具列一致 */
@@ -39,7 +39,7 @@ export function slotTag(mask: number): string {
 
 /** 收合列只放得下一行；空白槽要看得出來是空的，不然那一列像壞掉 */
 function firstLine(text: string): string {
-  return text.split('\n').find((line) => line.trim() !== '') ?? STRINGS['slot.empty'];
+  return text.split('\n').find((line) => line.trim() !== '') ?? ts('slot.empty');
 }
 
 export function createSlotRow(mask: number, handlers: SlotRowHandlers): SlotRow {
@@ -73,14 +73,14 @@ export function createSlotRow(mask: number, handlers: SlotRowHandlers): SlotRow 
   const fs_row = document.createElement('div');
   fs_row.className = 'row';
   const fs_label = document.createElement('label');
-  fs_label.textContent = STRINGS['field.fs'];
+  fs_label.textContent = ts('field.fs');
   const fs_box = document.createElement('div');
   fs_box.className = 'fs';
 
   const auto_btn = document.createElement('button');
   auto_btn.type = 'button';
   auto_btn.className = 'auto-btn';
-  auto_btn.textContent = STRINGS['fs.auto'];
+  auto_btn.textContent = ts('fs.auto');
   auto_btn.addEventListener('click', () => handlers.onPatchSlot(mask, { fs: undefined }));
 
   const steps = document.createElement('div');
@@ -89,7 +89,7 @@ export function createSlotRow(mask: number, handlers: SlotRowHandlers): SlotRow 
   num.type = 'number';
   num.className = 'num';
   num.step = '1';
-  num.setAttribute('aria-label', STRINGS['field.fs']);
+  num.setAttribute('aria-label', ts('field.fs'));
   const unit = document.createElement('span');
   unit.className = 'unit';
   unit.textContent = 'px';
@@ -107,13 +107,13 @@ export function createSlotRow(mask: number, handlers: SlotRowHandlers): SlotRow 
   const step_down = document.createElement('button');
   step_down.type = 'button';
   step_down.textContent = '−';
-  step_down.title = STRINGS['fs.stepDown'];
+  step_down.title = ts('fs.stepDown');
   step_down.addEventListener('click', () => setPx(Math.round(shown_px / FS_STEP)));
 
   const step_up = document.createElement('button');
   step_up.type = 'button';
   step_up.textContent = '+';
-  step_up.title = STRINGS['fs.stepUp'];
+  step_up.title = ts('fs.stepUp');
   step_up.addEventListener('click', () => setPx(Math.round(shown_px * FS_STEP)));
 
   // change 而不是 input：邊打邊套用會讓「1」「12」這種中途值先跑一次重繪
@@ -134,10 +134,10 @@ export function createSlotRow(mask: number, handlers: SlotRowHandlers): SlotRow 
   const color_row = document.createElement('div');
   color_row.className = 'row';
   const color_label = document.createElement('label');
-  color_label.textContent = STRINGS['field.color'];
+  color_label.textContent = ts('field.color');
   const color = createColorControl({
     swatches: SWATCH_COLORS,
-    auto_label: is_label ? '' : STRINGS['color.autoMix'],
+    auto_label: is_label ? '' : ts('color.autoMix'),
     onPick: (picked) => {
       if (is_label) {
         if (picked) handlers.onPickCircleColor(circle_index, picked);
@@ -195,9 +195,9 @@ export function createSlotRow(mask: number, handlers: SlotRowHandlers): SlotRow 
       num.disabled = !region_exists || no_fs;
 
       const reason = !region_exists
-        ? STRINGS['slot.noRegion']
+        ? ts('slot.noRegion')
         : fill_locked
-          ? STRINGS['slot.notFlat']
+          ? ts('slot.notFlat')
           : '';
       note.textContent = reason;
       note.hidden = reason === '';
