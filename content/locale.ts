@@ -88,7 +88,7 @@ export function serverLocale(
 
 /**
  * client 的語言：`?lang=` → server 寫進 `<html lang>` 的值。
- * 記憶在 cookie 而不是 localStorage：server 讀得到才不會出現「介面日文、meta 中文」的半翻譯頁。
+ * 語言記憶只存在 cookie，client 不另存一份：server 讀得到同一個值，才不會出現「介面日文、meta 中文」的半翻譯頁。
  */
 export function clientLocale(
   query_lang: string | null | undefined,
