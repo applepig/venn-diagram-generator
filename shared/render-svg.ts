@@ -142,6 +142,32 @@ export function regionColor(state: VennState, mask: number): string {
   return rgbToHex(r, g, b);
 }
 
+// ---------- 浮水印 ----------
+
+const WATERMARK_TEXT = 'venn.applepig.net';
+/** 字級與邊距都取畫布寬比例，換 size 時比例不變 */
+const WATERMARK_FS = 0.022;
+const WATERMARK_PAD = 0.028;
+const WATERMARK_OPACITY = 0.38;
+/** 浮水印壓在 bg 上，門檻取中間值就夠；區域文字的 DARK_TEXT_LUMINANCE 是另一回事 */
+const WATERMARK_DARK_TEXT_LUMINANCE = 0.5;
+
+/**
+ * 右下角導流浮水印。四圈最大半徑的圓也碰不到這個角（角落距最近圓心 0.478 > r 上限 0.35），
+ * 所以底下一定是 bg，字色只看背景亮度、不需要光暈。
+ * 不帶 data-region：畫布點選走 [data-region]，浮水印不該被當成可編輯的槽。
+ */
+function watermark(state: VennState): string {
+  const size = state.size;
+  const fill =
+    relativeLuminance(state.bg) >= WATERMARK_DARK_TEXT_LUMINANCE ? '#000000' : '#ffffff';
+  const pos = size * (1 - WATERMARK_PAD);
+  return (
+    `<text x="${pos}" y="${pos}" font-family="${FONT_FAMILY}" font-size="${size * WATERMARK_FS}" ` +
+    `text-anchor="end" fill="${fill}" fill-opacity="${WATERMARK_OPACITY}">${WATERMARK_TEXT}</text>`
+  );
+}
+
 // ---------- SVG ----------
 
 export function renderSvg(state: VennState): string {
@@ -218,6 +244,7 @@ export function renderSvg(state: VennState): string {
     `<defs>${defs}</defs>` +
     `<rect width="100%" height="100%" fill="${escapeXml(state.bg)}"/>` +
     body +
+    watermark(state) +
     `</svg>`
   );
 }

@@ -384,3 +384,41 @@ describe('renderSvg：style 差異', () => {
     for (const c of ['#111111', '#222222', '#333333']) expect(svg).toContain(c);
   });
 });
+
+describe('renderSvg：右下角浮水印', () => {
+  const watermarkTag = (svg: string) =>
+    svg.match(/<text [^>]*text-anchor="end"[^>]*>venn\.applepig\.net<\/text>/)![0];
+
+  for (const style of STYLES) {
+    it(`${style} 都帶浮水印`, () => {
+      expect(renderSvg(threeCircle(style))).toContain('>venn.applepig.net<');
+    });
+  }
+
+  it('位置貼齊右下角，並隨 size 等比縮放', () => {
+    for (const size of [800, 1600]) {
+      const tag = watermarkTag(renderSvg({ ...defaultState(2), size }));
+      const x = Number(tag.match(/ x="([\d.]+)"/)![1]);
+      const y = Number(tag.match(/ y="([\d.]+)"/)![1]);
+
+      // 落在畫布內，且距右下邊界不超過 5% 畫布寬
+      expect(x).toBeLessThan(size);
+      expect(y).toBeLessThan(size);
+      expect(size - x).toBeLessThan(size * 0.05);
+      expect(size - y).toBeLessThan(size * 0.05);
+    }
+  });
+
+  it('深色背景轉白字，淺色背景轉黑字', () => {
+    expect(watermarkTag(renderSvg({ ...defaultState(2), bg: '#111111' }))).toContain(
+      'fill="#ffffff"',
+    );
+    expect(watermarkTag(renderSvg({ ...defaultState(2), bg: '#fafafa' }))).toContain(
+      'fill="#000000"',
+    );
+  });
+
+  it('不帶 data-region，畫布點選不會把它當成可編輯的槽', () => {
+    expect(watermarkTag(renderSvg(threeCircle('flat')))).not.toContain('data-region');
+  });
+});
