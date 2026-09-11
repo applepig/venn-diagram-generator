@@ -6,7 +6,7 @@ import { arrOf } from '../engine/shapes/index';
 import { decodeState, encodeState } from '../engine/state-codec-web';
 import type { Arrangement, CircleCount, TextSlot, VennState } from '../engine/types';
 import { createCanvas } from './canvas';
-import { ts, uiLocale } from './i18n';
+import { switchLocale, ts, uiLocale } from './i18n';
 import { patchSlotTexts } from './patch-slot';
 import { searchWithState, shareUrl } from './share-url';
 import { createToolbar } from './toolbar';
@@ -30,6 +30,7 @@ const toolbar = createToolbar(panel_el, {
   onCopyImage: () => void copyImage(),
   onCopyLink: () => void copyLink(),
   onDownloadSvg: () => downloadSvg(),
+  onLocale: (next) => switchLocale(next),
 });
 
 const canvas = createCanvas(

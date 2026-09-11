@@ -1,9 +1,10 @@
 import { STRINGS as STRINGS_EN } from './strings/en';
+import { STRINGS as STRINGS_JA } from './strings/ja';
 import { STRINGS as STRINGS_ZH } from './strings/zh-TW';
 
-export type Locale = 'zh-TW' | 'en';
+export type Locale = 'zh-TW' | 'en' | 'ja';
 
-export const LOCALES: readonly Locale[] = ['zh-TW', 'en'];
+export const LOCALES: readonly Locale[] = ['zh-TW', 'en', 'ja'];
 export const DEFAULT_LOCALE: Locale = 'zh-TW';
 
 /** 介面字串的 key：以 zh-TW 為準，其餘語言必須補齊同一組 key */
@@ -13,6 +14,7 @@ export type StringKey = keyof typeof STRINGS_ZH;
 const TABLES: Record<Locale, Partial<Record<StringKey, string>>> = {
   'zh-TW': STRINGS_ZH,
   en: STRINGS_EN,
+  ja: STRINGS_JA,
 };
 
 export function t(key: StringKey, locale: Locale = DEFAULT_LOCALE): string {
@@ -24,15 +26,23 @@ export function t(key: StringKey, locale: Locale = DEFAULT_LOCALE): string {
   return TABLES[DEFAULT_LOCALE][key] ?? '';
 }
 
+/** 語言下拉的顯示名：一律用該語言自己的說法，選單才看得懂自己要選哪個 */
+export const LOCALE_NAMES: Record<Locale, string> = {
+  'zh-TW': '中文',
+  en: 'English',
+  ja: '日本語',
+};
+
 /**
  * BCP-47 語言標記 → 支援的語言；不支援或空的輸入回 null，讓呼叫端接著看下一個來源。
- * 只有兩種語言，所以任何 zh-* 都收斂到 zh-TW。
+ * 每種語言只有一個變體，所以任何 zh-*／en-*／ja-* 都收斂到該語言。
  */
 export function normalizeLang(value: string | null | undefined): Locale | null {
   if (!value) return null;
   const tag = value.trim().toLowerCase();
   if (tag === 'zh' || tag.startsWith('zh-')) return 'zh-TW';
   if (tag === 'en' || tag.startsWith('en-')) return 'en';
+  if (tag === 'ja' || tag.startsWith('ja-')) return 'ja';
   return null;
 }
 
@@ -79,11 +89,15 @@ export function clientLocale(
 }
 
 /** `<html lang>` 與 JSON-LD `inLanguage` 用的標記 */
+const HTML_LANGS: Record<Locale, string> = { 'zh-TW': 'zh-Hant', en: 'en', ja: 'ja' };
+
 export function htmlLang(locale: Locale): string {
-  return locale === 'zh-TW' ? 'zh-Hant' : 'en';
+  return HTML_LANGS[locale];
 }
 
 /** `og:locale` 用的 Facebook 底線格式 */
+const OG_LOCALES: Record<Locale, string> = { 'zh-TW': 'zh_TW', en: 'en_US', ja: 'ja_JP' };
+
 export function ogLocale(locale: Locale): string {
-  return locale === 'zh-TW' ? 'zh_TW' : 'en_US';
+  return OG_LOCALES[locale];
 }

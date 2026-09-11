@@ -18,7 +18,10 @@ import { renderSvg } from '../engine/render-svg';
 import { decodeState, encodeState } from '../engine/state-codec-node';
 import type { CircleCount, TextSlot, VennState, VennStyle } from '../engine/types';
 
-const FONT_FILE = fileURLToPath(new URL('../assets/fonts/NotoSansTC-Bold.otf', import.meta.url));
+const FONT_FILES = [
+  fileURLToPath(new URL('../assets/fonts/NotoSansTC-Bold.otf', import.meta.url)),
+  fileURLToPath(new URL('../assets/fonts/NotoSansJP-Bold.otf', import.meta.url)),
+];
 const OG_BASE_FILE = fileURLToPath(new URL('../ui/public/og-base.png', import.meta.url));
 const GOLDEN_FILE = fileURLToPath(new URL('../tests/golden/baseline.json', import.meta.url));
 const ORIGIN = 'https://venn.applepig.net';
@@ -26,7 +29,7 @@ const ORIGIN = 'https://venn.applepig.net';
 /** 正式站 `VENN_WATERMARK` 的值：golden 是帶這個浮水印凍的，重產必須沿用同一個字串 */
 const WATERMARK = 'venn.applepig.net';
 
-const app = createApp({ fontFile: FONT_FILE, ogBaseFile: OG_BASE_FILE, watermark: WATERMARK });
+const app = createApp({ fontFiles: FONT_FILES, ogBaseFile: OG_BASE_FILE, watermark: WATERMARK });
 
 /**
  * AC1(b) 的 4 圈 13 槽全填，含對角雙圈以外的每個 mask（7／11／13／14 是三重區）。

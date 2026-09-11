@@ -10,12 +10,13 @@ import { encodeBase64Url } from '../engine/state-codec';
 import { MAX_STATE_PARAM_LEN } from '../engine/defaults';
 import { defaultState, sampleState } from '../content/state-presets';
 import type { VennState } from '../engine/types';
-import { FONT_FILE } from './helpers/font';
+import { t } from '../content/locale';
+import { FONT_FILES } from './helpers/font';
 import { decodePng, meanRgb, pngPixel, pngSize } from './helpers/png';
 import { bombParam, paramOfLength } from './helpers/state-param';
 
 const OG_BASE_FILE = resolve('ui/public/og-base.png');
-const app = createApp({ fontFile: FONT_FILE, ogBaseFile: OG_BASE_FILE });
+const app = createApp({ fontFiles: FONT_FILES, ogBaseFile: OG_BASE_FILE });
 
 const ORIGIN = 'https://venn.applepig.net';
 
@@ -146,7 +147,7 @@ describe('GET /api/og.png：固定橫式 OG 合成', () => {
   }
 
   it('與 /api/png 共用合計 3 張的渲染上限', async () => {
-    const isolated = createApp({ fontFile: FONT_FILE, ogBaseFile: OG_BASE_FILE });
+    const isolated = createApp({ fontFiles: FONT_FILES, ogBaseFile: OG_BASE_FILE });
     const s = encodeState({ ...defaultState(4), style: 'flat', size: 1600 });
     const paths = Array.from({ length: 6 }, (_, i) =>
       i % 2 === 0 ? `/api/png?s=${s}` : `/api/og.png?v=5&s=${s}`,
@@ -244,7 +245,7 @@ describe('GET /api/png：AC1b 非同步渲染與並行上限', () => {
   });
 
   it('同時 6 個請求：超過上限的回 503 JSON 帶 Retry-After，其餘正常回 200', async () => {
-    const app = createApp({ fontFile: FONT_FILE });
+    const app = createApp({ fontFiles: FONT_FILES });
     const s = heavy(1200);
     const responses = await Promise.all(
       Array.from({ length: 6 }, () => app.request(`${ORIGIN}/api/png?s=${s}`)),
@@ -268,7 +269,7 @@ describe('GET /api/png：AC1b 非同步渲染與並行上限', () => {
   });
 
   it('單發請求不會被並行上限擋下', async () => {
-    const app = createApp({ fontFile: FONT_FILE });
+    const app = createApp({ fontFiles: FONT_FILES });
     const res = await app.request(`${ORIGIN}/api/png?s=${heavy(800)}`);
 
     expect(res.status).toBe(200);
@@ -276,7 +277,7 @@ describe('GET /api/png：AC1b 非同步渲染與並行上限', () => {
   });
 
   it('渲染結束後名額會釋放：擠爆一輪之後仍出得了圖', async () => {
-    const app = createApp({ fontFile: FONT_FILE });
+    const app = createApp({ fontFiles: FONT_FILES });
     const s = heavy(800);
     await Promise.all(Array.from({ length: 6 }, () => app.request(`${ORIGIN}/api/png?s=${s}`)));
 
@@ -556,7 +557,7 @@ describe('AC13 SEO：canonical、robots、structured data', () => {
 
 describe('AC13 GTM 只在給了 container id 時注入', () => {
   const GTM_ID = 'GTM-TESTONLY';
-  const tagged = createApp({ fontFile: FONT_FILE, publicOrigin: ORIGIN, gtmId: GTM_ID });
+  const tagged = createApp({ fontFiles: FONT_FILES, publicOrigin: ORIGIN, gtmId: GTM_ID });
 
   it('沒給 id 的部署（開發站、測試）完全不載入 GTM', async () => {
     const html = await (await get('/')).text();
@@ -574,7 +575,7 @@ describe('AC13 GTM 只在給了 container id 時注入', () => {
 });
 
 describe('AC3 og origin 由 publicOrigin 決定', () => {
-  const fixed = createApp({ fontFile: FONT_FILE, publicOrigin: ORIGIN });
+  const fixed = createApp({ fontFiles: FONT_FILES, publicOrigin: ORIGIN });
 
   it('設了 publicOrigin 時，forwarded 標頭改不動輸出的 origin', async () => {
     const html = await (
@@ -598,7 +599,7 @@ describe('GET /：06 AC3/AC5 首頁 og:image 優先用 build 烤好的靜態檔'
     const dir = mkdtempSync(join(tmpdir(), 'venn-dist-'));
     temp_dirs.push(dir);
     for (const name of files) writeFileSync(join(dir, name), 'x');
-    return createApp({ fontFile: FONT_FILE, ogBaseFile: OG_BASE_FILE, distDir: dir });
+    return createApp({ fontFiles: FONT_FILES, ogBaseFile: OG_BASE_FILE, distDir: dir });
   }
 
   afterAll(() => {
@@ -635,7 +636,7 @@ describe('GET /：06 AC3/AC5 首頁 og:image 優先用 build 烤好的靜態檔'
 
 describe('07 M2 浮水印文字由部署設定決定（VENN_WATERMARK → createApp）', () => {
   const MARK = 'venn.example.test';
-  const marked = createApp({ fontFile: FONT_FILE, ogBaseFile: OG_BASE_FILE, watermark: MARK });
+  const marked = createApp({ fontFiles: FONT_FILES, ogBaseFile: OG_BASE_FILE, watermark: MARK });
   const BG: [number, number, number] = [250, 250, 250]; // DEFAULT_BG #fafafa
   const SIZE = 800;
 
@@ -689,7 +690,7 @@ describe('07 M2 浮水印文字由部署設定決定（VENN_WATERMARK → create
 describe('07 M5 i18n：首頁每個語言面都跟著換（AC6）', () => {
   const ui_index = readFileSync(resolve('ui/index.html'), 'utf8');
   const site = createApp({
-    fontFile: FONT_FILE,
+    fontFiles: FONT_FILES,
     ogBaseFile: OG_BASE_FILE,
     publicOrigin: ORIGIN,
     loadIndexHtml: () => ui_index,
@@ -806,6 +807,109 @@ describe('07 M5 i18n：首頁每個語言面都跟著換（AC6）', () => {
   });
 });
 
+/**
+ * 07 M7 AC12：ja 也要有 AC6 列的每一個面。
+ * 預期值取自 `content/strings/ja.ts`（`t(key, 'ja')`）而不是重抄一份字面值：
+ * 這一組測的是「server 有沒有為每個面選到 ja 的字串表」，
+ * 文案本身「真的翻過、不是照抄」由 `locale.test.ts` 把關。
+ */
+describe('07 M7 i18n：ja 首頁每個語言面都跟著換（AC12）', () => {
+  const ui_index = readFileSync(resolve('ui/index.html'), 'utf8');
+  const site = createApp({
+    fontFiles: FONT_FILES,
+    ogBaseFile: OG_BASE_FILE,
+    publicOrigin: ORIGIN,
+    loadIndexHtml: () => ui_index,
+  });
+
+  function home(query = '', headers: Record<string, string> = {}) {
+    return site.request(`${ORIGIN}/${query}`, { headers });
+  }
+
+  it('?lang=ja 把 html lang、title、description、og、twitter 全換成日文', async () => {
+    const html = await (await home('?lang=ja')).text();
+
+    expect(html).toContain('<html lang="ja"');
+    expect(html).toContain(`<title>${t('site.homeTitle', 'ja')}</title>`);
+    expect(html).toContain(`<meta property="og:title" content="${t('site.homeTitle', 'ja')}">`);
+    expect(html).toContain(`<meta property="og:site_name" content="${t('site.name', 'ja')}">`);
+    expect(html).toContain(
+      `<meta name="description" content="${t('site.description', 'ja')}">`,
+    );
+    expect(html).toContain(
+      `<meta property="og:description" content="${t('site.description', 'ja')}">`,
+    );
+    expect(html).toContain(
+      `<meta name="twitter:description" content="${t('site.description', 'ja')}">`,
+    );
+    expect(html).toContain(`<meta property="og:image:alt" content="${t('site.imageAlt', 'ja')}">`);
+    expect(html).toContain(`<meta name="twitter:image:alt" content="${t('site.imageAlt', 'ja')}">`);
+  });
+
+  it('?lang=ja 的 og:locale 是 ja_JP', async () => {
+    const html = await (await home('?lang=ja')).text();
+
+    expect(html).toContain('<meta property="og:locale" content="ja_JP">');
+  });
+
+  it('?lang=ja 的 JSON-LD 三個欄位都是日文，inLanguage 是 ja', async () => {
+    const html = await (await home('?lang=ja')).text();
+    const json = html.match(/<script type="application\/ld\+json">(.*?)<\/script>/)![1]!;
+    const data = JSON.parse(json) as Record<string, unknown>;
+
+    expect(data.name).toBe(t('site.name', 'ja'));
+    expect(data.description).toBe(t('site.description', 'ja'));
+    expect(data.inLanguage).toBe('ja');
+  });
+
+  it('?lang=ja 時 index.html 的兩條靜態說明也換成日文，頁面上不留中文版本', async () => {
+    const html = await (await home('?lang=ja')).text();
+
+    expect(html).toContain(t('peek.hint', 'ja'));
+    expect(html).toContain(t('peek.close', 'ja'));
+    expect(html).not.toContain('預覽 · 點一下放大');
+    expect(html).not.toContain('關閉預覽');
+    expect(html).not.toContain('文氏圖產生器');
+  });
+
+  it('AC12 Accept-Language: ja 沒帶 ?lang= 也出 ja', async () => {
+    for (const header of ['ja', 'ja-JP,ja;q=0.9,en;q=0.8', 'en;q=0.4,ja;q=0.9']) {
+      const html = await (await home('', { 'accept-language': header })).text();
+
+      expect(html, header).toContain('<html lang="ja"');
+      expect(html, header).toContain(
+        `<meta property="og:site_name" content="${t('site.name', 'ja')}">`,
+      );
+    }
+  });
+
+  it('AC12 ?lang=ja 勝過 Accept-Language', async () => {
+    const html = await (await home('?lang=ja', { 'accept-language': 'en-US,en;q=0.9' })).text();
+
+    expect(html).toContain('<html lang="ja"');
+    expect(html).toContain('<meta property="og:locale" content="ja_JP">');
+  });
+
+  it('server 組的 og:image URL 帶 lang=ja', async () => {
+    const html = await (await home('?lang=ja')).text();
+
+    expect(html).toContain(
+      `<meta property="og:image" content="${ORIGIN}/api/og.png?v=5&amp;lang=ja">`,
+    );
+  });
+
+  it('ja 分享頁的 og:title 用圖上的字，手動換行接回去不補空白', async () => {
+    const s = encodeState(sampleState(2, 'ja'));
+    const html = await (await home(`?s=${s}&lang=ja`)).text();
+    const title = html.match(/<meta property="og:title" content="([^"]+)"/)![1]!;
+
+    // 假名之間插進一個空白就是壞的（spec ja 表格的 mask 1 是「やるべきこと」）
+    expect(title).toContain('やるべきこと');
+    expect(title).not.toContain('やるべき こと');
+    expect(title).toContain(t('site.name', 'ja'));
+  });
+});
+
 describe('07 M5 產圖端點的語言只從 query lang 讀（AC6）', () => {
   /** 比雜湊而不是比 Buffer：800KB 的 PNG 一旦不相等，deep equal 的 diff 會跑到天荒地老 */
   async function pngHash(path: string, headers: Record<string, string> = {}): Promise<string> {
@@ -848,6 +952,17 @@ describe('07 M5 產圖端點的語言只從 query lang 讀（AC6）', () => {
     ]);
 
     expect(fallback).toBe(zh);
+  }, 30_000);
+
+  it('AC13 缺 s 時 lang=ja 渲染日文 template，與 zh 的圖不同', async () => {
+    const [ja, zh, explicit] = await Promise.all([
+      pngHash('/api/og.png?v=5&lang=ja'),
+      pngHash('/api/og.png?v=5&lang=zh-TW'),
+      pngHash(`/api/og.png?v=5&s=${encodeState(sampleState(2, 'ja'))}`),
+    ]);
+
+    expect(ja).toBe(explicit);
+    expect(ja).not.toBe(zh);
   }, 30_000);
 
   it('帶 s 時 lang 不影響輸出（文字已經在 s 裡）', async () => {

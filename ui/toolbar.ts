@@ -15,8 +15,9 @@ import {
   isShape,
   radiusRange,
 } from '../engine/shapes/index';
+import { LOCALES, LOCALE_NAMES, type Locale } from '../content/locale';
 import type { Arrangement, CircleCount, TextSlot, VennState, VennStyle } from '../engine/types';
-import { ts } from './i18n';
+import { ts, uiLocale } from './i18n';
 import { createColorControl } from './color-control';
 import { createSlotRow, type SlotRow } from './slot-row';
 
@@ -70,6 +71,8 @@ export interface ToolbarHandlers {
   onCopyImage: () => void;
   onCopyLink: () => void;
   onDownloadSvg: () => void;
+  /** 切介面語言；實際的導向與記憶由 ui/i18n.ts 處理 */
+  onLocale: (locale: Locale) => void;
 }
 
 export interface ToolbarController {
@@ -232,6 +235,18 @@ export function createToolbar(root: HTMLElement, handlers: ToolbarHandlers): Too
   const slots_el = document.createElement('div');
   slots_el.className = 'slots';
 
+  // 語言下拉：選項名用各語言的自稱，目前值就是這次載入決定的語言
+  const lang_select = document.createElement('select');
+  for (const locale of LOCALES) {
+    const opt = document.createElement('option');
+    opt.value = locale;
+    opt.textContent = LOCALE_NAMES[locale];
+    lang_select.append(opt);
+  }
+  lang_select.value = uiLocale();
+  lang_select.addEventListener('change', () => handlers.onLocale(lang_select.value as Locale));
+  const lang_row = labeledRow(ts('lang.field'), lang_select);
+
   const size_select = document.createElement('select');
   for (const size of SIZE_CHOICES) {
     const opt = document.createElement('option');
@@ -280,6 +295,7 @@ export function createToolbar(root: HTMLElement, handlers: ToolbarHandlers): Too
     divider(),
     slots_el,
     divider(),
+    lang_row,
     size_row,
     actions,
   );

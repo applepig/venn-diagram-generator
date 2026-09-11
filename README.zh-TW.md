@@ -2,7 +2,7 @@
 
 [English](./README.md) · 線上站：<https://venn.applepig.net>
 
-單頁 WYSIWYG 文氏圖產生器：選排列（環狀或一列）與 2～6 圈，在畫布上直接點字改字、拖動位置、調字級，一鍵下載社群可貼的 PNG。整份編輯狀態壓進網址的 `s` 參數，所以分享連結就是圖：貼進聊天軟體會透過 `og:image` 直接預覽。無登入、無帳號、server 無狀態。介面支援台灣中文與英文。
+單頁 WYSIWYG 文氏圖產生器：選排列（環狀或一列）與 2～6 圈，在畫布上直接點字改字、拖動位置、調字級，一鍵下載社群可貼的 PNG。整份編輯狀態壓進網址的 `s` 參數，所以分享連結就是圖：貼進聊天軟體會透過 `og:image` 直接預覽。無登入、無帳號、server 無狀態。介面支援台灣中文、英文與日文，可從面板的語言下拉切換（記在 `localStorage`），也認 `?lang=` 與 `Accept-Language`。
 
 ## 架構
 
@@ -53,7 +53,7 @@ deploy/   Dockerfile、compose.yml、compose.dev.yml、deploy.sh
 
 `GET /api/png?s=<state>` 回 `image/png`，尺寸等於 `state.size`，帶 `Cache-Control: public, max-age=31536000, immutable`（參數即內容，可以永久快取）。缺 `s`、解不開、schema 不合都回 400 JSON `{ "error": "..." }`。API 錯誤訊息固定英文——它是機器介面，不跟介面語言走。
 
-`GET /api/og.png?v=<n>&s=<state>&lang=<zh-TW|en>` 是社群預覽用的 1200 × 630 橫幅：品牌底圖加上文氏圖內容。缺 `s` 時輸出首頁預設範例；`lang` 只從 query 讀（不看 `Accept-Language`），否則固定 URL 會被第一個爬蟲的語言污染。`v` 是合成版型的 cache 版號，底圖或版型改版時 bump。無效 `s` 回 400 JSON 並帶 `Cache-Control: no-store`。
+`GET /api/og.png?v=<n>&s=<state>&lang=<zh-TW|en|ja>` 是社群預覽用的 1200 × 630 橫幅：品牌底圖加上文氏圖內容。缺 `s` 時輸出首頁預設範例；`lang` 只從 query 讀（不看 `Accept-Language`），否則固定 URL 會被第一個爬蟲的語言污染。`v` 是合成版型的 cache 版號，底圖或版型改版時 bump。無效 `s` 回 400 JSON 並帶 `Cache-Control: no-store`。
 
 首頁的 og:image 是 build 時預烤的靜態檔（`pnpm build` 產出 `dist/og-default-<hash>.png`）；分享頁的 `og:image` 則指向帶自己 `s` 的 `/api/og.png`。
 
@@ -79,7 +79,7 @@ pnpm build        # ui → dist/、預烤 OG 圖 → dist/、server → dist-ser
 pnpm start        # 跑 build 好的 server，單一 port 3000
 ```
 
-字型 Noto Sans TC Bold（OFL）放在 `assets/fonts/`，前端 `@font-face` 與 resvg 的 `fontFiles` 指同一個檔，image 內不安裝任何系統字型。
+`assets/fonts/` 放兩個字型：Noto Sans TC Bold 是 SVG 指名的那一個，Noto Sans JP Bold 只負責補 TC 缺的字形（日文漢字，例如「盗」）。前端在 `svg text` 的 CSS `font-family` 列出兩個，server 把兩個檔都交給 resvg 的 `fontFiles`、`defaultFontFamily` 維持 `Noto Sans TC`——寫進 SVG 的 `font-family` 一個字元都沒變，舊分享連結的輸出仍逐位元相同。image 內不安裝任何系統字型。
 
 ## Docker
 
@@ -98,6 +98,8 @@ docker run --rm -p 3000:3000 -e VENN_WATERMARK=venn.example.com venn-diagram-gen
 VENN_DEPLOY_HOST=my-host VENN_DEPLOY_PATH=/srv/apps/venn ./deploy/deploy.sh
 ```
 
+主機端的前置條件：ssh 使用者要能免密碼跑 Docker（在 `docker` group 裡，或有免密 sudo），而且 `${VENN_DEPLOY_PATH}/.env` 必須先存在。script 會先檢查那份檔案有沒有宣告 `VENN_PUBLIC_HOST`、`VENN_GTM_ID`、`VENN_WATERMARK`（值可以是空的，key 不能少），缺了就印出缺哪幾把並 exit 1，不會先動主機——浮水印靜默消失會被烤進一年期快取的 `og:image`。
+
 ## 環境變數
 
 把 `.env.example` 複製成 repo 根目錄的 `.env` 再填——部署主機上 compose 讀的就是這份。這個 repo 裡沒有任何指向他人環境的內建預設值：沒有 hostname、沒有分析 id、沒有浮水印。
@@ -112,6 +114,9 @@ VENN_DEPLOY_HOST=my-host VENN_DEPLOY_PATH=/srv/apps/venn ./deploy/deploy.sh
 | `VENN_DEPLOY_HOST` | `deploy/deploy.sh` | **是** | 部署目標主機的 ssh host。缺少時 script 印出缺哪個變數並 exit 1。 |
 | `VENN_DEPLOY_PATH` | `deploy/deploy.sh` | **是** | 要 rsync 進去的遠端目錄。 |
 | `VENN_DEV_HOST` | `deploy/compose.dev.yml` | **是** | 掛原始碼的開發站 hostname；沒給 compose 直接拒絕啟動。 |
+| `VENN_DIST` | server、build | 否 | 內部用，正式站不要設。build 產物目錄，預設 `dist`。 |
+| `VENN_FONT` | server | 否 | 內部用，正式站不要設。resvg 載入的字型檔（逗號分隔），預設 `assets/fonts/NotoSansTC-Bold.otf,assets/fonts/NotoSansJP-Bold.otf`；第一個是 SVG 指名的字型，其餘只補缺字。 |
+| `VENN_DEV` | server | 否 | 內部用，正式站不要設。設成 `1` 會改跑 Vite middlewareMode，而不是吐 `dist/`。 |
 
 ## Fork 需要自換的東西
 
@@ -131,4 +136,4 @@ VENN_DEPLOY_HOST=my-host VENN_DEPLOY_PATH=/srv/apps/venn ./deploy/deploy.sh
 
 程式碼採 MIT，見 [LICENSE](./LICENSE)。
 
-隨 repo 附的字型 Noto Sans TC Bold 採 SIL Open Font License，條文在 [`assets/fonts/OFL.txt`](./assets/fonts/OFL.txt)，與字型檔一起散布。
+隨 repo 附的字型 Noto Sans TC Bold 與 Noto Sans JP Bold 採 SIL Open Font License，條文在 [`assets/fonts/OFL.txt`](./assets/fonts/OFL.txt)（一份涵蓋兩個字型），與字型檔一起散布。

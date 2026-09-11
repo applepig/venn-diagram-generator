@@ -17,3 +17,13 @@ export function searchWithState(search: string, encoded: string): string {
   params.set('s', encoded);
   return `?${params.toString()}`;
 }
+
+/**
+ * 切語言後要導去的 query：只改 `lang`，`s` 與其他參數原樣保留。
+ * 語言下拉是整頁 reload，圖的內容全在 `s` 裡，掉了就等於把使用者的圖弄丟。
+ */
+export function searchWithLang(search: string, locale: string): string {
+  const params = new URLSearchParams(search);
+  params.set('lang', locale);
+  return `?${params.toString()}`;
+}

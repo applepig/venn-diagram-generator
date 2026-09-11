@@ -9,12 +9,16 @@ import { renderOgPng } from '../server/render-og';
 import { sampleState } from '../content/state-presets';
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
-const FONT_FILE = resolve(ROOT, 'assets/fonts/NotoSansTC-Bold.otf');
+// 與 server 同一組字型：主字型 TC ＋ 補日文漢字的 JP（首頁預烤圖目前是中文，但兩邊設定要一致）
+const FONT_FILES = [
+  resolve(ROOT, 'assets/fonts/NotoSansTC-Bold.otf'),
+  resolve(ROOT, 'assets/fonts/NotoSansJP-Bold.otf'),
+];
 const OG_BASE_FILE = resolve(ROOT, 'ui/public/og-base.png');
 const DIST_DIR = resolve(ROOT, process.env.VENN_DIST ?? 'dist');
 
 // sampleState() 就是首頁沒有 s 時渲染的那份 state，跟 server 走同一個來源
-const png = await renderOgPng(sampleState(), FONT_FILE, readFileSync(OG_BASE_FILE));
+const png = await renderOgPng(sampleState(), FONT_FILES, readFileSync(OG_BASE_FILE));
 const hash = createHash('sha256').update(png).digest('hex').slice(0, 12);
 const out_file = resolve(DIST_DIR, `og-default-${hash}.png`);
 

@@ -7,7 +7,16 @@ import type { DevServer } from './dev';
 
 const PORT = Number(process.env.PORT ?? 3000);
 const DIST_DIR = process.env.VENN_DIST ?? 'dist';
-const FONT_FILE = process.env.VENN_FONT ?? 'assets/fonts/NotoSansTC-Bold.otf';
+/**
+ * resvg 載入的字型檔（逗號分隔）。第一個是主字型（SVG 寫死 `Noto Sans TC`），
+ * 後面的只在主字型缺字時逐字補：TC 缺日文字形的漢字（例如「盗」），由 JP 補。
+ */
+const FONT_FILES = (
+  process.env.VENN_FONT ?? 'assets/fonts/NotoSansTC-Bold.otf,assets/fonts/NotoSansJP-Bold.otf'
+)
+  .split(',')
+  .map((file) => resolve(file.trim()))
+  .filter(Boolean);
 
 const PUBLIC_ORIGIN = process.env.PUBLIC_ORIGIN || undefined;
 // 只有正式站的 compose 會給：開發站與本機跑起來不該把數據送進 GTM
@@ -19,7 +28,7 @@ const DEV = process.env.VENN_DEV === '1';
 async function main(): Promise<void> {
   if (!DEV) {
     const app = createApp({
-      fontFile: resolve(FONT_FILE),
+      fontFiles: FONT_FILES,
       ogBaseFile: resolve(DIST_DIR, 'og-base.png'),
       distDir: resolve(DIST_DIR),
       publicOrigin: PUBLIC_ORIGIN,
@@ -57,7 +66,7 @@ async function main(): Promise<void> {
   }
 
   const app = createApp({
-    fontFile: resolve(FONT_FILE),
+    fontFiles: FONT_FILES,
     ogBaseFile: resolve('ui/public/og-base.png'),
     publicOrigin: PUBLIC_ORIGIN,
     gtmId: GTM_ID,

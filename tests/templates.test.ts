@@ -555,8 +555,112 @@ describe('AC6 nextStateForShape 用呼叫端的語言取 template', () => {
   });
 });
 
-describe('AC7 zh／en 六組 template 在各自預設幾何下每格都不觸字級下限', () => {
-  for (const locale of ['zh-TW', 'en'] as Locale[]) {
+/**
+ * AC13 的 ja template。字面值取自 spec 的表格，不從 TEMPLATES_JA 反查。
+ * spec 明說「換行 developer 可調，判準與 en 相同」，所以比對的是收掉換行後的內容；
+ * 日文不用空白分詞，手動換行接回去不補空白，normalizer 直接去掉所有空白。
+ */
+const JA_TEXTS_2 = {
+  '1': 'やるべきこと',
+  '2': 'やりたいこと',
+  '3': '明日やる',
+};
+
+const JA_TEXTS_3 = {
+  '1': '早い',
+  '2': 'うまい',
+  '4': '安い',
+  '3': '安くない',
+  '5': 'うまくない',
+  '6': '早くない',
+  '7': '夢のまた夢',
+};
+
+const JA_TEXTS_4 = {
+  '1': 'DJ',
+  '2': '銀行強盗',
+  '4': '牧師',
+  '8': 'セーターを脱がせたい母',
+  '3': '「みんな聞け!」',
+  '5': '「言ってる意味わかる?」',
+  '10': '「二度も言わせるな!」',
+  '12': '「ひどい目に遭うぞ」',
+  '15': '手を上げろ!!',
+};
+
+/** 手動換行只是排版；日文沒有詞間空白，所以內容以去掉全部空白後的字串為準 */
+function strip(texts: Record<string, { t: string }>): Record<string, string> {
+  return Object.fromEntries(
+    Object.entries(texts).map(([mask, slot]) => [mask, slot.t.replace(/\s+/g, '')]),
+  );
+}
+
+describe('AC13 ja template', () => {
+  const cases: [CircleCount, Record<string, string>][] = [
+    [2, JA_TEXTS_2],
+    [3, JA_TEXTS_3],
+    [4, JA_TEXTS_4],
+  ];
+
+  for (const [n, expected] of cases) {
+    it(`ring(${n}) 的日文文案與 spec 表格相同`, () => {
+      expect(strip(templateTexts('ring', n, 'ja'))).toEqual(expected);
+    });
+  }
+
+  it('ja 與 zh 的樣式相同（樣式是版型決定，不隨語言變）', () => {
+    for (const n of [2, 3, 4] as CircleCount[]) {
+      expect(templateFor('ring', n, 'ja')?.style).toBe(templateFor('ring', n, 'zh-TW')?.style);
+    }
+  });
+
+  it('ja 的槽位與 zh 完全對應（同一個版面，只是換文案）', () => {
+    for (const n of [2, 3, 4] as CircleCount[]) {
+      expect(Object.keys(templateTexts('ring', n, 'ja')).sort()).toEqual(
+        Object.keys(templateTexts('ring', n, 'zh-TW')).sort(),
+      );
+    }
+  });
+
+  it('ring(5)／ring(6)／row(3～6) 的日文沿用 A～F 單圈標籤，交集留空', () => {
+    const labels = ['A', 'B', 'C', 'D', 'E', 'F'];
+    const label_only: [Arrangement, CircleCount][] = [
+      ['ring', 5],
+      ['ring', 6],
+      ['row', 3],
+      ['row', 4],
+      ['row', 5],
+      ['row', 6],
+    ];
+
+    for (const [arr, n] of label_only) {
+      const expected = Object.fromEntries(
+        Array.from({ length: n }, (_, i) => [String(1 << i), { t: labels[i]! }]),
+      );
+      expect(templateTexts(arr, n, 'ja'), `${arr}(${n})`).toEqual(expected);
+    }
+  });
+
+  it('sampleState 帶 ja 時套用日文 template，pristine 判定跨語言成立', () => {
+    for (const n of [2, 3, 4] as CircleCount[]) {
+      const state = sampleState(n, 'ja');
+
+      expect(strip(state.texts), `ring(${n})`).toEqual(cases.find(([c]) => c === n)![1]);
+      expect(isPristine(state), `ring(${n})`).toBe(true);
+    }
+  });
+
+  it('pristine 的中文 template 切到 ja 整組換掉，改過的字不動', () => {
+    expect(strip(nextStateForLocale(sampleState(3, 'zh-TW'), 'ja').texts)).toEqual(JA_TEXTS_3);
+
+    const dirty = sampleState(2, 'zh-TW');
+    dirty.texts = { '1': { t: '貓' }, '2': { t: '狗' }, '3': { t: '毛' } };
+    expect(nextStateForLocale(dirty, 'ja').texts).toEqual(dirty.texts);
+  });
+});
+
+describe('AC13 zh／en／ja 九組 template 在各自預設幾何下每格都不觸字級下限', () => {
+  for (const locale of ['zh-TW', 'en', 'ja'] as Locale[]) {
     for (const n of [2, 3, 4] as CircleCount[]) {
       it(`${locale} ring(${n}) 每格都排得進去且字級高於下限`, () => {
         const state = sampleState(n, locale);

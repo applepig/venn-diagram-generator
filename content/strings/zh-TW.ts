@@ -15,6 +15,9 @@ export const STRINGS = {
   'peek.hint': '預覽 · 點一下放大',
   'peek.close': '關閉預覽',
 
+  // 面板的語言下拉；選項名稱是各語言的自稱（LOCALE_NAMES），不進字串表
+  'lang.field': '語言',
+
   'arr.ring': '環狀',
   'arr.row': '一列',
 

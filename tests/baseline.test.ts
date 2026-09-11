@@ -12,7 +12,7 @@ import { createApp } from '../server/app';
 import { renderSvg } from '../engine/render-svg';
 import { decodeState, encodeState } from '../engine/state-codec-node';
 import type { VennState } from '../engine/types';
-import { FONT_FILE } from './helpers/font';
+import { FONT_FILES } from './helpers/font';
 
 interface GoldenCase {
   id: string;
@@ -38,7 +38,7 @@ const golden: Golden = JSON.parse(
 const WATERMARK = 'venn.applepig.net';
 
 const app = createApp({
-  fontFile: FONT_FILE,
+  fontFiles: FONT_FILES,
   ogBaseFile: resolve('ui/public/og-base.png'),
   watermark: WATERMARK,
 });

@@ -2,7 +2,7 @@
 
 [中文說明](./README.zh-TW.md) · Live: <https://venn.applepig.net>
 
-A single-page WYSIWYG Venn diagram generator. Pick an arrangement (ring or row) and 2–6 circles, click any region on the canvas to type, drag text around, tune font sizes, then download a PNG you can paste anywhere. The whole editor state is compressed into the URL's `s` parameter, so a share link *is* the picture: paste it into a chat app and `og:image` renders a preview. No login, no account, stateless server. UI available in Traditional Chinese and English.
+A single-page WYSIWYG Venn diagram generator. Pick an arrangement (ring or row) and 2–6 circles, click any region on the canvas to type, drag text around, tune font sizes, then download a PNG you can paste anywhere. The whole editor state is compressed into the URL's `s` parameter, so a share link *is* the picture: paste it into a chat app and `og:image` renders a preview. No login, no account, stateless server. UI available in Traditional Chinese, English and Japanese, picked from the language dropdown in the panel (remembered in `localStorage`), `?lang=`, or `Accept-Language`.
 
 ## Architecture
 
@@ -54,7 +54,7 @@ Without `s`, every shape falls back to a default template (in the current UI lan
 
 `GET /api/png?s=<state>` returns `image/png` sized to `state.size`, with `Cache-Control: public, max-age=31536000, immutable` (the parameter *is* the content). A missing, undecodable or invalid `s` returns a 400 JSON body `{ "error": "..." }`. API error messages are always English — it is a machine interface and does not follow the UI language.
 
-`GET /api/og.png?v=<n>&s=<state>&lang=<zh-TW|en>` is the 1200 × 630 social banner: the branded base image with the diagram composited on top. Without `s` it renders the home-page sample; `lang` only comes from the query string (never `Accept-Language`) so a cached URL cannot be poisoned by whichever crawler arrives first. `v` is the layout cache version, bumped when the base image or composition changes. Invalid `s` returns 400 JSON with `Cache-Control: no-store`.
+`GET /api/og.png?v=<n>&s=<state>&lang=<zh-TW|en|ja>` is the 1200 × 630 social banner: the branded base image with the diagram composited on top. Without `s` it renders the home-page sample; `lang` only comes from the query string (never `Accept-Language`) so a cached URL cannot be poisoned by whichever crawler arrives first. `v` is the layout cache version, bumped when the base image or composition changes. Invalid `s` returns 400 JSON with `Cache-Control: no-store`.
 
 The home page ships a pre-baked static OG image (`pnpm build` writes `dist/og-default-<hash>.png`); share pages point `og:image` at `/api/og.png` with their own `s`.
 
@@ -80,7 +80,7 @@ pnpm build        # ui → dist/, baked OG image → dist/, server → dist-serv
 pnpm start        # run the built server, single port 3000
 ```
 
-Noto Sans TC Bold (OFL) lives in `assets/fonts/`. The front-end `@font-face` and resvg's `fontFiles` point at the same file, and the image installs no system fonts.
+Two fonts live in `assets/fonts/`: Noto Sans TC Bold is the one the SVG asks for by name, and Noto Sans JP Bold only fills in glyphs TC does not have (Japanese kanji such as 盗). The front end lists both in a CSS `font-family` on `svg text`, the server hands both to resvg's `fontFiles` while `defaultFontFamily` stays `Noto Sans TC` — the `font-family` written into the SVG never changes, so shared links keep rendering byte-for-byte identically. The image installs no system fonts.
 
 ## Docker
 
@@ -99,6 +99,8 @@ docker run --rm -p 3000:3000 -e VENN_WATERMARK=venn.example.com venn-diagram-gen
 VENN_DEPLOY_HOST=my-host VENN_DEPLOY_PATH=/srv/apps/venn ./deploy/deploy.sh
 ```
 
+Prerequisites on that host: the ssh user must be able to run Docker without an interactive password — either in the `docker` group or with passwordless sudo — and `${VENN_DEPLOY_PATH}/.env` must already exist. The script checks that the file declares `VENN_PUBLIC_HOST`, `VENN_GTM_ID` and `VENN_WATERMARK` (empty values are fine, missing keys are not) and exits 1 naming the missing ones before touching anything: a silently dropped watermark would be baked into a year-long cached `og:image`.
+
 ## Environment variables
 
 Copy `.env.example` to `.env` in the repository root and fill it in — on the deployment host, that is the file compose reads. Nothing in this repository has a baked-in default pointing at someone else's infrastructure: no hostname, no analytics id, no watermark.
@@ -113,6 +115,9 @@ Copy `.env.example` to `.env` in the repository root and fill it in — on the d
 | `VENN_DEPLOY_HOST` | `deploy/deploy.sh` | **yes** | ssh target of the deployment host. The script exits 1 and names the missing variable. |
 | `VENN_DEPLOY_PATH` | `deploy/deploy.sh` | **yes** | Directory on that host to rsync into. |
 | `VENN_DEV_HOST` | `deploy/compose.dev.yml` | **yes** | Hostname of the source-mounted dev site; compose refuses to start without it. |
+| `VENN_DIST` | server, build | no | Internal — do not set in production. Build output directory, default `dist`. |
+| `VENN_FONT` | server | no | Internal — do not set in production. Comma-separated font files for resvg, default `assets/fonts/NotoSansTC-Bold.otf,assets/fonts/NotoSansJP-Bold.otf`. The first one is the family the SVG names; the rest only fill in missing glyphs. |
+| `VENN_DEV` | server | no | Internal — do not set in production. `1` runs Vite in middlewareMode instead of serving `dist/`. |
 
 ## Forking
 
@@ -132,4 +137,4 @@ The visual branding is not generic, so swap these before you publish your own in
 
 Code is MIT — see [LICENSE](./LICENSE).
 
-The bundled font Noto Sans TC Bold is licensed under the SIL Open Font License; its terms are in [`assets/fonts/OFL.txt`](./assets/fonts/OFL.txt) and travel with the font file.
+The bundled fonts Noto Sans TC Bold and Noto Sans JP Bold are licensed under the SIL Open Font License; its terms are in [`assets/fonts/OFL.txt`](./assets/fonts/OFL.txt) (one copy covers both) and travel with the font files.

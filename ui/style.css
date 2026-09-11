@@ -6,6 +6,28 @@
   font-display: block;
 }
 
+/*
+ * 日文字形的漢字（「盗」之類）不在 TC 裡，預覽要靠這個檔補，否則畫布上是豆腐、
+ * 但 /api/png 出得了字——預覽即所得就破了。瀏覽器只在前一個字型缺字時才會抓它，
+ * 中文與英文的頁面不會下載。
+ */
+@font-face {
+  font-family: 'Noto Sans JP';
+  src: url('../assets/fonts/NotoSansJP-Bold.otf') format('opentype');
+  font-weight: 700;
+  font-style: normal;
+  font-display: block;
+}
+
+/*
+ * SVG 的 font-family 是 presentation attribute（`Noto Sans TC` 單一家族，
+ * golden 比 SVG 的 sha256，一個字元都不能改），作者樣式的優先權比它高，
+ * 所以補字型只能從這裡疊上去——server 的 resvg 那邊是靠 fontFiles 多載一個檔。
+ */
+svg text {
+  font-family: 'Noto Sans TC', 'Noto Sans JP';
+}
+
 :root {
   --bg: #14161a;
   --panel: #1e2128;

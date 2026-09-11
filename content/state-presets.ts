@@ -4,6 +4,7 @@ import type { Arrangement, CircleCount, TextSlot, VennState } from '../engine/ty
 import { DEFAULT_LOCALE, LOCALES, type Locale } from './locale';
 import { PALETTE } from './palette';
 import { TEMPLATES as TEMPLATES_EN } from './templates/en';
+import { TEMPLATES as TEMPLATES_JA } from './templates/ja';
 import type { Template } from './templates/types';
 import { TEMPLATES as TEMPLATES_ZH } from './templates/zh-TW';
 
@@ -12,6 +13,7 @@ type TemplateTable = Record<Arrangement, Partial<Record<CircleCount, Template>>>
 const TEMPLATES_BY_LOCALE: Record<Locale, TemplateTable> = {
   'zh-TW': TEMPLATES_ZH,
   en: TEMPLATES_EN,
+  ja: TEMPLATES_JA,
 };
 
 /** 該組合在該語言的 template；每個合法組合都有一組（沒有 meme 的組合只給單圈標籤） */

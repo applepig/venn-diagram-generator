@@ -20,7 +20,11 @@ import type { VennState } from '../engine/types';
 import { OG_HEIGHT, OG_WIDTH, renderOgPng } from './render-og';
 
 export interface AppOptions {
-  fontFile: string;
+  /**
+   * resvg 載入的字型檔。`defaultFontFamily`（Noto Sans TC）決定主字型，
+   * 其餘的檔只在主字型缺字時逐字補上（日文漢字走這條），SVG 的 `font-family` 不受影響。
+   */
+  fontFiles: string[];
   /** OG 合成底圖；production 指向 Vite dist，dev 指向 ui/public */
   ogBaseFile?: string;
   /** Vite build 產物目錄；沒給就只跑 API（測試用） */
@@ -85,8 +89,11 @@ function imageLocaleOf(c: Context): Locale {
   return serverLocale(c.req.query('lang'), null);
 }
 
-/** 判斷接縫兩側是不是中日韓文字（含全形標點）；英文字之間得留空白，中文不必 */
-const CJK_RE = /[\u3000-\u303f\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff\uff00-\uffef]/;
+/**
+ * 判斷接縫兩側是不是中日韓文字（含假名與全形標點）；英文字之間得留空白，中日文不必。
+ * 漏掉假名區段（U+3040–30FF）的話，日文的手動換行會接成「やるべき こと」。
+ */
+const CJK_RE = /[\u3000-\u303f\u3040-\u30ff\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff\uff00-\uffef]/;
 
 /**
  * 手動換行是排版用的，og:title 是單行文字：接縫兩側都是中日韓字就直接接起來
@@ -120,12 +127,12 @@ function titleOf(state: VennState, locale: Locale): string {
 /** 點陣化丟到 resvg 的 worker thread，避免大圖把 event loop 卡死（AC 1b） */
 async function renderPng(
   state: VennState,
-  font_file: string,
+  font_files: string[],
   watermark: string,
 ): Promise<Uint8Array> {
   const image = await renderAsync(renderSvg(state, { watermark }), {
     fitTo: { mode: 'width', value: state.size },
-    font: { fontFiles: [font_file], loadSystemFonts: false, defaultFontFamily: 'Noto Sans TC' },
+    font: { fontFiles: font_files, loadSystemFonts: false, defaultFontFamily: 'Noto Sans TC' },
   });
   return image.asPng();
 }
@@ -239,7 +246,7 @@ export function createApp(opts: AppOptions): Hono {
     in_flight++;
     let png: Uint8Array;
     try {
-      png = await renderPng(state, opts.fontFile, opts.watermark ?? '');
+      png = await renderPng(state, opts.fontFiles, opts.watermark ?? '');
     } finally {
       in_flight--;
     }
@@ -280,7 +287,7 @@ export function createApp(opts: AppOptions): Hono {
     in_flight++;
     let png: Uint8Array;
     try {
-      png = await renderOgPng(state, opts.fontFile, og_base);
+      png = await renderOgPng(state, opts.fontFiles, og_base);
     } finally {
       in_flight--;
     }

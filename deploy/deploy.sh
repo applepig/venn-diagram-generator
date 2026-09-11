@@ -18,10 +18,33 @@ DEST="$VENN_DEPLOY_PATH"
 
 cd "$(dirname "$0")/.."
 
+# 主機的 .env 是這個部署的唯一設定來源，少一把 key 不會讓 compose 失敗，
+# 只會讓浮水印或 GTM 靜默消失——而 og:image 帶一年期快取，錯了要等一年才過期。
+# 所以先檢查再動手：值可以是空的（空＝刻意不要），key 一定要在。
+missing_keys="$(ssh "$HOST" bash -s -- "$DEST" <<'REMOTE'
+env_file="$1/.env"
+if [[ ! -f "$env_file" ]]; then
+  echo "(no such file: ${env_file})"
+  exit 0
+fi
+for key in VENN_PUBLIC_HOST VENN_GTM_ID VENN_WATERMARK; do
+  grep -qE "^[[:space:]]*${key}=" "$env_file" || echo "$key"
+done
+REMOTE
+)"
+
+if [[ -n "$missing_keys" ]]; then
+  echo "deploy.sh: ${HOST}:${DEST}/.env is missing required keys:" >&2
+  echo "$missing_keys" | sed 's/^/  /' >&2
+  echo "copy .env.example to ${DEST}/.env on the host and fill it in (empty values are fine)." >&2
+  exit 1
+fi
+
+# .env*（含 .env.example）與 .token 屬於各自的機器：--delete 會掃掉主機上那份，一定要排除
 rsync -az --delete \
   --exclude '.git' --exclude 'node_modules' --exclude 'dist' --exclude 'dist-server' \
   --exclude 'docs' --exclude '*.log' --exclude 'deploy/compose.dev.yml' \
-  --exclude '.env' \
+  --exclude '.env' --exclude '.env.*' --exclude '.token' \
   ./ "${HOST}:${DEST}/"
 
 # .env 留在主機上（rsync 不碰）：hostname、GTM id、浮水印屬於該部署，不進 repo。

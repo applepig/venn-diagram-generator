@@ -44,7 +44,7 @@ const DITHER_LAYER =
  */
 export async function renderOgPng(
   state: VennState,
-  font_file: string,
+  font_files: string[],
   base_png: Uint8Array,
   opts: { dither?: boolean } = {},
 ): Promise<Uint8Array> {
@@ -64,7 +64,7 @@ export async function renderOgPng(
 
   const image = await renderAsync(svg, {
     fitTo: { mode: 'width', value: OG_WIDTH },
-    font: { fontFiles: [font_file], loadSystemFonts: false, defaultFontFamily: 'Noto Sans TC' },
+    font: { fontFiles: font_files, loadSystemFonts: false, defaultFontFamily: 'Noto Sans TC' },
   });
   return image.asPng();
 }

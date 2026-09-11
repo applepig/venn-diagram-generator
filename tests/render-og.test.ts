@@ -3,7 +3,7 @@ import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { renderOgPng } from '../server/render-og';
 import { sampleState } from '../content/state-presets';
-import { FONT_FILE } from './helpers/font';
+import { FONT_FILES } from './helpers/font';
 import { decodePng, meanRgb, pngPixel } from './helpers/png';
 
 const OG_BASE = readFileSync(resolve('ui/public/og-base.png'));
@@ -12,8 +12,8 @@ describe('renderOgPng：AC1 dither', () => {
   it('逐像素與關掉 dither 的輸出不同，但全圖平均 RGB 每通道差 ≤ 1', async () => {
     const state = sampleState();
     const [dithered, plain] = await Promise.all([
-      renderOgPng(state, FONT_FILE, OG_BASE),
-      renderOgPng(state, FONT_FILE, OG_BASE, { dither: false }),
+      renderOgPng(state, FONT_FILES, OG_BASE),
+      renderOgPng(state, FONT_FILES, OG_BASE, { dither: false }),
     ]);
 
     const a = decodePng(Buffer.from(dithered));
@@ -47,8 +47,8 @@ describe('renderOgPng：AC1 dither', () => {
   it('同一個 state 連跑兩次輸出完全相同（固定 seed，build 才有決定性）', async () => {
     const state = sampleState();
     const [first, second] = await Promise.all([
-      renderOgPng(state, FONT_FILE, OG_BASE),
-      renderOgPng(state, FONT_FILE, OG_BASE),
+      renderOgPng(state, FONT_FILES, OG_BASE),
+      renderOgPng(state, FONT_FILES, OG_BASE),
     ]);
 
     expect(Buffer.from(first).equals(Buffer.from(second))).toBe(true);
@@ -59,7 +59,7 @@ describe('renderOgPng：合成時關掉正方形畫布的浮水印', () => {
   it('圖表區右下與底圖逐像素相同，底圖品牌名不會被重複', async () => {
     // 關掉 dither 才能逐像素比對：dither 是鋪滿全圖的雜訊，與浮水印有沒有關掉正交
     const output = decodePng(
-      Buffer.from(await renderOgPng(sampleState(), FONT_FILE, OG_BASE, { dither: false })),
+      Buffer.from(await renderOgPng(sampleState(), FONT_FILES, OG_BASE, { dither: false })),
     );
     const base = decodePng(OG_BASE);
 

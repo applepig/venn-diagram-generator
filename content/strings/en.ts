@@ -13,6 +13,8 @@ export const STRINGS = {
   'peek.hint': 'Preview · tap to enlarge',
   'peek.close': 'Close preview',
 
+  'lang.field': 'Language',
+
   'arr.ring': 'Ring',
   'arr.row': 'Row',
 
