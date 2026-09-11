@@ -1,118 +1,133 @@
 # venn-diagram-generator
 
-單頁 WYSIWYG 文氏圖產生器：選 2／3／4 圈，在畫布上直接點字改字、拖動位置、調字級，一鍵下載社群可貼的 PNG。整份編輯狀態壓進網址的 `s` 參數，所以分享連結就是圖：貼進聊天軟體會透過 `og:image` 直接預覽。無登入、無浮水印、server 無狀態。
+[中文說明](./README.zh-TW.md) · Live: <https://venn.applepig.net>
 
-![編輯器](docs/01-mvp/samples/editor.png)
+A single-page WYSIWYG Venn diagram generator. Pick an arrangement (ring or row) and 2–6 circles, click any region on the canvas to type, drag text around, tune font sizes, then download a PNG you can paste anywhere. The whole editor state is compressed into the URL's `s` parameter, so a share link *is* the picture: paste it into a chat app and `og:image` renders a preview. No login, no account, stateless server. UI available in Traditional Chinese and English.
 
-## 架構
+## Architecture
 
-SVG 是唯一的渲染真相。`engine/render-svg.ts` 的 `renderSvg(state)` 是純函式，前端把它的輸出直接塞進 DOM 當即時預覽，server 拿同一份輸出交給 `@resvg/resvg-js` 轉 PNG，所以預覽即所得。文字排版不依賴 DOM 量測，改用字元分類估寬（CJK 1em、其他 0.62em、空白 0.3em），前後端算出來的版面一致。
+SVG is the single source of truth for rendering. `engine/render-svg.ts` exposes a pure `renderSvg(state, options)`; the browser drops its output straight into the DOM as a live preview, and the server hands the very same output to `@resvg/resvg-js` to get a PNG — what you preview is what you download. Text layout never measures the DOM: widths are estimated from character classes (CJK 1em, other 0.62em, whitespace 0.3em) so front end and back end lay out identically.
 
 ```
-engine/   types、defaults、layout、render-svg、state-codec（純幾何與排版，沒有任何產品文案）
-content/  palette、templates/、strings/、state-presets（預設 meme 與介面字串）
-ui/       Vite + vanilla TS 編輯器
-server/   Hono：靜態檔、GET / 的 og meta 注射、GET /api/png 與 /api/og.png
-deploy/   Dockerfile、compose.yml、compose.dev.yml、deploy.sh
+engine/   types, defaults, shapes/ (ring & row registry), layout, region-geometry,
+          render-svg, state-codec — pure geometry, layout and codec, zero product copy
+content/  palette, templates/, strings/, locale, state-presets — default memes and UI strings
+ui/       Vite + vanilla TS editor
+server/   Hono: static files, og meta injection for GET /, GET /api/png and /api/og.png
+deploy/   Dockerfile, compose.yml, compose.dev.yml, deploy.sh
 ```
 
-## URL 狀態格式
+Circle positions are always derived from `arr` / `n` / `overlap` / `radius` — coordinates are never stored. `ring(n)` keeps a frozen angle table per circle count so links shared by older versions keep rendering byte-for-byte identically.
 
-`?s=` 的內容是 `base64url(deflate-raw(JSON))`。瀏覽器用 `CompressionStream('deflate-raw')`，Node 用 `zlib.deflateRawSync`，同一個格式雙向通吃。解不開或 schema 不合一律回 400。
+## URL state format
+
+`?s=` holds `base64url(deflate-raw(JSON))`. The browser uses `CompressionStream('deflate-raw')`, Node uses `zlib.deflateRawSync` — same format both ways. Anything that fails to inflate or does not match the schema is a 400.
 
 ```jsonc
 {
-  "v": 1,                     // 狀態版本，必須是 1
-  "n": 2,                     // 圈數：2 | 3 | 4
+  "v": 1,                     // state version, must be 1
+  "arr": "row",               // "ring" | "row"; omitted means "ring"
+  "n": 2,                     // circle count: ring 2–6, row 3–6
   "style": "flat",            // translucent | flat | outline
-  "opacity": 0.6,             // 0–1，只有 translucent 用得到
-  "overlap": 1.2,             // 圓心距 / r，0.6–1.6
-  "radius": 0.3,              // 圓半徑，畫布寬比例，0.2–0.35
-  "colors": ["#2e9be6", "#e6a92e"],  // 長度必須等於 n
+  "opacity": 0.6,             // 0–1, only used by translucent
+  "overlap": 1.2,             // centre distance / r, 0.6–1.6
+  "radius": 0.3,              // circle radius as a fraction of canvas width
+                              // (ring 0.2–0.35, row 0.1–0.35)
+  "colors": ["#2e9be6", "#e6a92e"],  // length must equal n
   "bg": "#fafafa",
-  "size": 1200,               // 400–2000 的整數
-  "texts": {                  // key 是成員圓 bitmask 的十進位字串
-    "1": { "t": "該做\n的事" },  // circle i = bit i，所以 1=圓0、2=圓1、3=圓0∩圓1
-    "2": { "t": "想做\n的事" },
-    "3": { "t": "拖到\n明天", "fs": 0.09, "dx": 0.01, "dy": -0.02 }
+  "size": 1200,               // integer, 400–2000
+  "texts": {                  // key is the member-circle bitmask, as a decimal string
+    "1": { "t": "Things I\nshould do" },  // circle i = bit i, so 3 = circle 0 ∩ circle 1
+    "2": { "t": "Things I\nwant to do" },
+    "3": { "t": "Tomorrow", "fs": 0.09, "dx": 0.01, "dy": -0.02 }
   }
 }
 ```
 
-`fs`（字級，畫布寬比例）、`dx`／`dy`（相對區域框中心的位移，畫布寬比例）只在使用者手動調過時才存在；沒有就是自動排版。每個文字槽上限 80 字。
+`fs` (font size, fraction of canvas width), `dx` / `dy` (offset from the region box centre) and `fill` (per-region colour override, `flat` only) exist only once the user has adjusted them; absent means automatic. Each text slot is capped at 80 characters.
 
-各圈數的預設文字槽：2 圈給 3 個、3 圈給 7 個、4 圈是 2×2 花瓣所以給 13 個（4 單圈＋4 相鄰雙圈＋4 三重＋中央四重），對角雙圈在預設重疊度下區域不存在，不給槽。三重交集區只放得下 2 個全形字。
+Which slots a shape offers is derived from its default geometry (a region gets a slot when it has a non-null inscribed box): 3 slots for 2 circles, 7 for 3, 13 for the 2×2 four-circle petal arrangement (4 singles + 4 adjacent pairs + 4 triples + 1 centre; the diagonal pairs have no region at the default overlap). Rings of 5–6 and all rows only ship single-circle labels by default.
 
-沒帶 `s` 時每個圈數都有一組預設 meme（2 圈 `flat`、3 圈 `translucent`、4 圈 `outline`）；沒編輯過文字就切圈數，會整組換成該圈數的 meme。
+Without `s`, every shape falls back to a default template (in the current UI language). If you have not edited any text yet, switching shape or language swaps the whole template; once you have typed something, your text is kept.
 
 ## API
 
-`GET /api/png?s=<state>` 回 `image/png`，尺寸等於 `state.size`，帶 `Cache-Control: public, max-age=31536000, immutable`（參數即內容，可以永久快取）。缺 `s`、解不開、schema 不合都回 400 JSON `{ "error": "..." }`。
+`GET /api/png?s=<state>` returns `image/png` sized to `state.size`, with `Cache-Control: public, max-age=31536000, immutable` (the parameter *is* the content). A missing, undecodable or invalid `s` returns a 400 JSON body `{ "error": "..." }`. API error messages are always English — it is a machine interface and does not follow the UI language.
 
-`GET /api/og.png?v=3&s=<state>` 是社群預覽用的 `1200 × 630` 橫幅：以品牌底圖加上透明背景的文氏圖內容。缺 `s` 時輸出首頁預設範例；有效 `s` 則輸出該分享 state。成功圖片同樣帶一年期 immutable cache，`v` 是合成版型的 cache 版號；底圖或版型改版時會 bump `v`。無效 `s` 回 400 JSON 並帶 `Cache-Control: no-store`。
+`GET /api/og.png?v=<n>&s=<state>&lang=<zh-TW|en>` is the 1200 × 630 social banner: the branded base image with the diagram composited on top. Without `s` it renders the home-page sample; `lang` only comes from the query string (never `Accept-Language`) so a cached URL cannot be poisoned by whichever crawler arrives first. `v` is the layout cache version, bumped when the base image or composition changes. Invalid `s` returns 400 JSON with `Cache-Control: no-store`.
 
-首頁的 `og:image` 與 `twitter:image` 共用 `/api/og.png?v=3`；分享頁會再附上對應的 `s`。`/api/png` 繼續只負責下載／複製用的正方形圖片。
+The home page ships a pre-baked static OG image (`pnpm build` writes `dist/og-default-<hash>.png`); share pages point `og:image` at `/api/og.png` with their own `s`.
 
 ```bash
-# 先在瀏覽器編好圖，複製連結拿到 s，或用 Node 產一個
+# Build a state with Node, or just copy a link out of the editor
 S=$(pnpm exec tsx -e "
 import { encodeState } from './engine/state-codec-node';
 import { sampleState } from './content/state-presets';
 process.stdout.write(encodeState(sampleState()));")
 
 curl -o venn.png "http://localhost:3000/api/png?s=$S"
-
-# 社群橫幅；拿掉 &s=$S 就是預設範例
-curl -o og.png "http://localhost:3000/api/og.png?v=3&s=$S"
+curl -o og.png   "http://localhost:3000/api/og.png?v=5&s=$S&lang=en"
 ```
 
-## 本機開發
+## Local development
 
 ```bash
 pnpm install
-pnpm dev          # Hono 3000，Vite 以 middlewareMode 掛在同一個 port（含 HMR）
+pnpm dev          # Hono on 3000; Vite runs in middlewareMode on the same port (HMR included)
 pnpm test         # Vitest
 pnpm typecheck    # tsc --noEmit
-pnpm build        # ui → dist/，server → dist-server/
-pnpm start        # 跑 build 好的 server，單一 port 3000
+pnpm build        # ui → dist/, baked OG image → dist/, server → dist-server/
+pnpm start        # run the built server, single port 3000
 ```
 
-字型 Noto Sans TC Bold（OFL）放在 `assets/fonts/`，前端 `@font-face` 與 resvg 的 `fontFiles` 指同一個檔，image 內不安裝任何系統字型。
+Noto Sans TC Bold (OFL) lives in `assets/fonts/`. The front-end `@font-face` and resvg's `fontFiles` point at the same file, and the image installs no system fonts.
 
 ## Docker
 
-```bash
-docker build -f deploy/Dockerfile -t venn-diagram-generator .
-docker run --rm -p 3000:3000 venn-diagram-generator
-```
-
-兩份 compose 共用 external network `web`，差別在跑法與 Traefik 路由：
-
-| 站 | 網址 | compose | 跑法 | entrypoint |
-|---|---|---|---|---|
-| 開發站 | `https://venn.dev.example` | `deploy/compose.dev.yml` | 掛原始碼跑 `pnpm dev`，不 build image | `websecure` + `tls`（本機 Traefik 的 `*.dev.example` wildcard 憑證） |
-| 正式站 | `https://venn.applepig.net` | `deploy/compose.yml` | Dockerfile build 出 dist | `web`（TLS 在 Cloudflare 終止） |
-
-開發站跑在本機（`toybox`，REDACTED-IP），DNS 由 LAN 的 `*.dev.example` 泛解析負責。它把 repo 掛進 `node:24-slim` 直接跑 `tsx watch server/index.ts`，改前端走 HMR（websocket 經 Traefik 的 wss）、改 server 由 tsx 重啟，都不必重 build：
+The Dockerfile lives in `deploy/` but expects the repository root as its build context:
 
 ```bash
-docker compose -f deploy/compose.dev.yml up -d
+pnpm docker:build   # docker build -f deploy/Dockerfile -t venn-diagram-generator .
+docker run --rm -p 3000:3000 -e VENN_WATERMARK=venn.example.com venn-diagram-generator
 ```
 
-正式站跑在 deploy-host（Oracle aarch64），架構是 Cloudflare Tunnel → Traefik → container，兩個 infra 容器都不 publish port，host 的 80/443 留給既有的 apache：
+`deploy/compose.yml` builds that image and publishes it behind a reverse proxy (Traefik labels, external network `web`, TLS terminated upstream). `deploy/compose.dev.yml` skips the image entirely: it mounts the source into `node:24-slim` and runs `tsx watch server/index.ts`, so both front-end HMR and server restarts work without rebuilding.
 
-```
-/srv/infra/compose.yml   traefik + cloudflared（共用 network web）
-/srv/venn/          本 repo 的同步副本，用 deploy/compose.yml 起 container
-```
-
-更新正式站：
+`deploy/deploy.sh` is the whole deployment story — there is no registry. It rsyncs the working tree to a host over ssh and runs `docker compose up -d --build` there:
 
 ```bash
-./deploy/deploy.sh           # rsync 到 deploy-host 後 docker compose up -d --build
+VENN_DEPLOY_HOST=my-host VENN_DEPLOY_PATH=/srv/apps/venn ./deploy/deploy.sh
 ```
 
-## 注意事項
+## Environment variables
 
-- 「複製圖片」用 `ClipboardItem`，需要 secure context（HTTPS 或 localhost）。不支援時會提示改用「下載 PNG」。
-- 每個區域能容納的字數受限於該區域的內接矩形。4 圈中央的四重交集特別小，超過約 4 個全形字就會在最小字級（畫布 2.5%）下超出框線。想塞長句請改用單圈或雙圈的槽。
+Copy `.env.example` to `.env` and fill it in. Nothing below has a baked-in default pointing at someone else's infrastructure.
+
+| Variable | Used by | Required | Meaning |
+|---|---|---|---|
+| `VENN_WATERMARK` | server | no | Watermark text at the bottom right of generated images. Unset or empty draws no watermark. |
+| `VENN_GTM_ID` | server | no | Google Tag Manager container id. Leave it unset on dev sites so their traffic stays out of your analytics. |
+| `PUBLIC_ORIGIN` | server, build | no | Absolute origin for `og:image` / `og:url`. Unset falls back to the request headers. |
+| `PORT` | server | no | Listen port, default 3000. |
+| `VENN_DEPLOY_HOST` | `deploy/deploy.sh` | **yes** | ssh target of the deployment host. The script exits 1 and names the missing variable. |
+| `VENN_DEPLOY_PATH` | `deploy/deploy.sh` | **yes** | Directory on that host to rsync into. |
+| `VENN_DEV_HOST` | `deploy/compose.dev.yml` | **yes** | Hostname of the source-mounted dev site; compose refuses to start without it. |
+
+## Forking
+
+The visual branding is not generic, so swap these before you publish your own instance:
+
+- **`ui/public/og-base.png`** — the 1200 × 630 social base image with the original project's branding on it. Replace it with your own artwork (same dimensions), then run `pnpm build` to re-bake `dist/og-default-<hash>.png`.
+- **`VENN_WATERMARK`** — set it to your own hostname, or leave it unset for no watermark.
+- `PUBLIC_ORIGIN` and the hostnames in `deploy/compose.yml` / `VENN_DEV_HOST`.
+
+## Notes
+
+- "Copy image" uses `ClipboardItem` and needs a secure context (HTTPS or localhost). Where that is unavailable the UI suggests "Download PNG" instead.
+- How much text fits in a region is bounded by its inscribed rectangle. The centre region of a four-circle diagram is especially tight: past roughly four full-width characters the text overflows even at the minimum font size (2.5% of canvas width). Put long sentences in single-circle or two-circle slots.
+
+## Licence
+
+Code is MIT — see [LICENSE](./LICENSE).
+
+The bundled font Noto Sans TC Bold is licensed under the SIL Open Font License; its terms are in [`assets/fonts/OFL.txt`](./assets/fonts/OFL.txt) and travel with the font file.

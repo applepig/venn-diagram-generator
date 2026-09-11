@@ -5,23 +5,24 @@ services:
     container_name: venn-dev
     restart: unless-stopped
     working_dir: /app
-    # uid 1000 = host 的 applepig，避免 vite 快取寫出 root 所有的檔案
+    # uid 1000 = host 的第一個一般使用者，避免 vite 快取寫出 root 所有的檔案
     user: "1000:1000"
     volumes:
       - ..:/app
     environment:
       - PORT=3000
-      - PUBLIC_ORIGIN=https://venn.dev.example
+      # 開發站 hostname 沒有預設值：由環境提供（例如 .env 的 VENN_DEV_HOST=venn.dev.example）
+      - PUBLIC_ORIGIN=https://${VENN_DEV_HOST:?set VENN_DEV_HOST to the dev-site hostname}
       - VENN_DEV=1
       # 與正式站同一個浮水印：開發站要看得出出圖的真實樣子
       - VENN_WATERMARK=venn.applepig.net
       # 這裡刻意不給 VENN_GTM_ID：開發站的操作不該混進正式站的數據
     command: ./node_modules/.bin/tsx watch server/index.ts
     labels:
-      # 本機 Traefik 走 websecure，憑證是 certs/ 裡的 *.dev.example wildcard
+      # 走 websecure：憑證由本機 Traefik 自備（開發網域的 wildcard 憑證）
       - "traefik.enable=true"
       - "traefik.docker.network=web"
-      - "traefik.http.routers.venn-dev.rule=Host(`venn.dev.example`)"
+      - "traefik.http.routers.venn-dev.rule=Host(`${VENN_DEV_HOST:?set VENN_DEV_HOST to the dev-site hostname}`)"
       - "traefik.http.routers.venn-dev.entrypoints=websecure"
       - "traefik.http.routers.venn-dev.tls=true"
       - "traefik.http.services.venn-dev.loadbalancer.server.port=3000"
