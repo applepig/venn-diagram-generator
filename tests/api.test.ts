@@ -135,7 +135,7 @@ describe('GET /api/png：AC3 正常出圖', () => {
 
 describe('GET /api/og.png：固定橫式 OG 合成', () => {
   it('缺少 s 時回預設內容的 1200×630 PNG 與長期快取標頭', async () => {
-    const res = await get('/api/og.png?v=2');
+    const res = await get('/api/og.png?v=3');
 
     expect(res.status).toBe(200);
     expect(res.headers.get('content-type')).toBe('image/png');
@@ -145,24 +145,24 @@ describe('GET /api/og.png：固定橫式 OG 合成', () => {
 
   it('缺少 s 與明確傳入 sampleState 會產生相同內容', async () => {
     const [implicit, explicit] = await Promise.all([
-      get('/api/og.png?v=2'),
-      get(`/api/og.png?v=2&s=${encodeState(sampleState())}`),
+      get('/api/og.png?v=3'),
+      get(`/api/og.png?v=3&s=${encodeState(sampleState())}`),
     ]);
 
     expect(Buffer.from(await implicit.arrayBuffer())).toEqual(Buffer.from(await explicit.arrayBuffer()));
   });
 
   it('兩個內容不同的合法 state 會產生不同 OG PNG', async () => {
-    const first = await get(`/api/og.png?v=2&s=${encodeState(sampleState())}`);
+    const first = await get(`/api/og.png?v=3&s=${encodeState(sampleState())}`);
     const second = await get(
-      `/api/og.png?v=2&s=${encodeState({ ...sampleState(), texts: { '3': { t: '今天就做' } } })}`,
+      `/api/og.png?v=3&s=${encodeState({ ...sampleState(), texts: { '3': { t: '今天就做' } } })}`,
     );
 
     expect(Buffer.from(await first.arrayBuffer())).not.toEqual(Buffer.from(await second.arrayBuffer()));
   });
 
   it('3 圈 translucent 合成後仍保留左側品牌底圖', async () => {
-    const res = await get(`/api/og.png?v=2&s=${encodeState(sampleState(3))}`);
+    const res = await get(`/api/og.png?v=3&s=${encodeState(sampleState(3))}`);
     const output = decodePng(Buffer.from(await res.arrayBuffer()));
     const base = decodePng(readFileSync(OG_BASE_FILE));
 
@@ -173,9 +173,22 @@ describe('GET /api/og.png：固定橫式 OG 合成', () => {
     }
   });
 
+  it('合成圖不帶正方形畫布的浮水印，底圖品牌名不會被重複', async () => {
+    const res = await get(`/api/og.png?v=3&s=${encodeState(sampleState())}`);
+    const output = decodePng(Buffer.from(await res.arrayBuffer()));
+    const base = decodePng(readFileSync(OG_BASE_FILE));
+
+    // 浮水印若沒關掉會落在圖表區右下：x 645+494*0.972≈1125 往左約 90px、基線 y≈548
+    for (let x = 1040; x <= 1124; x += 6) {
+      for (let y = 538; y <= 550; y += 3) {
+        expect(pngPixel(output, x, y)).toEqual(pngPixel(base, x, y));
+      }
+    }
+  });
+
   it('state.bg 不會在右側畫出有硬邊的正方形背景', async () => {
     const state = { ...sampleState(3), bg: '#ff00ff' };
-    const res = await get(`/api/og.png?v=2&s=${encodeState(state)}`);
+    const res = await get(`/api/og.png?v=3&s=${encodeState(state)}`);
     const output = decodePng(Buffer.from(await res.arrayBuffer()));
     const base = decodePng(readFileSync(OG_BASE_FILE));
 
@@ -183,9 +196,9 @@ describe('GET /api/og.png：固定橫式 OG 合成', () => {
   });
 
   for (const [name, path] of [
-    ['s 是空字串', '/api/og.png?v=2&s='],
-    ['s 解不開', '/api/og.png?v=2&s=!!!!'],
-    ['s 過長', `/api/og.png?v=2&s=${'a'.repeat(MAX_STATE_PARAM_LEN + 1)}`],
+    ['s 是空字串', '/api/og.png?v=3&s='],
+    ['s 解不開', '/api/og.png?v=3&s=!!!!'],
+    ['s 過長', `/api/og.png?v=3&s=${'a'.repeat(MAX_STATE_PARAM_LEN + 1)}`],
   ] as const) {
     it(`${name} → 400 JSON 且不快取`, async () => {
       const res = await get(path);
@@ -201,7 +214,7 @@ describe('GET /api/og.png：固定橫式 OG 合成', () => {
     const isolated = createApp({ fontFile: FONT_FILE, ogBaseFile: OG_BASE_FILE });
     const s = encodeState({ ...defaultState(4), style: 'flat', size: 1600 });
     const paths = Array.from({ length: 6 }, (_, i) =>
-      i % 2 === 0 ? `/api/png?s=${s}` : `/api/og.png?v=2&s=${s}`,
+      i % 2 === 0 ? `/api/png?s=${s}` : `/api/og.png?v=3&s=${s}`,
     );
     const responses = await Promise.all(paths.map((path) => isolated.request(`${ORIGIN}${path}`)));
 
@@ -325,7 +338,7 @@ describe('GET /：AC4 og meta', () => {
     const s = encodeState(sampleState());
     const html = await (await get(`/?s=${s}`)).text();
 
-    const image_url = `${ORIGIN}/api/og.png?v=2&amp;s=${s}`;
+    const image_url = `${ORIGIN}/api/og.png?v=3&amp;s=${s}`;
     expect(html).toContain(`<meta property="og:image" content="${image_url}"`);
     expect(html).toContain(`<meta name="twitter:image" content="${image_url}"`);
     expect(html).toContain('<meta property="og:title"');
@@ -341,7 +354,7 @@ describe('GET /：AC4 og meta', () => {
     expect(noncanonical).not.toBe(canonical);
 
     const html = await (await get(`/?s=${noncanonical}`)).text();
-    const image_url = `${ORIGIN}/api/og.png?v=2&amp;s=${canonical}`;
+    const image_url = `${ORIGIN}/api/og.png?v=3&amp;s=${canonical}`;
 
     expect(html).toContain(`<meta property="og:image" content="${image_url}"`);
     expect(html).toContain(`<meta name="twitter:image" content="${image_url}"`);
@@ -351,9 +364,9 @@ describe('GET /：AC4 og meta', () => {
   it('沒有 s 時兩種 image meta 共用不夾帶預設 state 的 OG URL', async () => {
     const html = await (await get('/')).text();
 
-    expect(html).toContain(`<meta property="og:image" content="${ORIGIN}/api/og.png?v=2"`);
-    expect(html).toContain(`<meta name="twitter:image" content="${ORIGIN}/api/og.png?v=2"`);
-    expect(html).not.toContain('/api/og.png?v=2&amp;s=');
+    expect(html).toContain(`<meta property="og:image" content="${ORIGIN}/api/og.png?v=3"`);
+    expect(html).toContain(`<meta name="twitter:image" content="${ORIGIN}/api/og.png?v=3"`);
+    expect(html).not.toContain('/api/og.png?v=3&amp;s=');
   });
 
   it('OG image meta 尺寸固定宣告 1200×630', async () => {
@@ -386,7 +399,7 @@ describe('GET /：AC4 og meta', () => {
       await get('/', { 'x-forwarded-proto': 'https', 'x-forwarded-host': 'venn.example.com' })
     ).text();
 
-    expect(html).toContain('content="https://venn.example.com/api/og.png?v=2"');
+    expect(html).toContain('content="https://venn.example.com/api/og.png?v=3"');
   });
 
   it('og:image 指向的 URL 真的出得了圖', async () => {
@@ -409,8 +422,8 @@ describe('GET /：AC4 og meta', () => {
       const html = await res.text();
 
       expect(res.status).toBe(200);
-      expect(html).toContain(`<meta property="og:image" content="${ORIGIN}/api/og.png?v=2"`);
-      expect(html).toContain(`<meta name="twitter:image" content="${ORIGIN}/api/og.png?v=2"`);
+      expect(html).toContain(`<meta property="og:image" content="${ORIGIN}/api/og.png?v=3"`);
+      expect(html).toContain(`<meta name="twitter:image" content="${ORIGIN}/api/og.png?v=3"`);
     });
   }
 
@@ -493,7 +506,7 @@ describe('AC1 壓縮炸彈：s 短、解開很大', () => {
     const html = await res.text();
 
     expect(res.status).toBe(200);
-    expect(html).toContain(`content="${ORIGIN}/api/og.png?v=2"`);
+    expect(html).toContain(`content="${ORIGIN}/api/og.png?v=3"`);
   });
 });
 
@@ -520,7 +533,7 @@ describe('AC2 s 參數長度閘', () => {
     const html = await res.text();
 
     expect(res.status).toBe(200);
-    expect(html).toContain(`content="${ORIGIN}/api/og.png?v=2"`);
+    expect(html).toContain(`content="${ORIGIN}/api/og.png?v=3"`);
     expect(html).not.toContain(s);
   });
 });
@@ -618,8 +631,8 @@ describe('AC3 og origin 由 publicOrigin 決定', () => {
     ).text();
 
     expect(html).not.toContain('evil.example.com');
-    expect(html).toContain(`<meta property="og:image" content="${ORIGIN}/api/og.png?v=2`);
+    expect(html).toContain(`<meta property="og:image" content="${ORIGIN}/api/og.png?v=3`);
     expect(html).toContain(`<meta property="og:url" content="${ORIGIN}/?s=`);
-    expect(html).toContain(`<meta name="twitter:image" content="${ORIGIN}/api/og.png?v=2`);
+    expect(html).toContain(`<meta name="twitter:image" content="${ORIGIN}/api/og.png?v=3`);
   });
 });

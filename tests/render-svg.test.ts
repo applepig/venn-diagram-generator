@@ -422,3 +422,36 @@ describe('renderSvg：右下角浮水印', () => {
     expect(watermarkTag(renderSvg(threeCircle('flat')))).not.toContain('data-region');
   });
 });
+
+describe('renderSvg：合成用的圖層開關', () => {
+  const BG_RECT = /<rect width="100%" height="100%"/;
+
+  it('預設兩層都畫', () => {
+    const svg = renderSvg({ ...defaultState(2), bg: '#123456' });
+
+    expect(svg).toMatch(BG_RECT);
+    expect(svg).toContain('venn.applepig.net');
+  });
+
+  it('background: false 不畫背景 rect，底圖才透得出來', () => {
+    const svg = renderSvg({ ...defaultState(2), bg: '#123456' }, { background: false });
+
+    expect(svg).not.toMatch(BG_RECT);
+    expect(svg).not.toContain('#123456');
+  });
+
+  it('watermark: false 不畫浮水印', () => {
+    expect(renderSvg(defaultState(2), { watermark: false })).not.toContain('venn.applepig.net');
+  });
+
+  it('關掉圖層不影響圓與文字', () => {
+    const state = { ...threeCircle('flat'), bg: '#123456' };
+    const full = renderSvg(state);
+    const stripped = renderSvg(state, { background: false, watermark: false });
+
+    // 剝掉兩層之後，剩下的內容是完整版的子集
+    for (const text of ['快', '好', '便宜', '不存在']) expect(stripped).toContain(`>${text}<`);
+    expect(stripped.length).toBeLessThan(full.length);
+    expect(full).toContain(stripped.replace(/^<svg[^>]*><defs>.*?<\/defs>/, '').replace(/<\/svg>$/, ''));
+  });
+});

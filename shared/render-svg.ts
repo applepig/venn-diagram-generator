@@ -170,7 +170,19 @@ function watermark(state: VennState): string {
 
 // ---------- SVG ----------
 
-export function renderSvg(state: VennState): string {
+/**
+ * 合成情境（`server/render-og.ts`）要把圖表疊到別的底圖上，
+ * 用這兩個開關關掉整張畫布專屬的圖層，不必事後用 regex 剝字串。
+ */
+export interface RenderOptions {
+  /** 畫滿版背景 rect；疊圖時關掉才不會蓋住底圖 */
+  background?: boolean;
+  /** 畫右下角浮水印；底圖已有品牌名時關掉，免得重複 */
+  watermark?: boolean;
+}
+
+export function renderSvg(state: VennState, opts: RenderOptions = {}): string {
+  const { background = true, watermark: with_watermark = true } = opts;
   const size = state.size;
   const circles = circlesFor(state.n, state.radius, state.overlap);
   const is_outline = state.style === 'outline';
@@ -242,9 +254,9 @@ export function renderSvg(state: VennState): string {
   return (
     `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">` +
     `<defs>${defs}</defs>` +
-    `<rect width="100%" height="100%" fill="${escapeXml(state.bg)}"/>` +
+    (background ? `<rect width="100%" height="100%" fill="${escapeXml(state.bg)}"/>` : '') +
     body +
-    watermark(state) +
+    (with_watermark ? watermark(state) : '') +
     `</svg>`
   );
 }
