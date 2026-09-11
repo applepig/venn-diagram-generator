@@ -2,7 +2,7 @@ import { createServer } from 'node:http';
 import { resolve } from 'node:path';
 import { getRequestListener, serve } from '@hono/node-server';
 import { serveStatic } from '@hono/node-server/serve-static';
-import { createApp } from './app';
+import { CACHE_FOREVER, createApp } from './app';
 import type { DevServer } from './dev';
 
 const PORT = Number(process.env.PORT ?? 3000);
@@ -24,7 +24,17 @@ async function main(): Promise<void> {
       gtmId: GTM_ID,
     });
     // createApp 已先註冊 /api/png 與 /，這裡只接沒被吃掉的靜態資源
-    app.use('/*', serveStatic({ root: DIST_DIR }));
+    app.use(
+      '/*',
+      serveStatic({
+        root: DIST_DIR,
+        // 烤好的 OG 圖檔名帶 content hash，改圖就換 URL，無限期快取是安全的。
+        // Vite 的 hashed assets 同樣適用，但那是既有狀況，不在本次範圍。
+        onFound: (path, c) => {
+          if (/\/og-default-[0-9a-f]+\.png$/.test(path)) c.header('cache-control', CACHE_FOREVER);
+        },
+      }),
+    );
 
     serve({ fetch: app.fetch, port: PORT, hostname: '0.0.0.0' }, (info) => {
       console.log(`venn server listening on http://0.0.0.0:${info.port}`);

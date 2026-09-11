@@ -11,6 +11,8 @@ COPY shared ./shared
 COPY server ./server
 COPY web ./web
 COPY assets ./assets
+# build 的 og 烤圖後處理住在 scripts/
+COPY scripts ./scripts
 RUN pnpm build
 
 FROM node:24-slim AS runtime

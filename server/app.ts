@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { renderAsync } from '@resvg/resvg-js';
 import { Hono } from 'hono';
@@ -27,15 +27,17 @@ export interface AppOptions {
   loadIndexHtml?: (url: string) => string | Promise<string>;
 }
 
-const CACHE_FOREVER = 'public, max-age=31536000, immutable';
+export const CACHE_FOREVER = 'public, max-age=31536000, immutable';
 
 /**
  * og:image 的 cache 版號。server 不讀它，純粹是 cache-buster：
  * 底圖、版型或 template 文案改動時 bump，逼 CDN 與各社群平台重抓。
  * v2：2 圈 template 改「明天再說」、圖右下角加浮水印。
- * v3：合成時關掉浮水印，底圖已經有品牌名了。
+ * v3：合成時關掉浮水印，底圖已經有品牌名了（正式站目前輸出這版）。
+ * v4：改成 build 時預烤靜態檔並加入 dither（開發中，未上線）。
+ * v5：v3 與 v4 兩條線合併後的組合（無浮水印＋dither），兩邊都沒產出過，要蓋過 3 與 4。
  */
-const OG_VERSION = '3';
+const OG_IMAGE_VERSION = 5;
 
 /** 同時進行的點陣化上限：resvg 每張圖吃滿一條 worker thread，開太多只會一起變慢 */
 const MAX_CONCURRENT_RENDERS = 3;
@@ -113,9 +115,25 @@ function jsonLd(origin: string): string {
   return `<script type="application/ld+json">${JSON.stringify(data)}</script>`;
 }
 
+/**
+ * build 後處理烤好的首頁 OG 圖檔名（`og-default-<contenthash>.png`）。
+ * 檔名帶 hash，改圖就換 URL，Facebook 那邊自動失效；找不到就退回動態的 /api/og.png。
+ * dev 走 middlewareMode 沒有 dist，也是走這條 fallback。
+ * 不必處理殘留舊檔：vite 的 emptyOutDir 每次 build 都清空 dist，烤圖跑在它之後。
+ */
+function findBakedOg(dist_dir?: string): string | null {
+  if (!dist_dir) return null;
+  try {
+    return readdirSync(dist_dir).find((name) => /^og-default-[0-9a-f]+\.png$/.test(name)) ?? null;
+  } catch {
+    return null;
+  }
+}
+
 export function createApp(opts: AppOptions): Hono {
   const app = new Hono();
   const og_base = opts.ogBaseFile ? readFileSync(opts.ogBaseFile) : null;
+  const baked_og = findBakedOg(opts.distDir);
 
   let index_html: string | null = null;
   const readIndexHtml = (): string => {
@@ -227,9 +245,9 @@ export function createApp(opts: AppOptions): Hono {
     }
 
     const origin = originOf(c, opts.publicOrigin);
-    const image_url = shared
-      ? `${origin}/api/og.png?v=${OG_VERSION}&s=${encodeState(state)}`
-      : `${origin}/api/og.png?v=${OG_VERSION}`;
+    const og_png_url = `${origin}/api/og.png?v=${OG_IMAGE_VERSION}`;
+    const default_image_url = baked_og ? `${origin}/${baked_og}` : og_png_url;
+    const image_url = shared ? `${og_png_url}&s=${encodeState(state)}` : default_image_url;
     // og:url 一律帶 s，分享出去的卡片點回來就是那張圖；canonical 是給搜尋引擎的，首頁收斂到 /
     const share_url = `${origin}/?s=${param}`;
     const canonical_url = shared ? share_url : `${origin}/`;
