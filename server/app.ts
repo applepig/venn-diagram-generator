@@ -29,6 +29,13 @@ export interface AppOptions {
 
 const CACHE_FOREVER = 'public, max-age=31536000, immutable';
 
+/**
+ * og:image 的 cache 版號。server 不讀它，純粹是 cache-buster：
+ * 底圖、版型或 template 文案改動時 bump，逼 CDN 與各社群平台重抓。
+ * v2：2 圈 template 改「明天再說」、圖右下角加浮水印。
+ */
+const OG_VERSION = '2';
+
 /** 同時進行的點陣化上限：resvg 每張圖吃滿一條 worker thread，開太多只會一起變慢 */
 const MAX_CONCURRENT_RENDERS = 3;
 const RETRY_AFTER_SECONDS = 2;
@@ -220,8 +227,8 @@ export function createApp(opts: AppOptions): Hono {
 
     const origin = originOf(c, opts.publicOrigin);
     const image_url = shared
-      ? `${origin}/api/og.png?v=1&s=${encodeState(state)}`
-      : `${origin}/api/og.png?v=1`;
+      ? `${origin}/api/og.png?v=${OG_VERSION}&s=${encodeState(state)}`
+      : `${origin}/api/og.png?v=${OG_VERSION}`;
     // og:url 一律帶 s，分享出去的卡片點回來就是那張圖；canonical 是給搜尋引擎的，首頁收斂到 /
     const share_url = `${origin}/?s=${param}`;
     const canonical_url = shared ? share_url : `${origin}/`;

@@ -51,7 +51,7 @@ export const TEMPLATES: Record<CircleCount, { style: VennStyle; texts: Record<st
       texts: {
         '1': { t: '該做\n的事' },
         '2': { t: '想做\n的事' },
-        '3': { t: '拖到\n明天' },
+        '3': { t: '明天\n再說' },
       },
     },
     3: {

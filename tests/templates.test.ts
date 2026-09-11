@@ -20,7 +20,7 @@ import type { CircleCount } from '../shared/types';
 const TEXTS_2 = {
   '1': { t: '該做\n的事' },
   '2': { t: '想做\n的事' },
-  '3': { t: '拖到\n明天' },
+  '3': { t: '明天\n再說' },
 };
 
 const TEXTS_3 = {
@@ -46,7 +46,7 @@ const TEXTS_4 = {
 };
 
 describe('sampleState', () => {
-  it('無參數回 2 圈 template：flat 樣式與「該做／想做／拖到明天」', () => {
+  it('無參數回 2 圈 template：flat 樣式與「該做／想做／明天再說」', () => {
     const s = sampleState();
 
     expect(s.n).toBe(2);
@@ -90,7 +90,7 @@ describe('isPristine', () => {
 
   it('文字沒變但調過字級就不是 pristine', () => {
     const s = sampleState(2);
-    s.texts['3'] = { t: '拖到\n明天', fs: 0.08 };
+    s.texts['3'] = { t: '明天\n再說', fs: 0.08 };
 
     expect(isPristine(s)).toBe(false);
   });
@@ -104,7 +104,7 @@ describe('isPristine', () => {
 
   it('AC10 文字沒變但指定過區域填色就不是 pristine', () => {
     const s = sampleState(2);
-    s.texts['3'] = { t: '拖到\n明天', fill: '#ffffff' };
+    s.texts['3'] = { t: '明天\n再說', fill: '#ffffff' };
 
     expect(isPristine(s)).toBe(false);
   });
