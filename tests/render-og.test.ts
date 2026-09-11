@@ -3,6 +3,8 @@ import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { renderOgPng } from '../server/render-og';
 import { sampleState } from '../content/state-presets';
+import { TITLE_BAND_H } from '../engine/title';
+import type { VennState } from '../engine/types';
 import { FONT_FILES } from './helpers/font';
 import { decodePng, meanRgb, pngPixel } from './helpers/png';
 
@@ -53,6 +55,48 @@ describe('renderOgPng：AC1 dither', () => {
 
     expect(Buffer.from(first).equals(Buffer.from(second))).toBe(true);
   });
+});
+
+describe('renderOgPng：AC4 標題壓在底圖上要看得見', () => {
+  // 圖表區貼在底圖的 (645, 68)、邊長 494（server/render-og.ts 的版面常數），
+  // 頂端 TITLE_BAND_H 那一條就是標題帶。合成時背景關掉，標題壓的是近白的底圖而不是 state.bg。
+  const BAND = { x: 645, y: 68, w: 494, h: Math.round(494 * TITLE_BAND_H) };
+  const RENDER_TIMEOUT = 30_000;
+
+  // dither 關掉：抖動會在單點上下擺，量「最暗像素」時只是雜訊
+  async function darkestInBand(state: VennState): Promise<number> {
+    const png = decodePng(
+      Buffer.from(await renderOgPng(state, FONT_FILES, OG_BASE, { dither: false })),
+    );
+    let darkest = 255;
+    for (let y = BAND.y; y < BAND.y + BAND.h; y++) {
+      for (let x = BAND.x; x < BAND.x + BAND.w; x++) {
+        const o = (y * png.width + x) * png.channels;
+        const lum = (png.pixels[o]! + png.pixels[o + 1]! + png.pixels[o + 2]!) / 3;
+        if (lum < darkest) darkest = lum;
+      }
+    }
+    return darkest;
+  }
+
+  it(
+    '深色 bg 與淺色 bg 的標題都在標題帶留下明顯的暗像素',
+    async () => {
+      for (const bg of ['#14161a', '#fafafa']) {
+        const darkest = await darkestInBand({ ...sampleState(2), bg, title: '我的標題' });
+        expect(darkest, bg).toBeLessThan(100);
+      }
+    },
+    RENDER_TIMEOUT,
+  );
+
+  it(
+    '沒有標題時標題帶內沒有暗像素（上一條的暗像素確實來自標題）',
+    async () => {
+      expect(await darkestInBand(sampleState(2))).toBeGreaterThan(200);
+    },
+    RENDER_TIMEOUT,
+  );
 });
 
 describe('renderOgPng：合成時關掉正方形畫布的浮水印', () => {

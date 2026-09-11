@@ -8,7 +8,16 @@ import {
   popCount,
 } from './defaults';
 import { arrOf, circlesFor, circlesForState, shapeDefaults } from './shapes/index';
-import type { Arrangement, Circle, CircleCount, RegionBox, TextBlock, VennState } from './types';
+import { diagramTransform, titleBox, titleTextOf, transformBlock } from './title';
+import type {
+  Arrangement,
+  Circle,
+  CircleCount,
+  RegionBox,
+  TextBlock,
+  TitleBlock,
+  VennState,
+} from './types';
 
 /**
  * 全部幾何都在「單位空間」計算：畫布寬 = 1，字級與座標都是畫布寬比例。
@@ -308,7 +317,25 @@ export function slotMasks(arr: Arrangement, n: CircleCount): readonly number[] {
   return frozen;
 }
 
+/**
+ * 標題的排版（08 AC4）：band 內置中、字級自動 fit，手動 `\n` 與自動折行都沿用區域文字那一套。
+ * 沒有標題時回 null。
+ */
+export function layoutTitle(state: VennState): TitleBlock | null {
+  const text = titleTextOf(state);
+  if (text === '') return null;
+
+  const box = titleBox();
+  const fitted = fitText(text, box, LABEL_START_FS);
+  // fitText 縮到字級下限仍放不下時不再檢查高度，行數多的標題會衝出 band 被畫布上緣切掉、
+  // 還蓋到圖區。band 是固定高度：截到放得下的行數，寧可少幾行也不出界（AC4）。
+  const max_lines = Math.max(1, Math.floor(box.h / (fitted.fs * LINE_HEIGHT)));
+  return { cx: box.cx, cy: box.cy, fs: fitted.fs, lines: fitted.lines.slice(0, max_lines) };
+}
+
 export function layout(state: VennState): TextBlock[] {
+  // 排版在「沒有標題」的預設空間算，最後整組套上同一個變換：
+  // 取樣密度與槽的有無不受標題影響，有無標題的版面是嚴格的等比關係
   const circles = circlesForState(state);
   const blocks: TextBlock[] = [];
 
@@ -341,5 +368,6 @@ export function layout(state: VennState): TextBlock[] {
     });
   }
 
-  return blocks;
+  const transform = diagramTransform(state);
+  return blocks.map((block) => transformBlock(block, transform));
 }

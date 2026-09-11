@@ -1,7 +1,7 @@
 import { LINE_HEIGHT } from './defaults';
-import { centerShift, layout } from './layout';
+import { centerShift, layout, layoutTitle } from './layout';
 import { regionPaths } from './region-geometry';
-import { circlesForState } from './shapes/index';
+import { circlesForRender } from './title';
 import type { Circle, VennState } from './types';
 
 const FONT_FAMILY = 'Noto Sans TC';
@@ -149,22 +149,49 @@ export function regionColor(state: VennState, mask: number): string {
 const WATERMARK_FS = 0.022;
 const WATERMARK_PAD = 0.028;
 const WATERMARK_OPACITY = 0.38;
-/** 浮水印壓在 bg 上，門檻取中間值就夠；區域文字的 DARK_TEXT_LUMINANCE 是另一回事 */
-const WATERMARK_DARK_TEXT_LUMINANCE = 0.5;
+/** 浮水印與標題都壓在 bg 上，門檻取中間值就夠；區域文字的 DARK_TEXT_LUMINANCE 是另一回事 */
+const ON_BG_DARK_TEXT_LUMINANCE = 0.5;
 
 /**
  * 右下角導流浮水印。四圈最大半徑的圓也碰不到這個角（角落距最近圓心 0.478 > r 上限 0.35），
  * 所以底下一定是 bg，字色只看背景亮度、不需要光暈。
  * 不帶 data-region：畫布點選走 [data-region]，浮水印不該被當成可編輯的槽。
  */
-function watermark(state: VennState, text: string): string {
+function watermark(state: VennState, text: string, backdrop: string): string {
   const size = state.size;
-  const fill =
-    relativeLuminance(state.bg) >= WATERMARK_DARK_TEXT_LUMINANCE ? '#000000' : '#ffffff';
+  const fill = relativeLuminance(backdrop) >= ON_BG_DARK_TEXT_LUMINANCE ? '#000000' : '#ffffff';
   const pos = size * (1 - WATERMARK_PAD);
   return (
     `<text x="${pos}" y="${pos}" font-family="${FONT_FAMILY}" font-size="${size * WATERMARK_FS}" ` +
     `text-anchor="end" fill="${fill}" fill-opacity="${WATERMARK_OPACITY}">${escapeXml(text)}</text>`
+  );
+}
+
+// ---------- 圖片標題 ----------
+
+/**
+ * 畫布頂端 title band 裡的標題（08 AC4）。標題壓在背景上，字色只看背景亮度、不加光暈；
+ * 不帶 `data-region`：它不是可編輯的文字槽，畫布點選不該把它當成一區。
+ */
+function titleMarkup(state: VennState, backdrop: string): string {
+  const block = layoutTitle(state);
+  if (!block) return '';
+
+  const size = state.size;
+  const fill = relativeLuminance(backdrop) >= ON_BG_DARK_TEXT_LUMINANCE ? '#000000' : '#ffffff';
+  const fs = block.fs * size;
+  const line_h = fs * LINE_HEIGHT;
+  const y0 = block.cy * size - ((block.lines.length - 1) * line_h) / 2;
+  const tspans = block.lines
+    .map(
+      (line, i) =>
+        `<text x="${(block.cx + centerShift(line, block.fs)) * size}" y="${y0 + i * line_h}" ` +
+        `font-size="${fs}">${escapeXml(line)}</text>`,
+    )
+    .join('');
+  return (
+    `<g data-title="" fill="${fill}" font-family="${FONT_FAMILY}" font-weight="700" ` +
+    `text-anchor="middle" dominant-baseline="central">${tspans}</g>`
   );
 }
 
@@ -180,12 +207,17 @@ export interface RenderOptions {
   background?: boolean;
   /** 右下角浮水印的文字；省略或空字串＝不畫 */
   watermark?: string;
+  /**
+   * 標題與浮水印實際壓在什麼顏色上（決定黑字或白字）。預設是 `state.bg`；
+   * 關掉背景疊到別人的底圖時要傳底圖的顏色，否則深色 bg 的白字會壓在淺色底圖上等於隱形。
+   */
+  backdrop?: string;
 }
 
 export function renderSvg(state: VennState, opts: RenderOptions = {}): string {
-  const { background = true, watermark: watermark_text = '' } = opts;
+  const { background = true, watermark: watermark_text = '', backdrop = state.bg } = opts;
   const size = state.size;
-  const circles = circlesForState(state);
+  const circles = circlesForRender(state);
   const is_outline = state.style === 'outline';
 
   let defs = '';
@@ -257,7 +289,8 @@ export function renderSvg(state: VennState, opts: RenderOptions = {}): string {
     `<defs>${defs}</defs>` +
     (background ? `<rect width="100%" height="100%" fill="${escapeXml(state.bg)}"/>` : '') +
     body +
-    (watermark_text ? watermark(state, watermark_text) : '') +
+    titleMarkup(state, backdrop) +
+    (watermark_text ? watermark(state, watermark_text, backdrop) : '') +
     `</svg>`
   );
 }

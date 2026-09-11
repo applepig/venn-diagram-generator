@@ -103,6 +103,21 @@ function parseSlot(key: string, raw: unknown): TextSlot {
   return slot;
 }
 
+/**
+ * 圖片標題（08 AC3）。驗證比照文字槽的 `t`：長度、XML 畫不出來的字元、落單 surrogate，
+ * 空字串一律收斂成「沒有標題」，由呼叫端決定不寫進物件。
+ */
+function parseTitle(raw: unknown): string {
+  if (typeof raw !== 'string') throw new StateError('title must be a string');
+  if ([...raw].length > MAX_TEXT_LEN) {
+    throw new StateError(`title exceeds the ${MAX_TEXT_LEN} character limit`);
+  }
+  if (INVALID_XML_RE.test(raw) || hasLoneSurrogate(raw)) {
+    throw new StateError('title contains characters that cannot be rendered');
+  }
+  return raw;
+}
+
 export function validateState(input: unknown): VennState {
   if (!isRecord(input)) throw new StateError('state must be an object');
   if (input.v !== 1) throw new StateError('unsupported state version');
@@ -158,6 +173,9 @@ export function validateState(input: unknown): VennState {
   };
   // ring 一律不寫進編碼：舊連結的編碼字串因此一個位元都不變
   if (arr !== 'ring') state.arr = arr;
+  // 空標題同樣不寫進編碼，理由與 ring 相同
+  const title = input.title === undefined ? '' : parseTitle(input.title);
+  if (title !== '') state.title = title;
   return state;
 }
 

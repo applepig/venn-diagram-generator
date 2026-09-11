@@ -2,7 +2,7 @@
 
 [中文說明](./README.zh-TW.md) · Live: <https://venn.applepig.net>
 
-A single-page WYSIWYG Venn diagram generator. Pick an arrangement (ring or row) and 2–6 circles, click any region on the canvas to type, drag text around, tune font sizes, then download a PNG you can paste anywhere. The whole editor state is compressed into the URL's `s` parameter, so a share link *is* the picture: paste it into a chat app and `og:image` renders a preview. No login, no account, stateless server. UI available in Traditional Chinese, English and Japanese, picked from the language dropdown in the panel (remembered in the `venn.lang` cookie), `?lang=`, or `Accept-Language`.
+A single-page WYSIWYG Venn diagram generator. Pick 2, 3 or 4 circles (extra shapes such as rows and 5–6 circle flowers live in a dropdown next to them), give the picture a title, click any region on the canvas to type, drag text around, tune font sizes, then download a PNG you can paste anywhere. The whole editor state is compressed into the URL's `s` parameter, so a share link *is* the picture: paste it into a chat app and `og:image` renders a preview. No login, no account, stateless server. UI available in Traditional Chinese, English and Japanese, picked from the language dropdown in the panel (remembered in the `venn.lang` cookie), `?lang=`, or `Accept-Language`.
 
 ## Architecture
 
@@ -28,6 +28,8 @@ Circle positions are always derived from `arr` / `n` / `overlap` / `radius` — 
   "v": 1,                     // state version, must be 1
   "arr": "row",               // "ring" | "row"; omitted means "ring"
   "n": 2,                     // circle count: ring 2–6, row 3–6
+  "title": "My diagram",      // image title, drawn in a band above the diagram;
+                              // omitted or empty means no title (same 80-char cap as a slot)
   "style": "flat",            // translucent | flat | outline
   "opacity": 0.6,             // 0–1, only used by translucent
   "overlap": 1.2,             // centre distance / r, 0.6–1.6
@@ -46,7 +48,9 @@ Circle positions are always derived from `arr` / `n` / `overlap` / `radius` — 
 
 `fs` (font size, fraction of canvas width), `dx` / `dy` (offset from the region box centre) and `fill` (per-region colour override, `flat` only) exist only once the user has adjusted them; absent means automatic. Each text slot is capped at 80 characters.
 
-Which slots a shape offers is derived from its default geometry (a region gets a slot when it has a non-null inscribed box): 3 slots for 2 circles, 7 for 3, 13 for the 2×2 four-circle petal arrangement (4 singles + 4 adjacent pairs + 4 triples + 1 centre; the diagonal pairs have no region at the default overlap). Rings of 5–6 and all rows only ship single-circle labels by default.
+With a `title`, the top 18% of the canvas becomes a title band and the diagram (circles and every region text) is scaled down by the same factor, centred horizontally and pushed to the bottom edge — so the output stays square and nothing overflows. Without a title the layout is untouched, byte for byte. The title font size is fitted automatically, manual `\n` and automatic wrapping both work, and the colour flips between black and white with the background's luminance. On a share page the title also becomes the `og:title` and `<title>`.
+
+Which slots a shape offers is derived from its default geometry (a region gets a slot when it has a non-null inscribed box): 3 slots for 2 circles, 7 for 3, 13 for the 2×2 four-circle petal arrangement (4 singles + 4 adjacent pairs + 4 triples + 1 centre; the diagonal pairs have no region at the default overlap). Rings of 5–6 and all rows only ship single-circle labels by default. The shape dropdown lists row(3), row(4), ring(5) and ring(6); row(5) and row(6) stay decodable so older links keep working, and the menu adds the current one as a temporary entry when you open such a link.
 
 Without `s`, every shape falls back to a default template (in the current UI language). If you have not edited any text yet, switching shape or language swaps the whole template; once you have typed something, your text is kept.
 

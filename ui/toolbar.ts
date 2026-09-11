@@ -1,6 +1,7 @@
 import {
   INTERSECTION_ASPECT,
   LABEL_ASPECT,
+  MAX_TEXT_LEN,
   OVERLAP_MAX,
   OVERLAP_MIN,
   SIZE_CHOICES,
@@ -8,17 +9,12 @@ import {
 } from '../engine/defaults';
 import { BG_SWATCHES } from '../content/palette';
 import { layout, regionBox, slotMasks } from '../engine/layout';
-import {
-  arrOf,
-  circleCountRange,
-  circlesForState,
-  isShape,
-  radiusRange,
-} from '../engine/shapes/index';
+import { arrOf, circlesForState, radiusRange } from '../engine/shapes/index';
 import { LOCALES, LOCALE_NAMES, type Locale } from '../content/locale';
 import type { Arrangement, CircleCount, TextSlot, VennState, VennStyle } from '../engine/types';
 import { ts, uiLocale } from './i18n';
 import { createColorControl } from './color-control';
+import { COUNT_CHOICES, createShapeMenu, isExtraShape } from './shape-menu';
 import { createSlotRow, type SlotRow } from './slot-row';
 
 // 文案在 createToolbar 裡才取：模組載入時語言還沒決定（uiLocale 要讀 DOM 上的 <html lang>）
@@ -30,42 +26,21 @@ function styleLabels(): [VennStyle, string][] {
   ];
 }
 
-function arrLabels(): [Arrangement, string][] {
-  return [
-    ['ring', ts('arr.ring')],
-    ['row', ts('arr.row')],
-  ];
-}
-
-/** 圈數用示意圖而不是文字，一眼看得出幾個圈；5／6 圈畫成環狀，與 ring 的排列一致 */
-const COUNT_ICONS: [CircleCount, string][] = [
-  [2, '<circle cx="15" cy="11" r="8"/><circle cx="25" cy="11" r="8"/>'],
-  [
-    3,
-    '<circle cx="20" cy="8" r="7"/><circle cx="15" cy="14" r="7"/><circle cx="25" cy="14" r="7"/>',
-  ],
-  [
-    4,
+/**
+ * 圈數用示意圖而不是文字，一眼看得出幾個圈。
+ * 只放經典的 ring 2／3／4，其餘組合收在尾端的額外形狀選單（AC1）。
+ */
+const COUNT_ICONS: Record<number, string> = {
+  2: '<circle cx="15" cy="11" r="8"/><circle cx="25" cy="11" r="8"/>',
+  3: '<circle cx="20" cy="8" r="7"/><circle cx="15" cy="14" r="7"/><circle cx="25" cy="14" r="7"/>',
+  4:
     '<circle cx="16" cy="8" r="6.5"/><circle cx="24" cy="8" r="6.5"/>' +
-      '<circle cx="16" cy="14" r="6.5"/><circle cx="24" cy="14" r="6.5"/>',
-  ],
-  [
-    5,
-    '<circle cx="20" cy="6" r="4.5"/><circle cx="24.8" cy="9.5" r="4.5"/>' +
-      '<circle cx="22.9" cy="15" r="4.5"/><circle cx="17.1" cy="15" r="4.5"/>' +
-      '<circle cx="15.2" cy="9.5" r="4.5"/>',
-  ],
-  [
-    6,
-    '<circle cx="20" cy="6" r="4.5"/><circle cx="24.3" cy="8.5" r="4.5"/>' +
-      '<circle cx="24.3" cy="13.5" r="4.5"/><circle cx="20" cy="16" r="4.5"/>' +
-      '<circle cx="15.7" cy="13.5" r="4.5"/><circle cx="15.7" cy="8.5" r="4.5"/>',
-  ],
-];
+    '<circle cx="16" cy="14" r="6.5"/><circle cx="24" cy="14" r="6.5"/>',
+};
 
 export interface ToolbarHandlers {
   onPatch: (patch: Partial<VennState>) => void;
-  /** 切形狀（排列 × 圈數）；非法組合不會送出（按鈕已停用） */
+  /** 切形狀（排列 × 圈數）；面板只給得出合法組合 */
   onShape: (arr: Arrangement, n: CircleCount) => void;
   onPatchSlot: (mask: number, patch: Partial<TextSlot>) => void;
   onCopyImage: () => void;
@@ -88,9 +63,8 @@ export interface ToolbarController {
 
 interface Segmented<T> {
   root: HTMLElement;
-  setActive: (value: T) => void;
-  /** 停用選不到的選項（例如 row 沒有 2 圈），讓面板自己說明合法組合 */
-  setEnabled: (isEnabled: (value: T) => boolean) => void;
+  /** null＝這一組全部退出 active（目前的組合不在這組選項裡） */
+  setActive: (value: T | null) => void;
 }
 
 function segmented<T extends string | number>(
@@ -116,9 +90,6 @@ function segmented<T extends string | number>(
     root,
     setActive: (current) => {
       for (const [value, btn] of buttons) btn.setAttribute('aria-pressed', String(value === current));
-    },
-    setEnabled: (isEnabled) => {
-      for (const [value, btn] of buttons) btn.disabled = !isEnabled(value);
     },
   };
 }
@@ -180,31 +151,29 @@ function labeledRow(label_text: string, control: HTMLElement): HTMLElement {
 export function createToolbar(root: HTMLElement, handlers: ToolbarHandlers): ToolbarController {
   root.replaceChildren();
 
-  // 排列與圈數都要另一半的目前值才組得出形狀，兩個 handler 都從 latest_state 取
-  const arr_seg = segmented<Arrangement>(
-    'seg',
-    arrLabels(),
-    (btn, label) => {
-      btn.textContent = label;
-    },
-    (arr) => {
-      const n = latest_state?.n ?? 2;
-      // row 沒有 2 圈：切過去時退到該排列的最少圈數
-      handlers.onShape(arr, isShape(arr, n) ? n : circleCountRange(arr)[0]);
-    },
-  );
-  const arr_row = document.createElement('div');
-  arr_row.className = 'row';
-  arr_row.append(arr_seg.root);
+  // 圖片標題：面板頂端第一格，打字即時反映到預覽與連結（AC6）
+  const title_input = document.createElement('input');
+  title_input.type = 'text';
+  title_input.className = 'title-input';
+  // 比照槽的文字：超過上限 encodeState 會拋錯而停止更新 URL，在輸入端就打住
+  title_input.maxLength = MAX_TEXT_LEN;
+  title_input.addEventListener('input', () => handlers.onPatch({ title: title_input.value }));
+  const title_row = labeledRow(ts('field.title'), title_input);
 
+  // 圈數 icon 只剩經典的 ring 2／3／4；其餘組合走尾端的額外形狀選單（AC1）
   const count_seg = segmented<CircleCount>(
     'counts',
-    COUNT_ICONS,
+    COUNT_CHOICES.map((n) => [n, COUNT_ICONS[n]!] as [CircleCount, string]),
     (btn, icon) => {
       btn.innerHTML = `<svg viewBox="0 0 40 22" fill="none" stroke="currentColor" stroke-width="1.6">${icon}</svg>`;
     },
-    (n) => handlers.onShape(latest_state ? arrOf(latest_state) : 'ring', n),
+    (n) => handlers.onShape('ring', n),
   );
+
+  const shape_menu = createShapeMenu((arr, n) => handlers.onShape(arr, n));
+  const count_row = document.createElement('div');
+  count_row.className = 'counts-row';
+  count_row.append(count_seg.root, shape_menu.root);
 
   const style_seg = segmented<VennStyle>(
     'seg',
@@ -299,8 +268,8 @@ export function createToolbar(root: HTMLElement, handlers: ToolbarHandlers): Too
   const divider = () => document.createElement('hr');
 
   root.append(
-    arr_row,
-    count_seg.root,
+    title_row,
+    count_row,
     style_row,
     bg_row,
     opacity.root,
@@ -355,9 +324,10 @@ export function createToolbar(root: HTMLElement, handlers: ToolbarHandlers): Too
       latest_state = state;
       const arr = arrOf(state);
 
-      arr_seg.setActive(arr);
-      count_seg.setActive(state.n);
-      count_seg.setEnabled((n) => isShape(arr, n));
+      syncValue(title_input, state.title ?? '');
+      // 額外形狀時圈數 icon 全部退出 active，兩者互斥（AC1）
+      count_seg.setActive(isExtraShape(arr, state.n) ? null : state.n);
+      shape_menu.update(arr, state.n);
       style_seg.setActive(state.style);
       bg_color.setValue(state.bg);
 

@@ -30,6 +30,11 @@ export interface VennState {
    */
   arr?: Arrangement;
   n: CircleCount;
+  /**
+   * 圖片標題；畫在畫布頂端的 title band 裡。空字串或缺席＝沒有標題，
+   * 編碼時一律省略（與 `arr` 同一手法），所以 `v` 維持 1、舊連結的編碼字串不變。
+   */
+  title?: string;
   style: VennStyle;
   opacity: number;
   overlap: number;
@@ -68,6 +73,15 @@ export interface TextBlock {
   cx: number;
   cy: number;
   /** 字級，畫布寬比例 */
+  fs: number;
+  lines: string[];
+}
+
+/** layoutTitle() 的輸出：畫在 title band 裡的標題，座標同樣在單位空間 */
+export interface TitleBlock {
+  /** 文字中心（標題一律置中，所以沒有 dx/dy） */
+  cx: number;
+  cy: number;
   fs: number;
   lines: string[];
 }

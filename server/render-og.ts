@@ -9,6 +9,13 @@ const DIAGRAM_X = 645;
 const DIAGRAM_Y = 68;
 const DIAGRAM_SIZE = 494;
 
+/**
+ * 圖表區落在底圖上那塊的顏色（實測平均 RGB 250/252/254）。
+ * 背景關掉後標題壓的是這張底圖而不是 `state.bg`，字色要照這個算——
+ * 不傳的話深色 bg 的標題會是白字壓近白底圖，等於沒有標題。
+ */
+const BASE_BACKDROP = '#fafcfe';
+
 const DITHER_ID = 'og-dither';
 /** 固定 seed：build 時烤出來的靜態圖要有決定性，content hash 才不會每次都變 */
 const DITHER_SEED = 7;
@@ -50,7 +57,7 @@ export async function renderOgPng(
 ): Promise<Uint8Array> {
   const dither = opts.dither ?? true;
   const base_uri = `data:image/png;base64,${Buffer.from(base_png).toString('base64')}`;
-  const diagram_body = renderSvg(state, { background: false })
+  const diagram_body = renderSvg(state, { background: false, backdrop: BASE_BACKDROP })
     .replace(/^<svg[^>]*>/, '')
     .replace(/<\/svg>$/, '');
   const diagram_scale = DIAGRAM_SIZE / state.size;

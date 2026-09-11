@@ -136,15 +136,19 @@ function joinManualLines(text: string): string {
     .trim();
 }
 
+/**
+ * 分享頁的標題：使用者設了圖片標題就用它，否則沿用圖上的單圈標籤組合（08 AC5）。
+ * 兩條路都接上站名，站名那一段不因為有沒有標題而改變。
+ */
 function titleOf(state: VennState, locale: Locale): string {
+  const image_title = joinManualLines(state.title ?? '');
   const labels = Object.entries(state.texts)
     .filter(([mask]) => Number.isInteger(Math.log2(Number(mask))))
     .map(([, slot]) => joinManualLines(slot.t))
     .filter(Boolean);
   const site_name = t('site.name', locale);
-  return labels.length > 0
-    ? `${labels.join(' × ')}${t('site.titleJoiner', locale)}${site_name}`
-    : site_name;
+  const head = image_title !== '' ? image_title : labels.join(' × ');
+  return head !== '' ? `${head}${t('site.titleJoiner', locale)}${site_name}` : site_name;
 }
 
 /** 點陣化丟到 resvg 的 worker thread，避免大圖把 event loop 卡死（AC 1b） */

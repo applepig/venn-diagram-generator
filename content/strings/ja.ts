@@ -14,13 +14,19 @@ export const STRINGS = {
 
   'lang.field': '言語',
 
-  'arr.ring': '円形',
-  'arr.row': '横一列',
+  'shape.more': 'その他の形',
+  'shape.row3': '横一列 3 つ',
+  'shape.row4': 'アウディ（4 つ）',
+  'shape.ring5': '花びら 5 つ',
+  'shape.ring6': '花びら 6 つ',
+  'shape.row5': '横一列 5 つ',
+  'shape.row6': '横一列 6 つ',
 
   'style.translucent': '半透明',
   'style.flat': 'フラット',
   'style.outline': '線画',
 
+  'field.title': 'タイトル',
   'field.bg': '背景',
   'field.opacity': '透明度',
   'field.radius': '大きさ',

@@ -6,6 +6,7 @@ import {
 } from '../engine/defaults';
 import { SWATCH_COLORS } from '../content/palette';
 import { regionColor } from '../engine/render-svg';
+import { diagramTransform } from '../engine/title';
 import type { TextBlock, TextSlot, VennState } from '../engine/types';
 import { ts } from './i18n';
 import { createColorControl } from './color-control';
@@ -18,6 +19,19 @@ const FS_MAX = 0.5;
 
 /** 空槽在自動模式沒有字級可顯示：給個佔位符，不要顯示 start fs 誘人去按 ± */
 const NO_FS_PLACEHOLDER = '—';
+
+/**
+ * state 的 fs 存在「沒有標題的預設空間」，有標題時圖區會再等比縮 `scale`（見 engine/title.ts）。
+ * 面板顯示與寫回都要把這一層算進去，否則按一次＋反而讓畫出來的字變小。
+ */
+export function fsToPx(unit_fs: number, size: number, scale: number): number {
+  return Math.round(unit_fs * scale * size);
+}
+
+/** 面板上的 px → state 的 fs，夾在 UI 有意義的上下限內 */
+export function pxToFs(px: number, size: number, scale: number): number {
+  return Math.min(FS_MAX, Math.max(FS_MIN, px / (scale * size)));
+}
 
 export interface SlotRowHandlers {
   onPatchSlot: (mask: number, patch: Partial<TextSlot>) => void;
@@ -94,14 +108,15 @@ export function createSlotRow(mask: number, handlers: SlotRowHandlers): SlotRow 
   unit.className = 'unit';
   unit.textContent = 'px';
 
-  // 字級的 state 是畫布寬比例，UI 顯示的是換算到目前輸出尺寸的 px，所以每次都要拿當下的 size 換算
+  // 字級的 state 是畫布寬比例，UI 顯示的是換算到目前輸出尺寸的 px，
+  // 所以每次都要拿當下的 size 與圖區縮放（有標題時 < 1）換算
   let size = 1200;
+  let scale = 1;
   let shown_px = 0;
   let shown_value = '';
 
   const setPx = (px: number): void => {
-    const unit_fs = Math.min(FS_MAX, Math.max(FS_MIN, px / size));
-    handlers.onPatchSlot(mask, { fs: unit_fs });
+    handlers.onPatchSlot(mask, { fs: pxToFs(px, size, scale) });
   };
 
   const step_down = document.createElement('button');
@@ -159,6 +174,7 @@ export function createSlotRow(mask: number, handlers: SlotRowHandlers): SlotRow 
     mask,
     update(state, block, region_exists) {
       size = state.size;
+      scale = diagramTransform(state).scale;
       const slot = state.texts[String(mask)];
       const text = slot?.t ?? '';
 
@@ -169,11 +185,16 @@ export function createSlotRow(mask: number, handlers: SlotRowHandlers): SlotRow 
       preview.textContent = firstLine(text);
       if (text_input.value !== text) text_input.value = text;
 
-      const auto_fs = block?.fs ?? (is_label ? LABEL_START_FS : INTERSECTION_START_FS);
-      shown_px = Math.round((slot?.fs ?? auto_fs) * size);
+      // block.fs 已經套過圖區縮放，換回預設空間才和 slot.fs 同一把尺
+      const auto_fs = block
+        ? block.fs / scale
+        : is_label
+          ? LABEL_START_FS
+          : INTERSECTION_START_FS;
+      shown_px = fsToPx(slot?.fs ?? auto_fs, size, scale);
       fs_box.dataset.mode = slot?.fs === undefined ? 'auto' : 'manual';
-      num.min = String(Math.round(FS_MIN * size));
-      num.max = String(Math.round(FS_MAX * size));
+      num.min = String(fsToPx(FS_MIN, size, scale));
+      num.max = String(fsToPx(FS_MAX, size, scale));
       // 沒有文字又是自動模式，就沒有字級可調：顯示 start fs 會讓人按 + 寫入過大的手動字級
       const no_fs = text === '' && slot?.fs === undefined;
       num.placeholder = no_fs ? NO_FS_PLACEHOLDER : '';

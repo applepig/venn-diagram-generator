@@ -24,12 +24,13 @@ export const MAX_TEXT_LEN = 80;
 
 /**
  * server route 收 `s` 參數的長度上限。最壞的合法 state 是「該組合每一槽都塞滿 80 個不重複的
- * 4-byte code point（U+20000 起的擴充漢字）＋各槽相異的 fs/dx/dy/fill」；槽數隨組合變，
- * 實測最大的是 ring(5) 的 21 槽 6,134 字元（ring(6) 5,307、ring(4) 3,848、row(6) 3,356），
- * 所以留約 1.14 倍餘裕。掃全部 (arr, n) 的實測在 tests/state-codec.test.ts（AC15）。
+ * 4-byte code point（U+20000 起的擴充漢字）＋各槽相異的 fs/dx/dy/fill，再加一個同樣塞滿的
+ * 圖片標題」；槽數隨組合變，實測最大的是 ring(5) 的 21 槽 6,402 字元
+ * （ring(6) 5,572、ring(4) 4,110、row(6) 3,612），所以留約 1.14 倍餘裕。
+ * 掃全部 (arr, n) 的實測在 tests/state-codec.test.ts（AC15）。
  * 壓縮炸彈得靠上萬字元才打得動，這道閘讓它連 decode 都進不去。
  */
-export const MAX_STATE_PARAM_LEN = 7000;
+export const MAX_STATE_PARAM_LEN = 7300;
 
 export const SIZE_CHOICES = [800, 1200, 1600];
 

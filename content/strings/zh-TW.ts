@@ -18,13 +18,21 @@ export const STRINGS = {
   // 面板的語言下拉；選項名稱是各語言的自稱（LOCALE_NAMES），不進字串表
   'lang.field': '語言',
 
-  'arr.ring': '環狀',
-  'arr.row': '一列',
+  // 額外形狀選單（圈數 icon 只放經典的 ring 2／3／4）
+  'shape.more': '其他形狀',
+  'shape.row3': '橫向三圈',
+  'shape.row4': '四圈奧迪',
+  'shape.ring5': '五瓣花',
+  'shape.ring6': '六瓣花',
+  /** UI 沒有入口、只在載入舊連結時臨時出現的組合 */
+  'shape.row5': '橫向五圈',
+  'shape.row6': '橫向六圈',
 
   'style.translucent': '半透明',
   'style.flat': '平面',
   'style.outline': '線框',
 
+  'field.title': '標題',
   'field.bg': '背景',
   'field.opacity': '透明度',
   'field.radius': '大小',

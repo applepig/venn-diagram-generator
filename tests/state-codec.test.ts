@@ -411,7 +411,10 @@ describe('decodeState：解壓輸出上限（AC1）', () => {
    * 所以掃過每一個 (arr, n) 取最大值，不是挑一個組合當代表。
    */
   describe('AC15 參數長度上限涵蓋所有合法組合的最壞 state', () => {
-    /** 該組合每一槽都塞滿 80 個互不重複的 4-byte 字，加上 fs/dx/dy 與各槽相異的 fill */
+    /**
+     * 該組合每一槽都塞滿 80 個互不重複的 4-byte 字，加上 fs/dx/dy 與各槽相異的 fill，
+     * 再配一個同樣塞滿的圖片標題（08 AC3 讓 title 也進 s）。
+     */
     function worstStateFor(arr: Arrangement, n: CircleCount): VennState {
       // U+20000 起的擴充漢字每字 4 bytes，是單一 code point 能佔的最大體積，比 3-byte 中文更壞
       let code_point = 0x20000;
@@ -434,6 +437,9 @@ describe('decodeState：解壓輸出上限（AC1）', () => {
         };
         i++;
       }
+      const title = Array.from({ length: MAX_TEXT_LEN }, () =>
+        String.fromCodePoint(code_point++),
+      ).join('');
       const { radius, overlap } = shapeDefaults(arr, n);
       const base = defaultState(n);
       return {
@@ -442,6 +448,7 @@ describe('decodeState：解壓輸出上限（AC1）', () => {
         radius,
         overlap,
         texts,
+        title,
       };
     }
 

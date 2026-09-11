@@ -15,13 +15,19 @@ export const STRINGS = {
 
   'lang.field': 'Language',
 
-  'arr.ring': 'Ring',
-  'arr.row': 'Row',
+  'shape.more': 'More shapes',
+  'shape.row3': 'Row of 3',
+  'shape.row4': 'Audi (4 circles)',
+  'shape.ring5': 'Flower (5 circles)',
+  'shape.ring6': 'Flower (6 circles)',
+  'shape.row5': 'Row of 5',
+  'shape.row6': 'Row of 6',
 
   'style.translucent': 'Translucent',
   'style.flat': 'Flat',
   'style.outline': 'Outline',
 
+  'field.title': 'Title',
   'field.bg': 'Background',
   'field.opacity': 'Opacity',
   'field.radius': 'Circle size',
