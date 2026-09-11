@@ -12,9 +12,9 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { createApp } from '../server/app';
-import { renderSvg } from '../shared/render-svg';
-import { decodeState } from '../shared/state-codec-node';
-import type { VennState } from '../shared/types';
+import { renderSvg } from '../engine/render-svg';
+import { decodeState } from '../engine/state-codec-node';
+import type { VennState } from '../engine/types';
 import { FONT_FILE } from './helpers/font';
 
 interface GoldenCase {
@@ -37,7 +37,7 @@ const golden: Golden = JSON.parse(
   readFileSync(resolve('tests/golden/baseline.json'), 'utf8'),
 ) as Golden;
 
-const app = createApp({ fontFile: FONT_FILE, ogBaseFile: resolve('web/public/og-base.png') });
+const app = createApp({ fontFile: FONT_FILE, ogBaseFile: resolve('ui/public/og-base.png') });
 const ORIGIN = 'https://venn.applepig.net';
 
 /** 點陣化一張 1200px 的圖約 0.3 秒，一個 case 兩張，預設 5 秒太緊 */

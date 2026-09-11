@@ -6,12 +6,13 @@
 
 ## 架構
 
-SVG 是唯一的渲染真相。`shared/render-svg.ts` 的 `renderSvg(state)` 是純函式，前端把它的輸出直接塞進 DOM 當即時預覽，server 拿同一份輸出交給 `@resvg/resvg-js` 轉 PNG，所以預覽即所得。文字排版不依賴 DOM 量測，改用字元分類估寬（CJK 1em、其他 0.62em、空白 0.3em），前後端算出來的版面一致。
+SVG 是唯一的渲染真相。`engine/render-svg.ts` 的 `renderSvg(state)` 是純函式，前端把它的輸出直接塞進 DOM 當即時預覽，server 拿同一份輸出交給 `@resvg/resvg-js` 轉 PNG，所以預覽即所得。文字排版不依賴 DOM 量測，改用字元分類估寬（CJK 1em、其他 0.62em、空白 0.3em），前後端算出來的版面一致。
 
 ```
-shared/   types、defaults、layout、render-svg、state-codec（前後端都只 import 這裡）
-web/      Vite + vanilla TS 編輯器
+engine/   types、defaults、layout、render-svg、state-codec（前後端都只 import 這裡）
+ui/       Vite + vanilla TS 編輯器
 server/   Hono：靜態檔、GET / 的 og meta 注射、GET /api/png 與 /api/og.png
+deploy/   Dockerfile、compose.yml、compose.dev.yml、deploy.sh
 ```
 
 ## URL 狀態格式
@@ -54,8 +55,8 @@ server/   Hono：靜態檔、GET / 的 og meta 注射、GET /api/png 與 /api/og
 ```bash
 # 先在瀏覽器編好圖，複製連結拿到 s，或用 Node 產一個
 S=$(pnpm exec tsx -e "
-import { encodeState } from './shared/state-codec-node';
-import { sampleState } from './shared/defaults';
+import { encodeState } from './engine/state-codec-node';
+import { sampleState } from './engine/defaults';
 process.stdout.write(encodeState(sampleState()));")
 
 curl -o venn.png "http://localhost:3000/api/png?s=$S"
@@ -71,7 +72,7 @@ pnpm install
 pnpm dev          # Hono 3000，Vite 以 middlewareMode 掛在同一個 port（含 HMR）
 pnpm test         # Vitest
 pnpm typecheck    # tsc --noEmit
-pnpm build        # web → dist/，server → dist-server/
+pnpm build        # ui → dist/，server → dist-server/
 pnpm start        # 跑 build 好的 server，單一 port 3000
 ```
 
@@ -80,7 +81,7 @@ pnpm start        # 跑 build 好的 server，單一 port 3000
 ## Docker
 
 ```bash
-docker build -t venn-diagram-generator .
+docker build -f deploy/Dockerfile -t venn-diagram-generator .
 docker run --rm -p 3000:3000 venn-diagram-generator
 ```
 
@@ -88,26 +89,26 @@ docker run --rm -p 3000:3000 venn-diagram-generator
 
 | 站 | 網址 | compose | 跑法 | entrypoint |
 |---|---|---|---|---|
-| 開發站 | `https://venn.dev.example` | `compose.dev.yml` | 掛原始碼跑 `pnpm dev`，不 build image | `websecure` + `tls`（本機 Traefik 的 `*.dev.example` wildcard 憑證） |
-| 正式站 | `https://venn.applepig.net` | `compose.yml` | Dockerfile build 出 dist | `web`（TLS 在 Cloudflare 終止） |
+| 開發站 | `https://venn.dev.example` | `deploy/compose.dev.yml` | 掛原始碼跑 `pnpm dev`，不 build image | `websecure` + `tls`（本機 Traefik 的 `*.dev.example` wildcard 憑證） |
+| 正式站 | `https://venn.applepig.net` | `deploy/compose.yml` | Dockerfile build 出 dist | `web`（TLS 在 Cloudflare 終止） |
 
 開發站跑在本機（`toybox`，REDACTED-IP），DNS 由 LAN 的 `*.dev.example` 泛解析負責。它把 repo 掛進 `node:24-slim` 直接跑 `tsx watch server/index.ts`，改前端走 HMR（websocket 經 Traefik 的 wss）、改 server 由 tsx 重啟，都不必重 build：
 
 ```bash
-docker compose -f compose.dev.yml up -d
+docker compose -f deploy/compose.dev.yml up -d
 ```
 
 正式站跑在 deploy-host（Oracle aarch64），架構是 Cloudflare Tunnel → Traefik → container，兩個 infra 容器都不 publish port，host 的 80/443 留給既有的 apache：
 
 ```
 /srv/infra/compose.yml   traefik + cloudflared（共用 network web）
-/srv/venn/          本 repo 的同步副本，用 compose.yml 起 container
+/srv/venn/          本 repo 的同步副本，用 deploy/compose.yml 起 container
 ```
 
 更新正式站：
 
 ```bash
-./scripts/deploy.sh          # rsync 到 deploy-host 後 docker compose up -d --build
+./deploy/deploy.sh           # rsync 到 deploy-host 後 docker compose up -d --build
 ```
 
 ## 注意事項

@@ -8,9 +8,9 @@ import {
   SIZE_CHOICES,
   SLOT_MASKS,
   popCount,
-} from '../shared/defaults';
-import { circlesFor, layout, regionBox } from '../shared/layout';
-import type { CircleCount, TextSlot, VennState, VennStyle } from '../shared/types';
+} from '../engine/defaults';
+import { circlesFor, layout, regionBox } from '../engine/layout';
+import type { CircleCount, TextSlot, VennState, VennStyle } from '../engine/types';
 import { BG_SWATCHES, createColorControl } from './color-control';
 import { createSlotRow, type SlotRow } from './slot-row';
 

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { MAX_TEXT_LEN, isPristine, sampleState } from '../shared/defaults';
-import { patchSlotTexts } from '../web/patch-slot';
+import { MAX_TEXT_LEN, isPristine, sampleState } from '../engine/defaults';
+import { patchSlotTexts } from '../ui/patch-slot';
 
 /** 4 圈 template 沒有給 7、11、13、14 這幾個三重槽，是天然的空槽 */
 const EMPTY_MASK = '7';

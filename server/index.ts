@@ -55,7 +55,7 @@ async function main(): Promise<void> {
 
   const app = createApp({
     fontFile: resolve(FONT_FILE),
-    ogBaseFile: resolve('web/public/og-base.png'),
+    ogBaseFile: resolve('ui/public/og-base.png'),
     publicOrigin: PUBLIC_ORIGIN,
     gtmId: GTM_ID,
     loadIndexHtml: dev.loadIndexHtml,

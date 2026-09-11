@@ -2,11 +2,11 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { renderOgPng } from '../server/render-og';
-import { sampleState } from '../shared/defaults';
+import { sampleState } from '../engine/defaults';
 import { FONT_FILE } from './helpers/font';
 import { decodePng, meanRgb, pngPixel } from './helpers/png';
 
-const OG_BASE = readFileSync(resolve('web/public/og-base.png'));
+const OG_BASE = readFileSync(resolve('ui/public/og-base.png'));
 
 describe('renderOgPng：AC1 dither', () => {
   it('逐像素與關掉 dither 的輸出不同，但全圖平均 RGB 每通道差 ≤ 1', async () => {

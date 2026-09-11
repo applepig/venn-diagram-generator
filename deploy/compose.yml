@@ -1,6 +1,9 @@
 services:
   venn:
-    build: .
+    build:
+      # context 是 repo 根目錄，Dockerfile 住在 deploy/
+      context: ..
+      dockerfile: deploy/Dockerfile
     container_name: venn-diagram-generator
     restart: unless-stopped
     environment:

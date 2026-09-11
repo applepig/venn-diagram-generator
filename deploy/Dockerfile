@@ -1,4 +1,5 @@
 # syntax=docker/dockerfile:1
+# build context 是 repo 根目錄（不是 deploy/）：docker build -f deploy/Dockerfile .
 
 FROM node:24-slim AS build
 ENV COREPACK_ENABLE_DOWNLOAD_PROMPT=0
@@ -7,9 +8,9 @@ RUN corepack enable
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 RUN pnpm install --frozen-lockfile
 COPY tsconfig.json vite.config.ts ./
-COPY shared ./shared
+COPY engine ./engine
 COPY server ./server
-COPY web ./web
+COPY ui ./ui
 COPY assets ./assets
 # build 的 og 烤圖後處理住在 scripts/
 COPY scripts ./scripts

@@ -1,4 +1,4 @@
-import { PALETTE } from '../shared/defaults';
+import { PALETTE } from '../engine/defaults';
 
 /** 顏色 popover 的選色：palette 四色 ＋ 常用色（含黑、白、灰） */
 export const SWATCH_COLORS = [...PALETTE, '#111111', '#ffffff', '#8a8f99', '#8b5cf6', '#e05fa0'];

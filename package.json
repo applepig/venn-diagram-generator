@@ -6,12 +6,13 @@
   "packageManager": "pnpm@11.22.0",
   "scripts": {
     "dev": "VENN_DEV=1 tsx watch server/index.ts",
-    "build": "pnpm build:web && pnpm build:og && pnpm build:server",
-    "build:web": "vite build",
+    "build": "pnpm build:ui && pnpm build:og && pnpm build:server",
+    "build:ui": "vite build",
     "build:og": "tsx scripts/bake-og.ts",
     "build:server": "esbuild server/index.ts --bundle --platform=node --target=node24 --format=esm --outfile=dist-server/index.mjs --external:@resvg/resvg-js --external:vite",
     "start": "node dist-server/index.mjs",
     "typecheck": "tsc --noEmit",
+    "docker:build": "docker build -f deploy/Dockerfile -t venn-diagram-generator .",
     "test": "vitest run"
   },
   "dependencies": {

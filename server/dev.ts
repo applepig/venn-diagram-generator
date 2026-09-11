@@ -6,7 +6,7 @@ import type { ViteDevServer } from 'vite';
 export interface DevServer {
   /** 掛在 http server 前面：Vite 沒接住的請求才往下交給 Hono */
   middlewares: ViteDevServer['middlewares'];
-  /** 讀 web/index.html 並跑 Vite 轉換（注入 HMR client、解析 /main.ts） */
+  /** 讀 ui/index.html 並跑 Vite 轉換（注入 HMR client、解析 /main.ts） */
   loadIndexHtml: (url: string) => Promise<string>;
   close: () => Promise<void>;
 }
@@ -27,7 +27,7 @@ export async function createDevServer(http_server: Server): Promise<DevServer> {
     },
   });
 
-  const index_file = resolve('web/index.html');
+  const index_file = resolve('ui/index.html');
 
   return {
     middlewares: vite.middlewares,

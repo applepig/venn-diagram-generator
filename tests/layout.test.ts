@@ -7,7 +7,7 @@ import {
   layout,
   regionBox,
   wrapText,
-} from '../shared/layout';
+} from '../engine/layout';
 import {
   DEFAULT_OVERLAP,
   DEFAULT_RADIUS,
@@ -19,8 +19,8 @@ import {
   SLOT_MASKS,
   defaultState,
   sampleState,
-} from '../shared/defaults';
-import type { CircleCount, VennState } from '../shared/types';
+} from '../engine/defaults';
+import type { CircleCount, VennState } from '../engine/types';
 
 function stateWith(n: CircleCount, texts: Record<string, string>): VennState {
   const base = defaultState(n);

@@ -1,19 +1,19 @@
 import { deflateRawSync } from 'node:zlib';
 import { describe, expect, it } from 'vitest';
-import { StateError, encodeBase64Url, validateState } from '../shared/state-codec';
-import { decodeState, encodeState } from '../shared/state-codec-node';
+import { StateError, encodeBase64Url, validateState } from '../engine/state-codec';
+import { decodeState, encodeState } from '../engine/state-codec-node';
 import {
   decodeState as decodeStateWeb,
   encodeState as encodeStateWeb,
-} from '../shared/state-codec-web';
+} from '../engine/state-codec-web';
 import {
   MAX_STATE_PARAM_LEN,
   MAX_TEXT_LEN,
   SLOT_MASKS,
   defaultState,
   sampleState,
-} from '../shared/defaults';
-import type { TextSlot, VennState } from '../shared/types';
+} from '../engine/defaults';
+import type { TextSlot, VennState } from '../engine/types';
 import { bombParam } from './helpers/state-param';
 
 const rich: VennState = {

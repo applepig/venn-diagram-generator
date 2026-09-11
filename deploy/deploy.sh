@@ -10,9 +10,9 @@ cd "$(dirname "$0")/.."
 
 rsync -az --delete \
   --exclude '.git' --exclude 'node_modules' --exclude 'dist' --exclude 'dist-server' \
-  --exclude 'docs' --exclude '*.log' --exclude 'compose.dev.yml' \
+  --exclude 'docs' --exclude '*.log' --exclude 'deploy/compose.dev.yml' \
   ./ "${HOST}:${DEST}/"
 
-ssh "$HOST" "cd '${DEST}' && sudo docker compose up -d --build"
+ssh "$HOST" "cd '${DEST}' && sudo docker compose -f deploy/compose.yml up -d --build"
 
 echo "deployed → https://venn.applepig.net"

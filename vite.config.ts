@@ -4,7 +4,7 @@ import { defineConfig } from 'vite';
 const dev_host = process.env.PUBLIC_ORIGIN ? new URL(process.env.PUBLIC_ORIGIN).hostname : '';
 
 export default defineConfig({
-  root: 'web',
+  root: 'ui',
   build: {
     outDir: '../dist',
     emptyOutDir: true,

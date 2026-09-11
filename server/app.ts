@@ -3,16 +3,16 @@ import { join } from 'node:path';
 import { renderAsync } from '@resvg/resvg-js';
 import { Hono } from 'hono';
 import type { Context } from 'hono';
-import { MAX_STATE_PARAM_LEN, sampleState } from '../shared/defaults';
-import { escapeXml, renderSvg } from '../shared/render-svg';
-import { StateError } from '../shared/state-codec';
-import { decodeState, encodeState } from '../shared/state-codec-node';
-import type { VennState } from '../shared/types';
+import { MAX_STATE_PARAM_LEN, sampleState } from '../engine/defaults';
+import { escapeXml, renderSvg } from '../engine/render-svg';
+import { StateError } from '../engine/state-codec';
+import { decodeState, encodeState } from '../engine/state-codec-node';
+import type { VennState } from '../engine/types';
 import { OG_HEIGHT, OG_WIDTH, renderOgPng } from './render-og';
 
 export interface AppOptions {
   fontFile: string;
-  /** OG 合成底圖；production 指向 Vite dist，dev 指向 web/public */
+  /** OG 合成底圖；production 指向 Vite dist，dev 指向 ui/public */
   ogBaseFile?: string;
   /** Vite build 產物目錄；沒給就只跑 API（測試用） */
   distDir?: string;

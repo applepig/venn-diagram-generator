@@ -1,5 +1,5 @@
-import { renderSvg } from '../shared/render-svg';
-import type { VennState } from '../shared/types';
+import { renderSvg } from '../engine/render-svg';
+import type { VennState } from '../engine/types';
 
 /** 與 style.css 的單欄斷點同一個值：窄版面才有 sticky 小圖與 overlay */
 const NARROW_MQ = '(max-width: 860px)';

@@ -1,9 +1,9 @@
 import './style.css';
-import { sampleState } from '../shared/defaults';
-import { nextStateForCircleCount } from '../shared/circle-count';
-import { renderSvg } from '../shared/render-svg';
-import { decodeState, encodeState } from '../shared/state-codec-web';
-import type { CircleCount, TextSlot, VennState } from '../shared/types';
+import { sampleState } from '../engine/defaults';
+import { nextStateForCircleCount } from '../engine/circle-count';
+import { renderSvg } from '../engine/render-svg';
+import { decodeState, encodeState } from '../engine/state-codec-web';
+import type { CircleCount, TextSlot, VennState } from '../engine/types';
 import { createCanvas } from './canvas';
 import { patchSlotTexts } from './patch-slot';
 import { createToolbar } from './toolbar';

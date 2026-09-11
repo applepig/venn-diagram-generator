@@ -4,15 +4,15 @@ import { join, resolve } from 'node:path';
 import { deflateRawSync } from 'node:zlib';
 import { afterAll, describe, expect, it } from 'vitest';
 import { createApp } from '../server/app';
-import { encodeState } from '../shared/state-codec-node';
-import { encodeBase64Url } from '../shared/state-codec';
-import { MAX_STATE_PARAM_LEN, defaultState, sampleState } from '../shared/defaults';
-import type { VennState } from '../shared/types';
+import { encodeState } from '../engine/state-codec-node';
+import { encodeBase64Url } from '../engine/state-codec';
+import { MAX_STATE_PARAM_LEN, defaultState, sampleState } from '../engine/defaults';
+import type { VennState } from '../engine/types';
 import { FONT_FILE } from './helpers/font';
 import { decodePng, meanRgb, pngSize } from './helpers/png';
 import { bombParam, paramOfLength } from './helpers/state-param';
 
-const OG_BASE_FILE = resolve('web/public/og-base.png');
+const OG_BASE_FILE = resolve('ui/public/og-base.png');
 const app = createApp({ fontFile: FONT_FILE, ogBaseFile: OG_BASE_FILE });
 
 const ORIGIN = 'https://venn.applepig.net';

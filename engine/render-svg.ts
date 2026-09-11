@@ -79,7 +79,7 @@ export function mixColors(hexes: string[]): string {
 }
 
 /**
- * 平面填色：每個區域一條由弧段串成的閉合路徑（見 shared/region-geometry.ts）。
+ * 平面填色：每個區域一條由弧段串成的閉合路徑（見 engine/region-geometry.ts）。
  * 相鄰區域共用同一段弧，但兩邊各自抗鋸齒仍會在接縫透出一絲背景色，
  * 所以補一道同色細描邊把接縫蓋掉。
  */

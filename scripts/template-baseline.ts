@@ -11,13 +11,13 @@ import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { createApp } from '../server/app';
-import { PALETTE, SLOT_MASKS, sampleState } from '../shared/defaults';
-import { renderSvg } from '../shared/render-svg';
-import { decodeState, encodeState } from '../shared/state-codec-node';
-import type { CircleCount, TextSlot, VennState, VennStyle } from '../shared/types';
+import { PALETTE, SLOT_MASKS, sampleState } from '../engine/defaults';
+import { renderSvg } from '../engine/render-svg';
+import { decodeState, encodeState } from '../engine/state-codec-node';
+import type { CircleCount, TextSlot, VennState, VennStyle } from '../engine/types';
 
 const FONT_FILE = fileURLToPath(new URL('../assets/fonts/NotoSansTC-Bold.otf', import.meta.url));
-const OG_BASE_FILE = fileURLToPath(new URL('../web/public/og-base.png', import.meta.url));
+const OG_BASE_FILE = fileURLToPath(new URL('../ui/public/og-base.png', import.meta.url));
 const GOLDEN_FILE = fileURLToPath(new URL('../tests/golden/baseline.json', import.meta.url));
 const ORIGIN = 'https://venn.applepig.net';
 

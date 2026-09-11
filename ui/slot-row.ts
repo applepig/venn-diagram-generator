@@ -3,9 +3,9 @@ import {
   LABEL_START_FS,
   MAX_TEXT_LEN,
   popCount,
-} from '../shared/defaults';
-import { regionColor } from '../shared/render-svg';
-import type { TextBlock, TextSlot, VennState } from '../shared/types';
+} from '../engine/defaults';
+import { regionColor } from '../engine/render-svg';
+import type { TextBlock, TextSlot, VennState } from '../engine/types';
 import { SWATCH_COLORS, createColorControl } from './color-control';
 
 /** 每按一次 ± 的字級倍率，與 01 的畫布工具列一致 */

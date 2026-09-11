@@ -8,7 +8,7 @@ services:
     # uid 1000 = host 的 applepig，避免 vite 快取寫出 root 所有的檔案
     user: "1000:1000"
     volumes:
-      - .:/app
+      - ..:/app
     environment:
       - PORT=3000
       - PUBLIC_ORIGIN=https://venn.dev.example

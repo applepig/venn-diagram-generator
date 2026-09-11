@@ -1,5 +1,5 @@
-import { MAX_TEXT_LEN } from '../shared/defaults';
-import type { TextSlot } from '../shared/types';
+import { MAX_TEXT_LEN } from '../engine/defaults';
+import type { TextSlot } from '../engine/types';
 
 /** 以 code point 截，不然會砍出落單的 surrogate，validateState 反而擋下來 */
 function clampText(t: string): string {

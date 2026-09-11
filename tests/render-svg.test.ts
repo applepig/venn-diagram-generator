@@ -1,9 +1,9 @@
 import { Resvg } from '@resvg/resvg-js';
 import { describe, expect, it } from 'vitest';
-import { mixColors, regionColor, relativeLuminance, renderSvg } from '../shared/render-svg';
-import { circlesFor, layout, maskAt } from '../shared/layout';
-import { PALETTE, defaultState } from '../shared/defaults';
-import type { VennStyle } from '../shared/types';
+import { mixColors, regionColor, relativeLuminance, renderSvg } from '../engine/render-svg';
+import { circlesFor, layout, maskAt } from '../engine/layout';
+import { PALETTE, defaultState } from '../engine/defaults';
+import type { VennStyle } from '../engine/types';
 import { FONT_FILE } from './helpers/font';
 
 const STYLES: VennStyle[] = ['translucent', 'flat', 'outline'];

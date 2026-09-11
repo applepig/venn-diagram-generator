@@ -8,10 +8,10 @@ import {
   isPristine,
   popCount,
   sampleState,
-} from '../shared/defaults';
-import { nextStateForCircleCount } from '../shared/circle-count';
-import { layout } from '../shared/layout';
-import type { CircleCount } from '../shared/types';
+} from '../engine/defaults';
+import { nextStateForCircleCount } from '../engine/circle-count';
+import { layout } from '../engine/layout';
+import type { CircleCount } from '../engine/types';
 
 /**
  * spec 認可的 template 字面值，不從 TEMPLATES 反查（否則等於拿受測程式自證）。

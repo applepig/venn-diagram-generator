@@ -1,6 +1,6 @@
 import { renderAsync } from '@resvg/resvg-js';
-import { renderSvg } from '../shared/render-svg';
-import type { VennState } from '../shared/types';
+import { renderSvg } from '../engine/render-svg';
+import type { VennState } from '../engine/types';
 
 export const OG_WIDTH = 1200;
 export const OG_HEIGHT = 630;

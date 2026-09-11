@@ -1,9 +1,9 @@
 import { Resvg } from '@resvg/resvg-js';
 import { describe, expect, it } from 'vitest';
-import { SLOT_MASKS } from '../shared/defaults';
-import { circlesFor, maskAt } from '../shared/layout';
-import { regionPaths } from '../shared/region-geometry';
-import type { Circle } from '../shared/types';
+import { SLOT_MASKS } from '../engine/defaults';
+import { circlesFor, maskAt } from '../engine/layout';
+import { regionPaths } from '../engine/region-geometry';
+import type { Circle } from '../engine/types';
 
 /**
  * 判準：把每個區域塗成一個可辨識的純色後，畫布上任一點的像素顏色
