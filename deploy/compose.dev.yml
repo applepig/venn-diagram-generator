@@ -13,6 +13,8 @@ services:
       - PORT=3000
       - PUBLIC_ORIGIN=https://venn.dev.example
       - VENN_DEV=1
+      # 與正式站同一個浮水印：開發站要看得出出圖的真實樣子
+      - VENN_WATERMARK=venn.applepig.net
       # 這裡刻意不給 VENN_GTM_ID：開發站的操作不該混進正式站的數據
     command: ./node_modules/.bin/tsx watch server/index.ts
     labels:

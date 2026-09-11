@@ -12,6 +12,8 @@ const FONT_FILE = process.env.VENN_FONT ?? 'assets/fonts/NotoSansTC-Bold.otf';
 const PUBLIC_ORIGIN = process.env.PUBLIC_ORIGIN || undefined;
 // 只有正式站的 compose 會給：開發站與本機跑起來不該把數據送進 GTM
 const GTM_ID = process.env.VENN_GTM_ID || undefined;
+// 圖片右下角的浮水印文字（站名）；沒設就不畫，fork 出去的站不會掛到別人的網址
+const WATERMARK = process.env.VENN_WATERMARK || undefined;
 const DEV = process.env.VENN_DEV === '1';
 
 async function main(): Promise<void> {
@@ -22,6 +24,7 @@ async function main(): Promise<void> {
       distDir: resolve(DIST_DIR),
       publicOrigin: PUBLIC_ORIGIN,
       gtmId: GTM_ID,
+      watermark: WATERMARK,
     });
     // createApp 已先註冊 /api/png 與 /，這裡只接沒被吃掉的靜態資源
     app.use(
@@ -58,6 +61,7 @@ async function main(): Promise<void> {
     ogBaseFile: resolve('ui/public/og-base.png'),
     publicOrigin: PUBLIC_ORIGIN,
     gtmId: GTM_ID,
+    watermark: WATERMARK,
     loadIndexHtml: dev.loadIndexHtml,
   });
 

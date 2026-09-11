@@ -1,13 +1,8 @@
-import {
-  DEFAULT_OVERLAP,
-  DEFAULT_RADIUS,
-  PALETTE,
-  SLOT_MASKS,
-  TEMPLATES,
-  isPristine,
-  sampleState,
-} from './defaults';
-import type { CircleCount, VennState } from './types';
+import { DEFAULT_OVERLAP, DEFAULT_RADIUS, SLOT_MASKS } from '../engine/defaults';
+import type { CircleCount, VennState } from '../engine/types';
+import { PALETTE } from './palette';
+import { isPristine, sampleState } from './state-presets';
+import { TEMPLATES } from './templates/zh-TW';
 
 /**
  * 切圈數後的新狀態（純函式，UI 只負責套用）。

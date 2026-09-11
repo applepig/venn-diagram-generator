@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { renderOgPng } from '../server/render-og';
-import { sampleState } from '../engine/defaults';
+import { sampleState } from '../content/state-presets';
 import { FONT_FILE } from './helpers/font';
 import { decodePng, meanRgb, pngPixel } from './helpers/png';
 

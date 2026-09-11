@@ -17,9 +17,8 @@ import {
   LINE_HEIGHT,
   MIN_FS,
   SLOT_MASKS,
-  defaultState,
-  sampleState,
 } from '../engine/defaults';
+import { defaultState, sampleState } from '../content/state-presets';
 import type { CircleCount, VennState } from '../engine/types';
 
 function stateWith(n: CircleCount, texts: Record<string, string>): VennState {

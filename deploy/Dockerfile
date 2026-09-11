@@ -9,6 +9,7 @@ COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 RUN pnpm install --frozen-lockfile
 COPY tsconfig.json vite.config.ts ./
 COPY engine ./engine
+COPY content ./content
 COPY server ./server
 COPY ui ./ui
 COPY assets ./assets

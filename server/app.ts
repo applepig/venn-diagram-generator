@@ -3,7 +3,8 @@ import { join } from 'node:path';
 import { renderAsync } from '@resvg/resvg-js';
 import { Hono } from 'hono';
 import type { Context } from 'hono';
-import { MAX_STATE_PARAM_LEN, sampleState } from '../engine/defaults';
+import { sampleState } from '../content/state-presets';
+import { MAX_STATE_PARAM_LEN } from '../engine/defaults';
 import { escapeXml, renderSvg } from '../engine/render-svg';
 import { StateError } from '../engine/state-codec';
 import { decodeState, encodeState } from '../engine/state-codec-node';
@@ -20,6 +21,11 @@ export interface AppOptions {
   publicOrigin?: string;
   /** GTM container id；沒給就完全不注入，開發站與測試不會送出數據 */
   gtmId?: string;
+  /**
+   * 圖片右下角浮水印的文字（部署用 VENN_WATERMARK 給，通常是站名）。
+   * 沒給就不畫，fork 出去的站不會掛到別人的網址。
+   */
+  watermark?: string;
   /**
    * 取得要注入 meta 的 index.html。dev 模式用它換成 Vite 轉換過的原始檔，
    * 讓開發站和正式站共用同一份 meta 注入邏輯，不必維護第二套。
@@ -70,8 +76,12 @@ function titleOf(state: VennState): string {
 }
 
 /** 點陣化丟到 resvg 的 worker thread，避免大圖把 event loop 卡死（AC 1b） */
-async function renderPng(state: VennState, font_file: string): Promise<Uint8Array> {
-  const image = await renderAsync(renderSvg(state), {
+async function renderPng(
+  state: VennState,
+  font_file: string,
+  watermark: string,
+): Promise<Uint8Array> {
+  const image = await renderAsync(renderSvg(state, { watermark }), {
     fitTo: { mode: 'width', value: state.size },
     font: { fontFiles: [font_file], loadSystemFonts: false, defaultFontFamily: 'Noto Sans TC' },
   });
@@ -176,7 +186,7 @@ export function createApp(opts: AppOptions): Hono {
     in_flight++;
     let png: Uint8Array;
     try {
-      png = await renderPng(state, opts.fontFile);
+      png = await renderPng(state, opts.fontFile, opts.watermark ?? '');
     } finally {
       in_flight--;
     }
@@ -276,6 +286,8 @@ export function createApp(opts: AppOptions): Hono {
         ? `<meta name="robots" content="noindex, follow">`
         : `<meta name="robots" content="index, follow">`,
       shared ? '' : jsonLd(origin),
+      // 畫布預覽與「下載 SVG」由前端自己 renderSvg，浮水印文字要跟 /api/png 同一個來源才 WYSIWYG
+      opts.watermark ? `<meta name="venn:watermark" content="${escapeXml(opts.watermark)}">` : '',
       opts.gtmId ? gtmHead(opts.gtmId) : '',
     ].join('');
 

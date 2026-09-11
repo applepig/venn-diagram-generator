@@ -12,6 +12,8 @@ services:
       - PUBLIC_ORIGIN=https://venn.applepig.net
       # 只有正式站注入 GTM；開發站（compose.dev.yml）刻意不給，數據才不會混進來
       - VENN_GTM_ID=GTM-KTZKC8CH
+      # 圖片右下角的浮水印文字；沒設就不畫（fork 的站換成自己的網址）
+      - VENN_WATERMARK=venn.applepig.net
     labels:
       - "traefik.enable=true"
       - "traefik.docker.network=web"

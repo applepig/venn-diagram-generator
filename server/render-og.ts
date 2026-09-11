@@ -40,7 +40,7 @@ const DITHER_LAYER =
 /**
  * 已內建品牌文案的底圖與去除背景的既有圖表 SVG 合成為外層 SVG，只做一次 Resvg 點陣化。
  * 圖表縮放整張正方形畫布，不重排內部圓形或文字。
- * 背景與浮水印由 renderSvg 的開關關掉：底圖要透出來，品牌名底圖上已經有了。
+ * 背景關掉讓底圖透出來；浮水印直接不傳，品牌名底圖上已經有了。
  */
 export async function renderOgPng(
   state: VennState,
@@ -50,7 +50,7 @@ export async function renderOgPng(
 ): Promise<Uint8Array> {
   const dither = opts.dither ?? true;
   const base_uri = `data:image/png;base64,${Buffer.from(base_png).toString('base64')}`;
-  const diagram_body = renderSvg(state, { background: false, watermark: false })
+  const diagram_body = renderSvg(state, { background: false })
     .replace(/^<svg[^>]*>/, '')
     .replace(/<\/svg>$/, '');
   const diagram_scale = DIAGRAM_SIZE / state.size;

@@ -3,9 +3,6 @@
  *
  * golden（`tests/golden/baseline.json`）在 M0 用重構前的程式產出，之後任何 milestone 都不得修改：
  * 這裡紅了就是實作把輸出改掉了，改 golden 等於假造完成。要重產只有「行為已由使用者確認要變」一種情況。
- *
- * M2 把浮水印改成 `RenderOptions.watermark?: string` 之後，`svgOf()` 要改成
- * `renderSvg(state, { watermark: 'venn.applepig.net' })`（與 server 同參數），golden 不動。
  */
 import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
@@ -37,7 +34,14 @@ const golden: Golden = JSON.parse(
   readFileSync(resolve('tests/golden/baseline.json'), 'utf8'),
 ) as Golden;
 
-const app = createApp({ fontFile: FONT_FILE, ogBaseFile: resolve('ui/public/og-base.png') });
+/** 正式站 `VENN_WATERMARK` 的值：golden 是帶這個浮水印凍的，SVG 與 /api/png 都要照同一個參數走 */
+const WATERMARK = 'venn.applepig.net';
+
+const app = createApp({
+  fontFile: FONT_FILE,
+  ogBaseFile: resolve('ui/public/og-base.png'),
+  watermark: WATERMARK,
+});
 const ORIGIN = 'https://venn.applepig.net';
 
 /** 點陣化一張 1200px 的圖約 0.3 秒，一個 case 兩張，預設 5 秒太緊 */
@@ -47,9 +51,9 @@ function sha256(data: Uint8Array | string): string {
   return createHash('sha256').update(data).digest('hex');
 }
 
-/** server 的 `/api/png` 走 `renderSvg(state)`：浮水印預設開，golden 就是照這個參數凍的 */
+/** 與 server 的 `/api/png` 同參數：浮水印文字由呼叫端傳入，golden 就是照這個參數凍的 */
 function svgOf(state: VennState): string {
-  return renderSvg(state);
+  return renderSvg(state, { watermark: WATERMARK });
 }
 
 async function pngSha256(path: string): Promise<string> {

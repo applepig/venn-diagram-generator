@@ -1,5 +1,5 @@
 import { deflateRawSync } from 'node:zlib';
-import { sampleState } from '../../engine/defaults';
+import { sampleState } from '../../content/state-presets';
 import { encodeBase64Url } from '../../engine/state-codec';
 
 /** JSON 的尾隨空白 parse 時會被忽略：合法 state 後面接空白，就是解得開又能任意放大的 payload */

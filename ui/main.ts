@@ -1,12 +1,14 @@
 import './style.css';
-import { sampleState } from '../engine/defaults';
-import { nextStateForCircleCount } from '../engine/circle-count';
+import { nextStateForCircleCount } from '../content/next-state';
+import { sampleState } from '../content/state-presets';
+import { STRINGS } from '../content/strings/zh-TW';
 import { renderSvg } from '../engine/render-svg';
 import { decodeState, encodeState } from '../engine/state-codec-web';
 import type { CircleCount, TextSlot, VennState } from '../engine/types';
 import { createCanvas } from './canvas';
 import { patchSlotTexts } from './patch-slot';
 import { createToolbar } from './toolbar';
+import { watermarkText } from './watermark';
 
 const panel_el = document.getElementById('panel')!;
 const canvas_el = document.getElementById('canvas')!;
@@ -60,7 +62,8 @@ function shareUrl(): string {
 
 /** SVG 由前端這份純函式直接產出，和 /api/png 是同一張圖 */
 function downloadSvg(): void {
-  const url = URL.createObjectURL(new Blob([renderSvg(state)], { type: 'image/svg+xml' }));
+  const svg = renderSvg(state, { watermark: watermarkText() });
+  const url = URL.createObjectURL(new Blob([svg], { type: 'image/svg+xml' }));
   const a = document.createElement('a');
   a.href = url;
   a.download = 'venn.svg';
@@ -71,14 +74,14 @@ function downloadSvg(): void {
 
 async function copyImage(): Promise<void> {
   if (typeof ClipboardItem === 'undefined' || !navigator.clipboard?.write) {
-    alert('這個瀏覽器不支援複製圖片，請改用「下載 PNG」。');
+    alert(STRINGS['copy.imageUnsupported']);
     return;
   }
   try {
     const blob = await (await fetch(pngUrl())).blob();
     await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
   } catch {
-    alert('複製圖片失敗，請改用「下載 PNG」。');
+    alert(STRINGS['copy.imageFailed']);
   }
 }
 
@@ -86,7 +89,7 @@ async function copyLink(): Promise<void> {
   try {
     await navigator.clipboard.writeText(shareUrl());
   } catch {
-    prompt('複製這個連結：', shareUrl());
+    prompt(STRINGS['copy.linkPrompt'], shareUrl());
   }
 }
 

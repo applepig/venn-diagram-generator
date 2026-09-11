@@ -1,5 +1,6 @@
 import { renderSvg } from '../engine/render-svg';
 import type { VennState } from '../engine/types';
+import { watermarkText } from './watermark';
 
 /** 與 style.css 的單欄斷點同一個值：窄版面才有 sticky 小圖與 overlay */
 const NARROW_MQ = '(max-width: 860px)';
@@ -84,7 +85,7 @@ export function createCanvas(els: CanvasElements, handlers: CanvasHandlers): Can
 
   return {
     render() {
-      const svg = renderSvg(handlers.getState());
+      const svg = renderSvg(handlers.getState(), { watermark: watermarkText() });
       els.main.innerHTML = svg;
       // 同一份 SVG 出現兩次會有兩個 id="glow"，小圖換掉自己那組再插入
       els.mini.innerHTML = svg

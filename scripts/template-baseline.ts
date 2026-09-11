@@ -11,7 +11,9 @@ import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { createApp } from '../server/app';
-import { PALETTE, SLOT_MASKS, sampleState } from '../engine/defaults';
+import { PALETTE } from '../content/palette';
+import { sampleState } from '../content/state-presets';
+import { SLOT_MASKS } from '../engine/defaults';
 import { renderSvg } from '../engine/render-svg';
 import { decodeState, encodeState } from '../engine/state-codec-node';
 import type { CircleCount, TextSlot, VennState, VennStyle } from '../engine/types';
@@ -21,7 +23,10 @@ const OG_BASE_FILE = fileURLToPath(new URL('../ui/public/og-base.png', import.me
 const GOLDEN_FILE = fileURLToPath(new URL('../tests/golden/baseline.json', import.meta.url));
 const ORIGIN = 'https://venn.applepig.net';
 
-const app = createApp({ fontFile: FONT_FILE, ogBaseFile: OG_BASE_FILE });
+/** 正式站 `VENN_WATERMARK` 的值：golden 是帶這個浮水印凍的，重產必須沿用同一個字串 */
+const WATERMARK = 'venn.applepig.net';
+
+const app = createApp({ fontFile: FONT_FILE, ogBaseFile: OG_BASE_FILE, watermark: WATERMARK });
 
 /**
  * AC1(b) 的 4 圈 13 槽全填，含對角雙圈以外的每個 mask（7／11／13／14 是三重區）。
@@ -126,7 +131,7 @@ for (const item of CASES) {
     ac: item.ac,
     label: item.label,
     s,
-    svg_sha256: sha256(renderSvg(state)),
+    svg_sha256: sha256(renderSvg(state, { watermark: WATERMARK })),
     png_sha256: await pngSha256(`/api/png?s=${s}`),
     og_png_sha256: await pngSha256(`/api/og.png?s=${s}`),
   };

@@ -144,7 +144,6 @@ export function regionColor(state: VennState, mask: number): string {
 
 // ---------- 浮水印 ----------
 
-const WATERMARK_TEXT = 'venn.applepig.net';
 /** 字級與邊距都取畫布寬比例，換 size 時比例不變 */
 const WATERMARK_FS = 0.022;
 const WATERMARK_PAD = 0.028;
@@ -157,32 +156,33 @@ const WATERMARK_DARK_TEXT_LUMINANCE = 0.5;
  * 所以底下一定是 bg，字色只看背景亮度、不需要光暈。
  * 不帶 data-region：畫布點選走 [data-region]，浮水印不該被當成可編輯的槽。
  */
-function watermark(state: VennState): string {
+function watermark(state: VennState, text: string): string {
   const size = state.size;
   const fill =
     relativeLuminance(state.bg) >= WATERMARK_DARK_TEXT_LUMINANCE ? '#000000' : '#ffffff';
   const pos = size * (1 - WATERMARK_PAD);
   return (
     `<text x="${pos}" y="${pos}" font-family="${FONT_FAMILY}" font-size="${size * WATERMARK_FS}" ` +
-    `text-anchor="end" fill="${fill}" fill-opacity="${WATERMARK_OPACITY}">${WATERMARK_TEXT}</text>`
+    `text-anchor="end" fill="${fill}" fill-opacity="${WATERMARK_OPACITY}">${escapeXml(text)}</text>`
   );
 }
 
 // ---------- SVG ----------
 
 /**
- * 合成情境（`server/render-og.ts`）要把圖表疊到別的底圖上，
- * 用這兩個開關關掉整張畫布專屬的圖層，不必事後用 regex 剝字串。
+ * 整張畫布專屬的圖層交給呼叫端決定：
+ * 合成情境（`server/render-og.ts`）疊到別的底圖上時要關掉背景，不必事後用 regex 剝字串；
+ * 浮水印文字是部署設定（站名），engine 自己不認識任何站名。
  */
 export interface RenderOptions {
   /** 畫滿版背景 rect；疊圖時關掉才不會蓋住底圖 */
   background?: boolean;
-  /** 畫右下角浮水印；底圖已有品牌名時關掉，免得重複 */
-  watermark?: boolean;
+  /** 右下角浮水印的文字；省略或空字串＝不畫 */
+  watermark?: string;
 }
 
 export function renderSvg(state: VennState, opts: RenderOptions = {}): string {
-  const { background = true, watermark: with_watermark = true } = opts;
+  const { background = true, watermark: watermark_text = '' } = opts;
   const size = state.size;
   const circles = circlesFor(state.n, state.radius, state.overlap);
   const is_outline = state.style === 'outline';
@@ -256,7 +256,7 @@ export function renderSvg(state: VennState, opts: RenderOptions = {}): string {
     `<defs>${defs}</defs>` +
     (background ? `<rect width="100%" height="100%" fill="${escapeXml(state.bg)}"/>` : '') +
     body +
-    (with_watermark ? watermark(state) : '') +
+    (watermark_text ? watermark(state, watermark_text) : '') +
     `</svg>`
   );
 }

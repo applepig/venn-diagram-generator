@@ -4,9 +4,11 @@ import {
   MAX_TEXT_LEN,
   popCount,
 } from '../engine/defaults';
+import { SWATCH_COLORS } from '../content/palette';
+import { STRINGS } from '../content/strings/zh-TW';
 import { regionColor } from '../engine/render-svg';
 import type { TextBlock, TextSlot, VennState } from '../engine/types';
-import { SWATCH_COLORS, createColorControl } from './color-control';
+import { createColorControl } from './color-control';
 
 /** 每按一次 ± 的字級倍率，與 01 的畫布工具列一致 */
 const FS_STEP = 1.12;
@@ -14,11 +16,8 @@ const FS_STEP = 1.12;
 const FS_MIN = 0.012;
 const FS_MAX = 0.5;
 
-const EMPTY_LABEL = '（空）';
 /** 空槽在自動模式沒有字級可顯示：給個佔位符，不要顯示 start fs 誘人去按 ± */
 const NO_FS_PLACEHOLDER = '—';
-const NO_REGION_NOTE = '目前的圓大小與重疊度下沒有這一區，調過幾何它才會出現。';
-const NOT_FLAT_NOTE = '只有「平面」樣式有可以填色的區域，交集顏色由樣式自己算。';
 
 export interface SlotRowHandlers {
   onPatchSlot: (mask: number, patch: Partial<TextSlot>) => void;
@@ -40,7 +39,7 @@ export function slotTag(mask: number): string {
 
 /** 收合列只放得下一行；空白槽要看得出來是空的，不然那一列像壞掉 */
 function firstLine(text: string): string {
-  return text.split('\n').find((line) => line.trim() !== '') ?? EMPTY_LABEL;
+  return text.split('\n').find((line) => line.trim() !== '') ?? STRINGS['slot.empty'];
 }
 
 export function createSlotRow(mask: number, handlers: SlotRowHandlers): SlotRow {
@@ -74,14 +73,14 @@ export function createSlotRow(mask: number, handlers: SlotRowHandlers): SlotRow 
   const fs_row = document.createElement('div');
   fs_row.className = 'row';
   const fs_label = document.createElement('label');
-  fs_label.textContent = '字級';
+  fs_label.textContent = STRINGS['field.fs'];
   const fs_box = document.createElement('div');
   fs_box.className = 'fs';
 
   const auto_btn = document.createElement('button');
   auto_btn.type = 'button';
   auto_btn.className = 'auto-btn';
-  auto_btn.textContent = '自動';
+  auto_btn.textContent = STRINGS['fs.auto'];
   auto_btn.addEventListener('click', () => handlers.onPatchSlot(mask, { fs: undefined }));
 
   const steps = document.createElement('div');
@@ -90,7 +89,7 @@ export function createSlotRow(mask: number, handlers: SlotRowHandlers): SlotRow 
   num.type = 'number';
   num.className = 'num';
   num.step = '1';
-  num.setAttribute('aria-label', '字級');
+  num.setAttribute('aria-label', STRINGS['field.fs']);
   const unit = document.createElement('span');
   unit.className = 'unit';
   unit.textContent = 'px';
@@ -108,13 +107,13 @@ export function createSlotRow(mask: number, handlers: SlotRowHandlers): SlotRow 
   const step_down = document.createElement('button');
   step_down.type = 'button';
   step_down.textContent = '−';
-  step_down.title = '縮小字級';
+  step_down.title = STRINGS['fs.stepDown'];
   step_down.addEventListener('click', () => setPx(Math.round(shown_px / FS_STEP)));
 
   const step_up = document.createElement('button');
   step_up.type = 'button';
   step_up.textContent = '+';
-  step_up.title = '放大字級';
+  step_up.title = STRINGS['fs.stepUp'];
   step_up.addEventListener('click', () => setPx(Math.round(shown_px * FS_STEP)));
 
   // change 而不是 input：邊打邊套用會讓「1」「12」這種中途值先跑一次重繪
@@ -135,10 +134,10 @@ export function createSlotRow(mask: number, handlers: SlotRowHandlers): SlotRow 
   const color_row = document.createElement('div');
   color_row.className = 'row';
   const color_label = document.createElement('label');
-  color_label.textContent = '顏色';
+  color_label.textContent = STRINGS['field.color'];
   const color = createColorControl({
     swatches: SWATCH_COLORS,
-    auto_label: is_label ? '' : '自動混色',
+    auto_label: is_label ? '' : STRINGS['color.autoMix'],
     onPick: (picked) => {
       if (is_label) {
         if (picked) handlers.onPickCircleColor(circle_index, picked);
@@ -195,7 +194,11 @@ export function createSlotRow(mask: number, handlers: SlotRowHandlers): SlotRow 
       for (const btn of [step_down, step_up]) btn.disabled = !region_exists || no_fs;
       num.disabled = !region_exists || no_fs;
 
-      const reason = !region_exists ? NO_REGION_NOTE : fill_locked ? NOT_FLAT_NOTE : '';
+      const reason = !region_exists
+        ? STRINGS['slot.noRegion']
+        : fill_locked
+          ? STRINGS['slot.notFlat']
+          : '';
       note.textContent = reason;
       note.hidden = reason === '';
     },

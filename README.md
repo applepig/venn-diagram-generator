@@ -9,7 +9,8 @@
 SVG 是唯一的渲染真相。`engine/render-svg.ts` 的 `renderSvg(state)` 是純函式，前端把它的輸出直接塞進 DOM 當即時預覽，server 拿同一份輸出交給 `@resvg/resvg-js` 轉 PNG，所以預覽即所得。文字排版不依賴 DOM 量測，改用字元分類估寬（CJK 1em、其他 0.62em、空白 0.3em），前後端算出來的版面一致。
 
 ```
-engine/   types、defaults、layout、render-svg、state-codec（前後端都只 import 這裡）
+engine/   types、defaults、layout、render-svg、state-codec（純幾何與排版，沒有任何產品文案）
+content/  palette、templates/、strings/、state-presets（預設 meme 與介面字串）
 ui/       Vite + vanilla TS 編輯器
 server/   Hono：靜態檔、GET / 的 og meta 注射、GET /api/png 與 /api/og.png
 deploy/   Dockerfile、compose.yml、compose.dev.yml、deploy.sh
@@ -56,7 +57,7 @@ deploy/   Dockerfile、compose.yml、compose.dev.yml、deploy.sh
 # 先在瀏覽器編好圖，複製連結拿到 s，或用 Node 產一個
 S=$(pnpm exec tsx -e "
 import { encodeState } from './engine/state-codec-node';
-import { sampleState } from './engine/defaults';
+import { sampleState } from './content/state-presets';
 process.stdout.write(encodeState(sampleState()));")
 
 curl -o venn.png "http://localhost:3000/api/png?s=$S"

@@ -6,13 +6,8 @@ import {
   decodeState as decodeStateWeb,
   encodeState as encodeStateWeb,
 } from '../engine/state-codec-web';
-import {
-  MAX_STATE_PARAM_LEN,
-  MAX_TEXT_LEN,
-  SLOT_MASKS,
-  defaultState,
-  sampleState,
-} from '../engine/defaults';
+import { MAX_STATE_PARAM_LEN, MAX_TEXT_LEN, SLOT_MASKS } from '../engine/defaults';
+import { defaultState, sampleState } from '../content/state-presets';
 import type { TextSlot, VennState } from '../engine/types';
 import { bombParam } from './helpers/state-param';
 

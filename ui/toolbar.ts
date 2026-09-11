@@ -9,15 +9,17 @@ import {
   SLOT_MASKS,
   popCount,
 } from '../engine/defaults';
+import { BG_SWATCHES } from '../content/palette';
+import { STRINGS } from '../content/strings/zh-TW';
 import { circlesFor, layout, regionBox } from '../engine/layout';
 import type { CircleCount, TextSlot, VennState, VennStyle } from '../engine/types';
-import { BG_SWATCHES, createColorControl } from './color-control';
+import { createColorControl } from './color-control';
 import { createSlotRow, type SlotRow } from './slot-row';
 
 const STYLE_LABELS: [VennStyle, string][] = [
-  ['translucent', '半透明'],
-  ['flat', '平面'],
-  ['outline', '線框'],
+  ['translucent', STRINGS['style.translucent']],
+  ['flat', STRINGS['style.flat']],
+  ['outline', STRINGS['style.outline']],
 ];
 
 /** 圈數用示意圖而不是文字，一眼看得出 2／3／4 的排列 */
@@ -165,13 +167,15 @@ export function createToolbar(root: HTMLElement, handlers: ToolbarHandlers): Too
       if (bg) handlers.onPatch({ bg });
     },
   });
-  const bg_row = labeledRow('背景', bg_color.root);
+  const bg_row = labeledRow(STRINGS['field.bg'], bg_color.root);
 
-  const opacity = sliderField('透明度', 0.15, 1, 0.05, (o) => handlers.onPatch({ opacity: o }));
-  const radius = sliderField('大小', RADIUS_MIN, RADIUS_MAX, 0.005, (r) =>
+  const opacity = sliderField(STRINGS['field.opacity'], 0.15, 1, 0.05, (o) =>
+    handlers.onPatch({ opacity: o }),
+  );
+  const radius = sliderField(STRINGS['field.radius'], RADIUS_MIN, RADIUS_MAX, 0.005, (r) =>
     handlers.onPatch({ radius: r }),
   );
-  const overlap = sliderField('重疊', OVERLAP_MIN, OVERLAP_MAX, 0.01, (o) =>
+  const overlap = sliderField(STRINGS['field.overlap'], OVERLAP_MIN, OVERLAP_MAX, 0.01, (o) =>
     handlers.onPatch({ overlap: o }),
   );
 
@@ -188,14 +192,14 @@ export function createToolbar(root: HTMLElement, handlers: ToolbarHandlers): Too
   size_select.addEventListener('change', () =>
     handlers.onPatch({ size: Number(size_select.value) }),
   );
-  const size_row = labeledRow('尺寸', size_select);
+  const size_row = labeledRow(STRINGS['field.size'], size_select);
 
   const actions = document.createElement('div');
   actions.className = 'actions';
 
   const download_png = document.createElement('a');
   download_png.className = 'primary';
-  download_png.textContent = '下載 PNG';
+  download_png.textContent = STRINGS['action.downloadPng'];
   download_png.download = 'venn.png';
 
   const actionButton = (label: string, onClick: () => void) => {
@@ -208,9 +212,9 @@ export function createToolbar(root: HTMLElement, handlers: ToolbarHandlers): Too
 
   actions.append(
     download_png,
-    actionButton('下載 SVG', handlers.onDownloadSvg),
-    actionButton('複製圖片', handlers.onCopyImage),
-    actionButton('複製連結', handlers.onCopyLink),
+    actionButton(STRINGS['action.downloadSvg'], handlers.onDownloadSvg),
+    actionButton(STRINGS['action.copyImage'], handlers.onCopyImage),
+    actionButton(STRINGS['action.copyLink'], handlers.onCopyLink),
   );
 
   const divider = () => document.createElement('hr');

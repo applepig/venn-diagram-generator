@@ -17,5 +17,14 @@
     "resolveJsonModule": true,
     "noEmit": true
   },
-  "include": ["engine", "ui", "server", "scripts", "tests", "vite.config.ts", "vitest.config.ts"]
+  "include": [
+    "engine",
+    "content",
+    "ui",
+    "server",
+    "scripts",
+    "tests",
+    "vite.config.ts",
+    "vitest.config.ts"
+  ]
 }

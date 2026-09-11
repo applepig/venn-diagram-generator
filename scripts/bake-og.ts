@@ -6,7 +6,7 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { renderOgPng } from '../server/render-og';
-import { sampleState } from '../engine/defaults';
+import { sampleState } from '../content/state-presets';
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
 const FONT_FILE = resolve(ROOT, 'assets/fonts/NotoSansTC-Bold.otf');

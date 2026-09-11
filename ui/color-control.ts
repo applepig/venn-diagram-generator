@@ -1,11 +1,3 @@
-import { PALETTE } from '../engine/defaults';
-
-/** 顏色 popover 的選色：palette 四色 ＋ 常用色（含黑、白、灰） */
-export const SWATCH_COLORS = [...PALETTE, '#111111', '#ffffff', '#8a8f99', '#8b5cf6', '#e05fa0'];
-
-/** 背景色的常用選色：淺底、紙色、深底 */
-export const BG_SWATCHES = ['#fafafa', '#ffffff', '#f4e6c8', '#d9dee6', '#2f3440', '#14161a'];
-
 const HEX_RE = /^#[0-9a-f]{6}$/;
 
 /**

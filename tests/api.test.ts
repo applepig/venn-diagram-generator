@@ -6,10 +6,11 @@ import { afterAll, describe, expect, it } from 'vitest';
 import { createApp } from '../server/app';
 import { encodeState } from '../engine/state-codec-node';
 import { encodeBase64Url } from '../engine/state-codec';
-import { MAX_STATE_PARAM_LEN, defaultState, sampleState } from '../engine/defaults';
+import { MAX_STATE_PARAM_LEN } from '../engine/defaults';
+import { defaultState, sampleState } from '../content/state-presets';
 import type { VennState } from '../engine/types';
 import { FONT_FILE } from './helpers/font';
-import { decodePng, meanRgb, pngSize } from './helpers/png';
+import { decodePng, meanRgb, pngPixel, pngSize } from './helpers/png';
 import { bombParam, paramOfLength } from './helpers/state-param';
 
 const OG_BASE_FILE = resolve('ui/public/og-base.png');
@@ -604,5 +605,52 @@ describe('GET /：06 AC3/AC5 首頁 og:image 優先用 build 烤好的靜態檔'
     expect(html).toContain(`<meta property="og:image" content="${ORIGIN}/api/og.png?v=5">`);
     expect(html).toContain(`<meta name="twitter:image" content="${ORIGIN}/api/og.png?v=5">`);
     expect(html).not.toContain('og-default-');
+  });
+});
+
+describe('07 M2 浮水印文字由部署設定決定（VENN_WATERMARK → createApp）', () => {
+  const MARK = 'venn.example.test';
+  const marked = createApp({ fontFile: FONT_FILE, ogBaseFile: OG_BASE_FILE, watermark: MARK });
+  const BG: [number, number, number] = [250, 250, 250]; // DEFAULT_BG #fafafa
+  const SIZE = 800;
+
+  /**
+   * 右下角浮水印落點區域裡「不是背景色」的像素數。
+   * 這一角底下一定是 bg（圓碰不到），所以非背景色的像素只可能來自浮水印。
+   */
+  async function cornerInk(target: ReturnType<typeof createApp>): Promise<number> {
+    const s = encodeState({ ...defaultState(2), size: SIZE });
+    const res = await target.request(`${ORIGIN}/api/png?s=${s}`);
+    expect(res.status).toBe(200);
+    const png = decodePng(Buffer.from(await res.arrayBuffer()));
+
+    let ink = 0;
+    for (let x = Math.round(SIZE * 0.75); x < Math.round(SIZE * 0.99); x++) {
+      for (let y = Math.round(SIZE * 0.94); y < Math.round(SIZE * 0.99); y++) {
+        const [r, g, b] = pngPixel(png, x, y);
+        if (Math.abs(r - BG[0]) > 8 || Math.abs(g - BG[1]) > 8 || Math.abs(b - BG[2]) > 8) ink++;
+      }
+    }
+    return ink;
+  }
+
+  it('沒設定 watermark 的部署，/api/png 右下角只有背景色', async () => {
+    expect(await cornerInk(app)).toBe(0);
+  }, 30_000);
+
+  it('設定了 watermark 的部署，/api/png 右下角畫出浮水印', async () => {
+    expect(await cornerInk(marked)).toBeGreaterThan(100);
+  }, 30_000);
+
+  it('首頁把浮水印文字交給前端，畫布預覽與下載 SVG 才是同一張圖', async () => {
+    const html = await (await marked.request(`${ORIGIN}/`)).text();
+
+    expect(html).toContain(`<meta name="venn:watermark" content="${MARK}">`);
+  });
+
+  it('沒設定就不注入，前端也不畫', async () => {
+    const html = await (await get('/')).text();
+
+    expect(html).not.toContain('venn:watermark');
   });
 });

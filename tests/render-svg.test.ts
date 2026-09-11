@@ -2,11 +2,15 @@ import { Resvg } from '@resvg/resvg-js';
 import { describe, expect, it } from 'vitest';
 import { mixColors, regionColor, relativeLuminance, renderSvg } from '../engine/render-svg';
 import { circlesFor, layout, maskAt } from '../engine/layout';
-import { PALETTE, defaultState } from '../engine/defaults';
+import { PALETTE } from '../content/palette';
+import { defaultState } from '../content/state-presets';
 import type { VennStyle } from '../engine/types';
 import { FONT_FILE } from './helpers/font';
 
 const STYLES: VennStyle[] = ['translucent', 'flat', 'outline'];
+
+/** 浮水印文字由呼叫端提供，測試用假站名就好：engine 不該知道任何真實站名 */
+const WATERMARK = 'venn.example.test';
 
 function threeCircle(style: VennStyle) {
   return {
@@ -386,18 +390,32 @@ describe('renderSvg：style 差異', () => {
 });
 
 describe('renderSvg：右下角浮水印', () => {
-  const watermarkTag = (svg: string) =>
-    svg.match(/<text [^>]*text-anchor="end"[^>]*>venn\.applepig\.net<\/text>/)![0];
+  const watermarkTag = (svg: string) => svg.match(/<text [^>]*text-anchor="end"[^>]*>.*?<\/text>/)![0];
 
   for (const style of STYLES) {
-    it(`${style} 都帶浮水印`, () => {
-      expect(renderSvg(threeCircle(style))).toContain('>venn.applepig.net<');
+    it(`${style} 傳入文字就畫浮水印`, () => {
+      expect(renderSvg(threeCircle(style), { watermark: WATERMARK })).toContain(`>${WATERMARK}<`);
     });
   }
 
+  it('省略 watermark 就不畫（engine 不認識任何站名）', () => {
+    expect(renderSvg(threeCircle('flat'))).not.toContain('text-anchor="end"');
+  });
+
+  it('watermark 是空字串等於不畫', () => {
+    expect(renderSvg(threeCircle('flat'), { watermark: '' })).not.toContain('text-anchor="end"');
+  });
+
+  it('文字經 XML escape，含 & 的站名也產出合法 SVG', () => {
+    const svg = renderSvg({ ...defaultState(2), size: 400 }, { watermark: 'a & b' });
+
+    expect(svg).toContain('>a &amp; b<');
+    expect(() => renderPng(svg)).not.toThrow();
+  });
+
   it('位置貼齊右下角，並隨 size 等比縮放', () => {
     for (const size of [800, 1600]) {
-      const tag = watermarkTag(renderSvg({ ...defaultState(2), size }));
+      const tag = watermarkTag(renderSvg({ ...defaultState(2), size }, { watermark: WATERMARK }));
       const x = Number(tag.match(/ x="([\d.]+)"/)![1]);
       const y = Number(tag.match(/ y="([\d.]+)"/)![1]);
 
@@ -410,27 +428,29 @@ describe('renderSvg：右下角浮水印', () => {
   });
 
   it('深色背景轉白字，淺色背景轉黑字', () => {
-    expect(watermarkTag(renderSvg({ ...defaultState(2), bg: '#111111' }))).toContain(
-      'fill="#ffffff"',
-    );
-    expect(watermarkTag(renderSvg({ ...defaultState(2), bg: '#fafafa' }))).toContain(
-      'fill="#000000"',
-    );
+    expect(
+      watermarkTag(renderSvg({ ...defaultState(2), bg: '#111111' }, { watermark: WATERMARK })),
+    ).toContain('fill="#ffffff"');
+    expect(
+      watermarkTag(renderSvg({ ...defaultState(2), bg: '#fafafa' }, { watermark: WATERMARK })),
+    ).toContain('fill="#000000"');
   });
 
   it('不帶 data-region，畫布點選不會把它當成可編輯的槽', () => {
-    expect(watermarkTag(renderSvg(threeCircle('flat')))).not.toContain('data-region');
+    expect(watermarkTag(renderSvg(threeCircle('flat'), { watermark: WATERMARK }))).not.toContain(
+      'data-region',
+    );
   });
 });
 
 describe('renderSvg：合成用的圖層開關', () => {
   const BG_RECT = /<rect width="100%" height="100%"/;
 
-  it('預設兩層都畫', () => {
+  it('背景預設畫，浮水印預設不畫', () => {
     const svg = renderSvg({ ...defaultState(2), bg: '#123456' });
 
     expect(svg).toMatch(BG_RECT);
-    expect(svg).toContain('venn.applepig.net');
+    expect(svg).not.toContain('text-anchor="end"');
   });
 
   it('background: false 不畫背景 rect，底圖才透得出來', () => {
@@ -440,14 +460,10 @@ describe('renderSvg：合成用的圖層開關', () => {
     expect(svg).not.toContain('#123456');
   });
 
-  it('watermark: false 不畫浮水印', () => {
-    expect(renderSvg(defaultState(2), { watermark: false })).not.toContain('venn.applepig.net');
-  });
-
   it('關掉圖層不影響圓與文字', () => {
     const state = { ...threeCircle('flat'), bg: '#123456' };
-    const full = renderSvg(state);
-    const stripped = renderSvg(state, { background: false, watermark: false });
+    const full = renderSvg(state, { watermark: WATERMARK });
+    const stripped = renderSvg(state, { background: false });
 
     // 剝掉兩層之後，剩下的內容是完整版的子集
     for (const text of ['快', '好', '便宜', '不存在']) expect(stripped).toContain(`>${text}<`);

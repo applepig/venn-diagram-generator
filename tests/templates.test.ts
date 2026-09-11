@@ -4,12 +4,11 @@ import {
   DEFAULT_RADIUS,
   MIN_FS,
   SLOT_MASKS,
-  TEMPLATES,
-  isPristine,
   popCount,
-  sampleState,
 } from '../engine/defaults';
-import { nextStateForCircleCount } from '../engine/circle-count';
+import { nextStateForCircleCount } from '../content/next-state';
+import { isPristine, sampleState } from '../content/state-presets';
+import { TEMPLATES } from '../content/templates/zh-TW';
 import { layout } from '../engine/layout';
 import type { CircleCount } from '../engine/types';
 
