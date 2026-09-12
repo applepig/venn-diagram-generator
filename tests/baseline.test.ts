@@ -97,7 +97,7 @@ describe('AC1 golden 的覆蓋範圍', () => {
     }
   });
 
-  it('(b) 4 圈 13 槽全填（含 7、11、13、14）、帶 fs／dx／dy／fill、自訂 colors、三種 style 各一', () => {
+  it('(b) 4 圈 13 槽全填（含 7、11、13、14）、帶 fs／fill、自訂 colors、三種 style 各一', () => {
     const states = statesByAc('b');
     expect(states.map((s) => s.style).sort()).toEqual(['flat', 'outline', 'translucent']);
 
@@ -110,10 +110,10 @@ describe('AC1 golden 的覆蓋範圍', () => {
         expect(state.texts[String(mask)]?.t).toBeTruthy();
       }
 
+      // 原本還有兩條斷言要求至少一個槽帶 dx／dy。10 sprint 移除了文字位移這個行為，
+      // 欄位不復存在，斷言跟著退場——這是「行為已從 spec 移除」，不是為了讓紅掉的測試變綠。
       const slots = Object.values(state.texts);
       expect(slots.some((slot) => slot.fs !== undefined)).toBe(true);
-      expect(slots.some((slot) => slot.dx !== undefined)).toBe(true);
-      expect(slots.some((slot) => slot.dy !== undefined)).toBe(true);
       expect(slots.some((slot) => slot.fill !== undefined)).toBe(true);
 
       expect(state.colors).not.toEqual(golden.palette.slice(0, 4));

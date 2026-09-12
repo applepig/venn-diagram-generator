@@ -25,7 +25,7 @@ const rich: VennState = {
   texts: {
     '1': { t: '便宜' },
     '2': { t: '好吃\n很好吃' },
-    '15': { t: '媽媽煮的', fs: 0.033, dx: -0.01, dy: 0.02 },
+    '15': { t: '媽媽煮的', fs: 0.033, fill: '#ffffff' },
   },
 };
 
@@ -108,6 +108,36 @@ describe('validateState：schema 檢查', () => {
     expect(Object.keys(validateState(s).texts).map(Number).sort((a, b) => a - b)).toEqual(
       [...old_slots].sort((a, b) => a - b),
     );
+  });
+
+  /**
+   * 10 sprint 移除了文字位移。編輯器從來沒有產出位移的入口，但 CLI 的 `--nudge` 與更早的
+   * 拖曳原型都編得出帶 `dx`／`dy` 的 `s`，那些連結其他部分完全合法，不該因為欄位消失就變成 400。
+   * 這裡走真正的 deflate + base64url，不用 `encodeState`——它已經吐不出這種 payload 了。
+   */
+  it('舊連結帶 dx／dy 仍解得開，且解出來的槽沒有這兩個欄位', () => {
+    const base = sampleState(2);
+    const legacy_s = packJson({
+      ...base,
+      texts: { ...base.texts, '3': { t: '交集', dx: 0.01, dy: -0.02 } },
+    });
+
+    const slot = decodeState(legacy_s).texts['3']!;
+
+    expect(slot.t).toBe('交集');
+    expect(slot).not.toHaveProperty('dx');
+    expect(slot).not.toHaveProperty('dy');
+  });
+
+  it('舊連結的 dx／dy 即使超出原本值域也只是被忽略，不是 400', () => {
+    const base = sampleState(2);
+    const legacy_s = packJson({
+      ...base,
+      texts: { ...base.texts, '3': { t: '交集', dx: 999, dy: -999 } },
+    });
+
+    expect(() => decodeState(legacy_s)).not.toThrow();
+    expect(decodeState(legacy_s).texts['3']).toEqual({ t: '交集' });
   });
 
   it('4 圈的三重槽 7、11、13、14 都是合法 key', () => {
@@ -412,7 +442,7 @@ describe('decodeState：解壓輸出上限（AC1）', () => {
    */
   describe('AC15 參數長度上限涵蓋所有合法組合的最壞 state', () => {
     /**
-     * 該組合每一槽都塞滿 80 個互不重複的 4-byte 字，加上 fs/dx/dy 與各槽相異的 fill，
+     * 該組合每一槽都塞滿 80 個互不重複的 4-byte 字，加上 fs 與各槽相異的 fill，
      * 再配一個同樣塞滿的圖片標題（08 AC3 讓 title 也進 s）。
      */
     function worstStateFor(arr: Arrangement, n: CircleCount): VennState {
@@ -425,14 +455,12 @@ describe('decodeState：解壓輸出上限（AC1）', () => {
         const t = Array.from({ length: MAX_TEXT_LEN }, () =>
           String.fromCodePoint(code_point++),
         ).join('');
-        // 每槽的 fill 與 fs/dx/dy 都不同，壓縮器沒有重複字串可吃，才是真正的最壞案例
+        // 每槽的 fill 與 fs 都不同，壓縮器沒有重複字串可吃，才是真正的最壞案例
         fill_seed = (fill_seed * 7919) % 0xffffff;
         const fill = `#${fill_seed.toString(16).padStart(6, '0')}`;
         texts[String(mask)] = {
           t,
           fs: Number((0.0251 + i * 0.0013).toFixed(4)),
-          dx: Number((-0.0731 + i * 0.0017).toFixed(4)),
-          dy: Number((0.0619 - i * 0.0011).toFixed(4)),
           fill,
         };
         i++;
@@ -527,8 +555,6 @@ describe('07 M5 StateError 的訊息一律英文', () => {
     ['文字含控制字元', { ...sampleState(), texts: { '1': { t: `a${String.fromCharCode(0)}b` } } }],
     ['fs 不是數字', { ...sampleState(), texts: { '1': { t: 'x', fs: 'big' } } }],
     ['fs 超界', { ...sampleState(), texts: { '1': { t: 'x', fs: 2 } } }],
-    ['dx 超界', { ...sampleState(), texts: { '1': { t: 'x', dx: 2 } } }],
-    ['dy 超界', { ...sampleState(), texts: { '1': { t: 'x', dy: -2 } } }],
     ['fill 不是 hex', { ...sampleState(), texts: { '1': { t: 'x', fill: 'red' } } }],
   ];
 

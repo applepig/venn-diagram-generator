@@ -48,9 +48,9 @@ describe('patchSlotTexts：欄位合併', () => {
   });
 
   it('套 fs 只改字級，文字與其他欄位原樣保留', () => {
-    const texts = patchSlotTexts({ '1': { t: '要快', dx: 0.02 } }, '1', { fs: 0.08 });
+    const texts = patchSlotTexts({ '1': { t: '要快', fill: '#ffffff' } }, '1', { fs: 0.08 });
 
-    expect(texts['1']).toEqual({ t: '要快', dx: 0.02, fs: 0.08 });
+    expect(texts['1']).toEqual({ t: '要快', fill: '#ffffff', fs: 0.08 });
   });
 
   it('undefined 代表回到自動：欄位被移除而不是留一個 undefined 值', () => {

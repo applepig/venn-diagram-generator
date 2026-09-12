@@ -53,8 +53,6 @@ Fields, all optional except `sets`:
 
 A slot value may also be an object, `{"t": "text", "fs": 0.08, "fill": "#ffffff"}`, pinning
 a manual font size or recolouring that one region. Write the plain string form yourself.
-A decoded spec may also carry `dx` / `dy` offsets on a slot — leave those exactly as they
-are, they are the user's own tuning and you cannot see the canvas to judge them.
 
 ## Not every overlap exists
 
@@ -107,8 +105,8 @@ npx -y venn-diagram-generator decode 'https://venn.applepig.net/?s=...' > spec.j
 npx -y venn-diagram-generator png --json spec.json -o updated.png
 ```
 
-`decode` round-trips exactly, including any manual text sizes and offsets, so editing one
-label leaves the rest of their tuning untouched.
+`decode` round-trips exactly, including any manual text sizes and region colours, so editing
+one label leaves the rest of their tuning untouched.
 
 ## Exit codes
 

@@ -97,13 +97,6 @@ describe('isPristine', () => {
     expect(isPristine(s)).toBe(false);
   });
 
-  it('文字沒變但拖動過位置就不是 pristine', () => {
-    const s = sampleState(3);
-    s.texts['7'] = { t: '不可能', dx: 0.02 };
-
-    expect(isPristine(s)).toBe(false);
-  });
-
   it('AC10 文字沒變但指定過區域填色就不是 pristine', () => {
     const s = sampleState(2);
     s.texts['3'] = { t: '明天\n再說', fill: '#ffffff' };

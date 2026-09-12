@@ -418,8 +418,8 @@ export function layout(state: VennState): TextBlock[] {
       mask,
       kind,
       box,
-      cx: box.cx + (slot?.dx ?? 0),
-      cy: box.cy + (slot?.dy ?? 0),
+      cx: box.cx,
+      cy: box.cy,
       fs: fitted.fs,
       lines: fitted.lines,
     });

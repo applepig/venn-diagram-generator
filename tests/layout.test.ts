@@ -501,14 +501,21 @@ describe('layout：AC1 字級與槽的存在性', () => {
     for (const block of layout(s)) expect(block.fs).toBeGreaterThan(MIN_FS);
   });
 
-  it('手動 fs 與 dx/dy 會被採用，不被自動排版覆寫', () => {
+  it('手動 fs 會被採用，不被自動排版覆寫', () => {
     const s = defaultState(2);
-    s.texts = { '3': { t: '交集', fs: 0.09, dx: 0.05, dy: -0.02 } };
+    s.texts = { '3': { t: '交集', fs: 0.09 } };
     const block = layout(s).find((b) => b.mask === 3)!;
 
     expect(block.fs).toBeCloseTo(0.09, 10);
-    expect(block.cx).toBeCloseTo(block.box.cx + 0.05, 10);
-    expect(block.cy).toBeCloseTo(block.box.cy - 0.02, 10);
+  });
+
+  it('文字一律畫在區域框中心：手動字級不會把它推離中心', () => {
+    const s = defaultState(2);
+    s.texts = { '3': { t: '交集', fs: 0.09 } };
+    const block = layout(s).find((b) => b.mask === 3)!;
+
+    expect(block.cx).toBeCloseTo(block.box.cx, 10);
+    expect(block.cy).toBeCloseTo(block.box.cy, 10);
   });
 
   it('排版與畫布尺寸無關：size 改變不影響單位空間結果', () => {

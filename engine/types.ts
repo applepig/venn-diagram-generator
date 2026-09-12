@@ -6,18 +6,14 @@ export type CircleCount = 2 | 3 | 4 | 5 | 6;
 export type Arrangement = 'ring' | 'row';
 
 /**
- * 一個文字槽。`fs`／`dx`／`dy` 只在使用者手動調整過時存在，
- * 缺席代表「自動」：字級由 fit 演算法決定、位置為區域框中心。
+ * 一個文字槽。`fs` 只在使用者手動調整過時存在，
+ * 缺席代表「自動」：字級由 fit 演算法決定。文字一律畫在區域框中心。
  */
 export interface TextSlot {
   /** 文字內容，允許 `\n` 換行 */
   t: string;
   /** 手動字級，畫布寬比例 */
   fs?: number;
-  /** 相對區域框中心的水平偏移，畫布寬比例 */
-  dx?: number;
-  /** 相對區域框中心的垂直偏移，畫布寬比例 */
-  dy?: number;
   /** 該區的填色 override（`#rrggbb`），只在 flat 樣式生效；缺席代表自動混色 */
   fill?: string;
 }
@@ -71,9 +67,9 @@ export type SlotKind = 'label' | 'intersection';
 export interface TextBlock {
   mask: number;
   kind: SlotKind;
-  /** 區域內接文字框（未套用 dx/dy） */
+  /** 區域內接文字框 */
   box: RegionBox;
-  /** 文字實際中心，已套用 dx/dy */
+  /** 文字中心，等於 `box` 的中心 */
   cx: number;
   cy: number;
   /** 字級，畫布寬比例 */
@@ -83,7 +79,7 @@ export interface TextBlock {
 
 /** layoutTitle() 的輸出：畫在 title band 裡的標題，座標同樣在單位空間 */
 export interface TitleBlock {
-  /** 文字中心（標題一律置中，所以沒有 dx/dy） */
+  /** 文字中心 */
   cx: number;
   cy: number;
   fs: number;

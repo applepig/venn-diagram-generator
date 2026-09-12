@@ -85,6 +85,11 @@ function hasLoneSurrogate(s: string): boolean {
   return false;
 }
 
+/**
+ * 只搬認得的欄位，不認得的一律靜默忽略——這是舊連結的相容性靠山：
+ * 10 sprint 移除的文字位移 `dx`／`dy` 就走這條路，帶著它們的舊連結其他部分完全合法，
+ * 該照樣出圖而不是 400。所以這裡是白名單複製，不是「遇到不認得就報錯」。
+ */
 function parseSlot(key: string, raw: unknown): TextSlot {
   if (!isRecord(raw)) throw new StateError(`text slot ${key} must be an object`);
   if (typeof raw.t !== 'string') throw new StateError(`text slot ${key} is missing t`);
@@ -97,8 +102,6 @@ function parseSlot(key: string, raw: unknown): TextSlot {
 
   const slot: TextSlot = { t: raw.t };
   if (raw.fs !== undefined) slot.fs = requireNumber(raw.fs, `text slot ${key} fs`, 0.001, 1);
-  if (raw.dx !== undefined) slot.dx = requireNumber(raw.dx, `text slot ${key} dx`, -1, 1);
-  if (raw.dy !== undefined) slot.dy = requireNumber(raw.dy, `text slot ${key} dy`, -1, 1);
   if (raw.fill !== undefined) slot.fill = requireHex(raw.fill, `text slot ${key} fill`);
   return slot;
 }

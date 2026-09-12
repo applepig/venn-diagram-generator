@@ -33,23 +33,24 @@ const app = createApp({ fontFiles: FONT_FILES, ogBaseFile: OG_BASE_FILE, waterma
 
 /**
  * AC1(b) 的 4 圈 13 槽全填，含對角雙圈以外的每個 mask（7／11／13／14 是三重區）。
- * `fs`／`dx`／`dy`／`fill` 各出現在多個槽上：手動字級、手動位移與 flat 的填色 override
- * 都是編碼與渲染分支，漏掉任何一個都會讓重構期的迴歸溜過去。
+ * `fs` 與 `fill` 各出現在多個槽上：手動字級與 flat 的填色 override 都是編碼與渲染分支，
+ * 漏掉任何一個都會讓重構期的迴歸溜過去。原本還有手動位移 `dx`／`dy`，
+ * 10 sprint 移除該欄位後一併拿掉，golden 也因此重產（模板案例的雜湊不受影響）。
  */
 const FULL_TEXTS: Record<string, TextSlot> = {
   '1': { t: '甲' },
   '2': { t: '乙', fs: 0.09 },
-  '4': { t: '丙', dx: 0.02 },
-  '8': { t: '丁', dy: -0.02 },
+  '4': { t: '丙' },
+  '8': { t: '丁' },
   '3': { t: '甲乙', fill: '#ffffff' },
-  '5': { t: '甲丙', fs: 0.05, dx: -0.01, dy: 0.01 },
+  '5': { t: '甲丙', fs: 0.05 },
   '10': { t: '乙丁', fill: '#101010' },
   '12': { t: '丙丁' },
   '7': { t: '甲乙丙' },
   '11': { t: '甲乙丁', fs: 0.03 },
-  '13': { t: '甲丙丁', dx: 0.005, dy: -0.005 },
+  '13': { t: '甲丙丁' },
   '14': { t: '乙丙丁', fill: '#88ccff' },
-  '15': { t: '全部', fs: 0.04, dx: 0.003, dy: 0.003, fill: '#ff8800' },
+  '15': { t: '全部', fs: 0.04, fill: '#ff8800' },
 };
 
 /** 與 PALETTE 全不同的自訂色，其中兩色亮到會踩上淺底改黑字的分支 */
@@ -107,6 +108,23 @@ const CASES: Case[] = [
   },
 ];
 
+/**
+ * 每個 case 被重凍過的理由。golden 的價值在於稽核軌跡，而重產會整份覆寫輸出檔——
+ * 09 那次手寫在 JSON 裡的 `refrozen` 就這樣在 10 的重產中被無聲抹掉一次。
+ * 把它搬回原始碼，重產才不會再吃掉前人的紀錄。
+ */
+const REFROZEN: Record<string, string[]> = {
+  'overlap-max': [
+    '09 fit：這張圖的四個角本來被畫布切掉，正是該 sprint 要修的行為（spec 09 AC2 的唯一例外）。fit 參數 scale=0.8367、tx=ty=0.08165；其餘 7 個 case 一個位元都沒動。',
+  ],
+};
+
+/** 10 sprint 移除文字位移，帶 dx/dy 的 case 因此全部重凍；三組 template 不受影響 */
+const REFROZEN_10 = '10 移除文字位移 dx/dy：本 case 的 texts 帶過位移，重產後雜湊改變。三個 tpl-* 不帶位移，s 與三個雜湊一字未變。';
+for (const id of ['full-translucent', 'full-flat', 'full-outline', 'overlap-min', 'overlap-max']) {
+  REFROZEN[id] = [...(REFROZEN[id] ?? []), REFROZEN_10];
+}
+
 function sha256(data: Uint8Array | string): string {
   return createHash('sha256').update(data).digest('hex');
 }
@@ -134,6 +152,7 @@ for (const item of CASES) {
     ac: item.ac,
     label: item.label,
     s,
+    ...(REFROZEN[item.id] ? { refrozen: REFROZEN[item.id] } : {}),
     svg_sha256: sha256(renderSvg(state, { watermark: WATERMARK })),
     png_sha256: await pngSha256(`/api/png?s=${s}`),
     og_png_sha256: await pngSha256(`/api/og.png?s=${s}`),
@@ -143,7 +162,12 @@ for (const item of CASES) {
 }
 
 const golden = {
-  note: 'AC1 golden：以 07 sprint 重構前的程式產出，任何 milestone 都不得修改。測試紅了是實作錯，不是 golden 錯。',
+  note:
+    'AC1 golden：以 07 sprint 重構前的程式產出，任何 milestone 都不得修改。測試紅了是實作錯，不是 golden 錯。' +
+    '唯一能重產的情況是行為已由使用者確認要變，重產理由逐案記在各 case 的 refrozen。' +
+    '最近一次重產：10 sprint 移除文字位移 dx/dy（使用者決定：編輯器沒有任何控制項能產生位移，欄位不該留在資料結構裡）。' +
+    '五個帶位移的 case（full-translucent／full-flat／full-outline／overlap-min／overlap-max）雜湊改變；' +
+    '三個模板 case（tpl-2／tpl-3／tpl-4）的 s 與 svg／png／og 三個雜湊一個字元都沒變，已逐項 diff 核對。',
   slot_masks_4: [...slotMasks('ring', 4)],
   palette: PALETTE,
   cases,

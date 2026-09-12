@@ -44,12 +44,12 @@ deploy/   Dockerfile、compose.yml、compose.dev.yml、deploy.sh
   "texts": {                  // key 是成員圓 bitmask 的十進位字串
     "1": { "t": "該做\n的事" },  // circle i = bit i，所以 3 = 圓0∩圓1
     "2": { "t": "想做\n的事" },
-    "3": { "t": "拖到\n明天", "fs": 0.09, "dx": 0.01, "dy": -0.02 }
+    "3": { "t": "拖到\n明天", "fs": 0.09 }
   }
 }
 ```
 
-`fs`（字級，畫布寬比例）、`dx`／`dy`（相對區域框中心的位移）與 `fill`（該區填色 override，只有 `flat` 生效）只在使用者手動調過時才存在；沒有就是自動排版。每個文字槽上限 80 字。
+`fs`（字級，畫布寬比例）與 `fill`（該區填色 override，只有 `flat` 生效）只在使用者手動調過時才存在；沒有就是自動排版。區域文字一律畫在該區文字框的中心。每個文字槽上限 80 字。舊連結可能還帶著 `dx`／`dy` 文字位移，那兩個欄位會被忽略而不是被拒絕，連結照樣能開。
 
 有 `title` 時，畫布頂端 18% 變成 title band，圖區（圓與所有區域文字）等比縮小、水平置中並貼齊底緣，所以輸出仍是正方形、也不會出界；沒有標題的版面一個位元都不動。標題字級自動 fit，支援手動 `\n` 與自動折行；字色預設依背景亮度取黑或白，也可以用 `title_fill` 指定。分享頁有標題時，`og:title` 與 `<title>` 也改用它。
 
@@ -102,11 +102,11 @@ cat <<'EOF' | npx -y venn-diagram-generator png --json - -o life.png
 EOF
 ```
 
-每個 state 欄位都有對應旗標，沒有哪個欄位只能走 JSON。`--arr`、`--style`、`--title`、`--size`、`--bg`、`--opacity`、`--overlap`、`--radius` 與 `--colors '#aabbcc,#ddeeff'` 對應上面那份 state 的欄位；per-slot 的三個用同一套字母 key：`--fs AB=0.09`、`--fill AB=#ffffff`、`--nudge AB=0.01,-0.02`。`--nudge` 可以只給一半（`AB=,0.02`），沒給的那一邊維持自動置中而不是變成 0。這些旗標一律覆蓋 `--json` 給的底稿；`--set`／`--text` 只換文字，該格既有的字級、位移與填色原樣留著。
+每個 state 欄位都有對應旗標，沒有哪個欄位只能走 JSON。`--arr`、`--style`、`--title`、`--size`、`--bg`、`--opacity`、`--overlap`、`--radius` 與 `--colors '#aabbcc,#ddeeff'` 對應上面那份 state 的欄位；per-slot 的兩個用同一套字母 key：`--fs AB=0.09`、`--fill AB=#ffffff`。這些旗標一律覆蓋 `--json` 給的底稿；`--set`／`--text` 只換文字，該格既有的字級與填色原樣留著。
 
 分享連結的主機依序取 `--base-url`、`VENN_BASE_URL`、`https://venn.applepig.net`。退出碼：`0` 成功、`1` 參數或 spec 有誤、`2` 點陣化失敗。
 
-`decode` 的往返是等價的，連手動字級、位移與區域填色都留著，所以可以把編輯器的連結貼回來、在 JSON 裡改一格文字，其餘原封不動重出一張。
+`decode` 的往返是等價的，連手動字級與區域填色都留著，所以可以把編輯器的連結貼回來、在 JSON 裡改一格文字，其餘原封不動重出一張。
 
 ```bash
 npx -y venn-diagram-generator decode 'https://venn.applepig.net/?s=...' > spec.json

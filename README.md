@@ -45,12 +45,12 @@ Circle positions are always derived from `arr` / `n` / `overlap` / `radius` — 
   "texts": {                  // key is the member-circle bitmask, as a decimal string
     "1": { "t": "Things I\nshould do" },  // circle i = bit i, so 3 = circle 0 ∩ circle 1
     "2": { "t": "Things I\nwant to do" },
-    "3": { "t": "Tomorrow", "fs": 0.09, "dx": 0.01, "dy": -0.02 }
+    "3": { "t": "Tomorrow", "fs": 0.09 }
   }
 }
 ```
 
-`fs` (font size, fraction of canvas width), `dx` / `dy` (offset from the region box centre) and `fill` (per-region colour override, `flat` only) exist only once the user has adjusted them; absent means automatic. Each text slot is capped at 80 characters.
+`fs` (font size, fraction of canvas width) and `fill` (per-region colour override, `flat` only) exist only once the user has adjusted them; absent means automatic. Region text is always drawn at the centre of its region box. Each text slot is capped at 80 characters. Older links may still carry `dx` / `dy` text offsets; those are ignored rather than rejected, so the link keeps working.
 
 With a `title`, the top 18% of the canvas becomes a title band and the diagram (circles and every region text) is scaled down by the same factor, centred horizontally and pushed to the bottom edge — so the output stays square and nothing overflows. Without a title the layout is untouched, byte for byte. The title font size is fitted automatically, manual `\n` and automatic wrapping both work, and the colour flips between black and white with the background's luminance unless `title_fill` pins it. On a share page the title also becomes the `og:title` and `<title>`.
 
@@ -103,11 +103,11 @@ cat <<'EOF' | npx -y venn-diagram-generator png --json - -o life.png
 EOF
 ```
 
-Every state field has a flag, so nothing is JSON-only. `--arr`, `--style`, `--title`, `--size`, `--bg`, `--opacity`, `--overlap`, `--radius` and `--colors '#aabbcc,#ddeeff'` map to the fields documented above, and the per-slot ones take the same letter keys: `--fs AB=0.09`, `--fill AB=#ffffff`, `--nudge AB=0.01,-0.02`. Either half of `--nudge` may be left out (`AB=,0.02`); an omitted half stays automatic rather than becoming zero. All of them override whatever `--json` supplied, and `--set` / `--text` replace only the text, leaving that slot's existing size, offset and fill alone.
+Every state field has a flag, so nothing is JSON-only. `--arr`, `--style`, `--title`, `--size`, `--bg`, `--opacity`, `--overlap`, `--radius` and `--colors '#aabbcc,#ddeeff'` map to the fields documented above, and the per-slot ones take the same letter keys: `--fs AB=0.09` and `--fill AB=#ffffff`. Both override whatever `--json` supplied, and `--set` / `--text` replace only the text, leaving that slot's existing size and fill alone.
 
 The share link's host comes from `--base-url`, then `VENN_BASE_URL`, then `https://venn.applepig.net`. Exit codes: `0` success, `1` bad arguments or an invalid spec, `2` rasterization failed.
 
-`decode` round-trips exactly, including manual font sizes, offsets and region colours, so you can paste a link from the editor, edit one label in JSON and re-render everything else untouched.
+`decode` round-trips exactly, including manual font sizes and region colours, so you can paste a link from the editor, edit one label in JSON and re-render everything else untouched.
 
 ```bash
 npx -y venn-diagram-generator decode 'https://venn.applepig.net/?s=...' > spec.json

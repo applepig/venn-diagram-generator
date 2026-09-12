@@ -57,8 +57,8 @@ function matchesTemplate(state: VennState, locale: Locale): boolean {
     const slot = state.texts[key]!;
     const expected = template[key];
     if (!expected || slot.t !== expected.t) return false;
-    // 調過字級、拖過位置或指定過填色就算編輯過，即使文字沒變
-    if (slot.fs !== undefined || slot.dx !== undefined || slot.dy !== undefined) return false;
+    // 調過字級或指定過填色就算編輯過，即使文字沒變
+    if (slot.fs !== undefined) return false;
     if (slot.fill !== undefined) return false;
   }
   return true;

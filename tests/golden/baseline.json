@@ -1,5 +1,5 @@
 {
-  "note": "AC1 golden：以 07 sprint 重構前的程式產出，任何 milestone 都不得修改。測試紅了是實作錯，不是 golden 錯。",
+  "note": "AC1 golden：以 07 sprint 重構前的程式產出，任何 milestone 都不得修改。測試紅了是實作錯，不是 golden 錯。唯一能重產的情況是行為已由使用者確認要變，重產理由逐案記在各 case 的 refrozen。最近一次重產：10 sprint 移除文字位移 dx/dy（使用者決定：編輯器沒有任何控制項能產生位移，欄位不該留在資料結構裡）。五個帶位移的 case（full-translucent／full-flat／full-outline／overlap-min／overlap-max）雜湊改變；三個模板 case（tpl-2／tpl-3／tpl-4）的 s 與 svg／png／og 三個雜湊一個字元都沒變，已逐項 diff 核對。",
   "slot_masks_4": [
     1,
     2,
@@ -55,47 +55,62 @@
       "id": "full-translucent",
       "ac": "b",
       "label": "4 圈 13 槽全填，translucent ＋ 深色背景 ＋ 自訂透明度",
-      "s": "XVDLbsJADPyX4WqQNw-63V9BPYRkt4oUEZQEBEV7QFX_oJf-Aeee6P-0qvoXlZNAAokU2fGMZzwHbGEUYQUTEepmX1gYNFWyqotNalcNCOU6SfNmD8OzKCaUW1sVyVpaTaiSLN_U0oQhIS2LsqphFpioIIziOQiTZJlm1knF7JzWUjnHPJ_jibB8hsFEJSoJLAh1_mJhVMBMaOyuqWEOUPJpYPD7_glPCC7999cHCK7V50dPCEfIfpgXhSi49hF2dGWfBZDtWnbgCfGYfR6tjjvYlGesCFmbBStPeLjVE5In6EHhiA4_7SUUj7x344tDxfIKX6n7tcfBSyiAYHSDTOVfeOu-1-6uay_obXAs6OjGx50VrdO0C0tdM_l5O_29ngYf0bA8vGYi5ZC41szw3v8D",
-      "svg_sha256": "0a9ced8dfae0c75ef6d22c1a24e2f27d5d2e66f760d3d74cf8e6dc4a1805cdf2",
-      "png_sha256": "3390ec6aa9be8d5929db27fd7f1654a8bd932fbb59db689b986edd4fc8aaeb6b",
-      "og_png_sha256": "2db590a550f1086fe8889129ab8137fce50e106cc8a7689a50db2faa6278c212"
+      "s": "XVBLTsMwEL3Ly3aE7PwwvkrFwk1tFMlKqsStKJUXFeIGbHqDrlmV-4AQt0AOTePUI1nzxvPem_EeW0hOaCBzQu92VkPCdarp7abSjQOhXauqdjtIdpcXhHarO6vWAQpCp1b1pg8gywhVa9uuh1wg4WmWFyUIiVpWK21CxpgxQoTMGMbKEo-E5RMkEq64SjUIff2iIXnKGMHpZ9dD7sHD5SDx8_4BT0hH_PV5BMEM_uzBE7Ko8_JYWxsczHACO7-yz8eAi5hzjgQLT7ifC14oYpI4BMxZNFGoTb6chRia-K3WYfLKQkMaTTYqZ_PpxnI-M7zxFKKq_nfl1-W-306_r6fJMI-_RgjG4L3_Aw",
+      "refrozen": [
+        "10 移除文字位移 dx/dy：本 case 的 texts 帶過位移，重產後雜湊改變。三個 tpl-* 不帶位移，s 與三個雜湊一字未變。"
+      ],
+      "svg_sha256": "27e638f0bfca2ae4bf1c9c14ba01254f3de0019f81de92dce821ddea732a3eb6",
+      "png_sha256": "af396548041c63e7ed10b175bdb84fa0ba8bd36ea6f3aa39fe1e51273ea88b0e",
+      "og_png_sha256": "e351955c8e2ce26ba6904bc95a6d7b1d83d70c608ce899a32924f7745ab7e901"
     },
     {
       "id": "full-flat",
       "ac": "b",
       "label": "4 圈 13 槽全填，flat ＋ fill override ＋ size 800",
-      "s": "XVBBboMwEPzLcN1EawzU9VeqHgjgCgmVKJAoaeRDVPUHvfQHOfeU_qdV1V9UCySQ2JK1653Zmd09NrCK8AwbEZp2VxWwcFXaglAv06xsd7A8Twj1plhV6VIyQ1ilebluJNGakNVVvWpgHxCoUEdxAkKQLrK8cBIxO2eMRM4xJwkeCYsnWAQulQtCU74UsIaZ0BbbtoHdQ8nTwuL3_ROeEJ7z768PEFwnz_eeoCfIoVhWVSfQHWFHF_ZJAPm2Y4eeEE_Zp0nruIfNeM6KkHebYOUJd9d6QvIEMyoc0ONng4Tiife-fHaoWK7wlbptexi9aAGEkxmkKn_62v2g3U_XTTDY4FjQ0ZWPGyvGZFm_LHXZyc_b8e_1OPqIxub6shMJx40bwwzv_T8",
-      "svg_sha256": "95fdff2c6151ef175a6244097f7816f50f43fc4b9723fb0f56eb3480ef51b8ff",
-      "png_sha256": "3cade176f75d82134c850305a0acfba3af8b009492f781228852607549d8e9c0",
-      "og_png_sha256": "783e46f837096d086f139066748e3ba2bd986c10d40e35495aeba27b07c96f95"
+      "s": "XVBLTsMwEL3Ly3aE7Pwwvgpi4aYximSRKnErSuVFhbgBm96ga1blPiDELdCEpnHqkax543nvzXiHDbQkPEHnhN5vXQ0N64wHoV2ZqvFbaHFTEtpN3TmzYqQInVk2655BlhGq1rVdD32PRKZZXpQgJGZRLWvLmRDWKsWZtUKUJR4Ii0doJNZwgNA3LzW0EoLg62ffQ-8g-fLQ-Hn_QCCkI_76PIBgB3txFwhZ1Hl-bJwbDIbD7PzCPh0YFzHnFAkWgXA7FzxT1CSxZyxFNBHXJl8pOIYmea21n7wybkijyUblbD7dWM5nhleeSlXV_67ystz32_H39TgZ5vHXKCUEQgh_",
+      "refrozen": [
+        "10 移除文字位移 dx/dy：本 case 的 texts 帶過位移，重產後雜湊改變。三個 tpl-* 不帶位移，s 與三個雜湊一字未變。"
+      ],
+      "svg_sha256": "33b5f360b17dadcae4cebde8f9ead234f5059988bf2e149a6bb2b3994f615425",
+      "png_sha256": "fb51ae51c996e738e823bc39878678ca25dc6efc80ef6d462569529cf8a36666",
+      "og_png_sha256": "2d3a841b3eb8e9d49f2ce97c289c58c695b508d79c9ceef57e7e44dd5dfbc641"
     },
     {
       "id": "full-outline",
       "ac": "b",
       "label": "4 圈 13 槽全填，outline",
-      "s": "XVBBbsIwEPzLcF3QOk5S119BPYQkriJFBJGAoMgHVPUHvfQHnHui_2lV9RfVJoEEbMna9c7szO4BW1hFWMKGhLrZlzksqk1TFsschGqVpEWzh-VZTKi2-bpMVpIZwjrJik0tidaEtCqrdQ07x0QFOoxiECbJIs1yJxGzc8ZI5BxzHOOJsHiGxcQlckGoi5ccVgXMhCbfNTXsAUqeBha_75_whOCSf399gOBafX70BD1C9sWiLFuF9gg7vLLPAsh2LTvwhGjMPo9aRx1syjNWhKxdBStPeLjVE5InmEHhiA4_7SUUj7x35YtDxXKFr9R92-PgRQsgGM0gVfnTt-577W66doLeBkeCDm983FkxJk27ZanrTn7eTn-vp8FHODTX151IOGzcGGZ47_8B",
-      "svg_sha256": "f75b08dc558f12cf581d170de3f0ce39e1cc8acbb9bbc74d9f915d67d7738afb",
-      "png_sha256": "f3894e3433e113ded668edb29d345cc3e0579d83504426713fa8a9ccd4a39cc1",
-      "og_png_sha256": "7eb90cc5fe1a9fbd61a2cad06a34e77f5ac1b189e0c3335365ba188412a7e68d"
+      "s": "XVBBTsMwEPzL5LpCdpwE469UHNI0RpGspkrcilL5UCF-wKU_6JlT-Q8I8Qu0oWnceiVrZ70zs-sdNjCSsITJCL3fuhoG7dq7ZlmD0K7KqvFbGHFXENpN3blyxUgTunLRrHsGShGq1rVdDzNDIlOV5QUISTmvFrXlTAhrtebMWiGKAo-E-RMMEltygNA3LzWMTIUg-PrZ9zA7SL48DH7ePxAI6Yi_Pg8g2MFfPASCijrPj41zg8NwmJ1d2KcD4zzmnCLBPBDurwXPFD1J7BlLEU3EtclXCo6hSd5q7ScvxQ1pNNmorK6nG8vZleGNp9ZV9b-rvCz3_Xb8fT1Ohln8NVoLgRDCHw",
+      "refrozen": [
+        "10 移除文字位移 dx/dy：本 case 的 texts 帶過位移，重產後雜湊改變。三個 tpl-* 不帶位移，s 與三個雜湊一字未變。"
+      ],
+      "svg_sha256": "6d7fd68885345205666affc9ed7785329585f2a461a859a7596fe392cb3349c9",
+      "png_sha256": "fa90bcb7c0600dab00e633b0fd0b50009acd6faa521fe802b02a080dcb374fc2",
+      "og_png_sha256": "7689b4c9a820a87752bab9af53e0670e8e66e77581d4061efa33e064d5fb9777"
     },
     {
       "id": "overlap-min",
       "ac": "c",
       "label": "4 圈 overlap 0.6（下限）",
-      "s": "XVBLTsMwEL3L63ZajeMkGF8FsUjzQZGiBiVu1VJ5USFuwIYbdM2q3AeEuAWaJG3S2pI143lv3pvZYwOrCCvYkNC6XZXDwjXJqq3Wab5yINTPSVq6HSwvYkK9yZsqeR6yJsnKdSuJ1oS0ruqmhX3ATAU6jGIQZskyzfJCIuaiMEaiomCOYzwSlk-wmBWJXBDa8iWHVQEzweVb18LuoeRxsPh9_4QnBOf8--sDhKLT53tP0BPkUCyrqlPojrDDC_skgGzbsQNPiKbs06R11MPmvGBFyLpVsPKEu2s9IXmCGRUO6PHzQULxxHtfPjtULFf4St22PYxetACCyQxSlT997X7Q7qfrJhhscCTo8MrHjRVj0rRflrrs5Oft-Pd6HH2EY3N92YmE48aNYYb3_h8",
-      "svg_sha256": "a1b3601ab33651dd06c27bb1b78b43a6c494906202d36c0b5176e35df6d8ae62",
-      "png_sha256": "3bb04141a79351531329a151683639067e9be2f652cb3367eabadddd07cf18b7",
-      "og_png_sha256": "b2efc9144c882386003a1d25d9ae9e0129fa8fef34c41323dcae284932da9095"
+      "s": "XVBBTsMwEPzL5LpCdpwE469UHFI3RpGspErcilL5UCF-wKU_6JlT-Q8I8QvkkDRuvZK1s96Z2fUeWyhOaKAyQu92toKC68qmtxtdNQ6Edl3q2u2g2F1BaLdVZ8v1iLpyVW_6AIQg6Na2XQ-1QMJTkeUFCEm51KvKhIwxY6QMmTGMFQUeCcsnKCSmDAFCX79UUDxljOCqZ9dD7cHD5aDw8_4BT0gn_PV5BMEM_uzBE0TUOT7W1g4Owwns7MI-HwPOY845Esw94f5acKTIWeIQMGfRRKE2-3IWYmjit1qH2UuEhjSabFIW19NN5ezK8MZTSq3_d-WX5b7fTr-vp9kwi79GSsbgvf8D",
+      "refrozen": [
+        "10 移除文字位移 dx/dy：本 case 的 texts 帶過位移，重產後雜湊改變。三個 tpl-* 不帶位移，s 與三個雜湊一字未變。"
+      ],
+      "svg_sha256": "e967761b2783fd1d8b091f417b0483c5440b9473ac15fbfa20659d1e13fe3fc9",
+      "png_sha256": "9c44d50a2d17c5c0218b54db5fca4d443014952bc69b2c2d989aaa4820cc4df9",
+      "og_png_sha256": "8741f306f04c0523a533cd6e1ab34636f77660c0111f0e29a32a3854c3e95669"
     },
     {
       "id": "overlap-max",
       "ac": "c",
       "label": "4 圈 overlap 1.6（上限，五個區域消失）",
-      "s": "XVDLTsMwEPyX6XVbrfPC-FcQhzSJUaSoQYlbtVQ-VIg_4MIf9Myp_A8I8Rdok7RJG0vR2juzMzt7bGAUYQUTEVq3qwoYuCZdtdU6K1YOhPo5zUq3g-FFQqg3RVOlzzBKbk2al-tWWmFIyOqqblqYB8xUEEZxAsIsXWZ5YaVitlZrqaxlThI8EpZPMJjZVA4IbflSwKiAmeCKrWth9lDyczD4ff-EJwTn-_fXBwi20-d7TwgnyKFZVlWn0H3Cji7skwDybccOPCGesk-T0XEPm_OCFSHvomDlCXfXekLyBD0qHNDj54OE4on3vn12qFiO8JW6HXsYvYQCCCY7SFfewmv3g3a_XbfBYINjQUdXPm6saJ1lfVjqksnP2_Hv9Tj6iMbh4SUTKcfEtWaG9_4f",
-      "refrozen": "09 fit：這張圖的四個角本來被畫布切掉，正是本 sprint 要修的行為（spec 09 AC2 的唯一例外）。fit 參數 scale=0.8367、tx=ty=0.08165；其餘 7 個 case 一個位元都沒動。",
-      "svg_sha256": "316dff0718eb2a6e4ce77270a83cb3769415077d01d770a7b26ea97435bb47fc",
-      "png_sha256": "b7f052637237be542945414a0c11b8acba8c55c71ea4783b00d4476eba4163e7",
-      "og_png_sha256": "8a58f01909d8734a5c972038370c3539d4d256f4fd2d2040ba60b22cbca2ee14"
+      "s": "XVBBTsMwEPzL5LpCdpwE469UHFw3RpGipErcilL5UCF-wKU_6JlT-Q8I8Qvk0DROvZK1s7szs_YeWyhOaKAyQu92dQkF1-mmrzembBwI7Vqbyu2g2F1BaLdlV-s1FA-o06tq04eWEATT1m3XQy2Q8FRkeQFCopdmVdqQMWatlCGzlrGiwCNh-QSFxOoQIPTVSwnFU8YIrnx2PdQePFwOCj_vH_CEdMRfn0cQ7ODPHjxBRJOXZlXXg8NwAju7ss_HgPOYc44Ec0-4nwteKHKSOATMWbRRqE2-nIUYhvit1mHyEmEgjTYblcV8u7GczQxvPKU05v-t_Pq477fT7-tpMszir5GSMXjv_wA",
+      "refrozen": [
+        "09 fit：這張圖的四個角本來被畫布切掉，正是該 sprint 要修的行為（spec 09 AC2 的唯一例外）。fit 參數 scale=0.8367、tx=ty=0.08165；其餘 7 個 case 一個位元都沒動。",
+        "10 移除文字位移 dx/dy：本 case 的 texts 帶過位移，重產後雜湊改變。三個 tpl-* 不帶位移，s 與三個雜湊一字未變。"
+      ],
+      "svg_sha256": "7bb0ac5166b214f47abac1ab796d7d9c0d3274816b1b24f7197fc5119c23a53a",
+      "png_sha256": "cea05c79c4b5b43dbeb781f7e3c4f020e274ac0c9e858afa0f15fb58b24b29f0",
+      "og_png_sha256": "a1f4aa22cc8514383d54fbf323d7aab680d0c804045a14c55560719bfa8e8698"
     }
   ]
 }
