@@ -1,0 +1,13 @@
+{
+  "name": "venn",
+  "description": "Generate Venn diagrams (2-6 circles) as PNG or SVG with the venn CLI, and hand back an editable share URL.",
+  "version": "1.0.0",
+  "author": {
+    "name": "Dominic Wu",
+    "url": "https://applepig.idv.tw"
+  },
+  "homepage": "https://github.com/applepig/venn-diagram-generator",
+  "repository": "https://github.com/applepig/venn-diagram-generator",
+  "license": "MIT",
+  "keywords": ["venn", "diagram", "svg", "png", "visualization", "chart"]
+}

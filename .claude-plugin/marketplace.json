@@ -1,0 +1,20 @@
+{
+  "name": "venn-diagram-generator",
+  "owner": {
+    "name": "Dominic Wu",
+    "url": "https://applepig.idv.tw"
+  },
+  "metadata": {
+    "description": "Venn diagram generator for Claude Code — render real diagrams as PNG plus an editable share link"
+  },
+  "plugins": [
+    {
+      "name": "venn",
+      "source": "./",
+      "description": "Generate Venn diagrams (2-6 circles) as PNG or SVG with the venn CLI, and hand back an editable share URL.",
+      "version": "1.0.0",
+      "category": "productivity",
+      "tags": ["venn", "diagram", "svg", "png", "visualization"]
+    }
+  ]
+}

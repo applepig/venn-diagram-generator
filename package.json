@@ -1,7 +1,7 @@
 {
   "name": "venn-diagram-generator",
   "version": "1.0.0",
-  "private": true,
+  "private": false,
   "description": "WYSIWYG Venn diagram generator — the whole editor state lives in the URL, the server renders the same SVG to PNG and og:image",
   "license": "MIT",
   "author": "Dominic Wu (https://applepig.idv.tw)",
@@ -13,13 +13,38 @@
   "bugs": {
     "url": "https://github.com/applepig/venn-diagram-generator/issues"
   },
+  "keywords": [
+    "venn",
+    "venn-diagram",
+    "diagram",
+    "svg",
+    "png",
+    "cli",
+    "claude-code",
+    "generator"
+  ],
   "type": "module",
   "packageManager": "pnpm@11.22.0",
+  "engines": {
+    "node": ">=20"
+  },
+  "bin": {
+    "venn": "dist-cli/venn.mjs",
+    "venn-diagram-generator": "dist-cli/venn.mjs"
+  },
+  "files": [
+    "dist-cli/",
+    "assets/fonts/",
+    "README.md",
+    "README.zh-TW.md",
+    "LICENSE"
+  ],
   "scripts": {
     "dev": "VENN_DEV=1 tsx watch server/index.ts",
     "build": "pnpm build:ui && pnpm build:og && pnpm build:server",
     "build:ui": "vite build",
     "build:og": "tsx scripts/bake-og.ts",
+    "build:cli": "esbuild cli/venn.ts --bundle --platform=node --target=node20 --format=esm --outfile=dist-cli/venn.mjs --external:@resvg/resvg-js --banner:js='#!/usr/bin/env node' && chmod +x dist-cli/venn.mjs",
     "build:server": "esbuild server/index.ts --bundle --platform=node --target=node24 --format=esm --outfile=dist-server/index.mjs --external:@resvg/resvg-js --external:vite",
     "start": "node dist-server/index.mjs",
     "typecheck": "tsc --noEmit",

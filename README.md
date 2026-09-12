@@ -14,6 +14,8 @@ engine/   types, defaults, shapes/ (ring & row registry), layout, region-geometr
 content/  palette, templates/, strings/, locale, state-presets — default memes and UI strings
 ui/       Vite + vanilla TS editor
 server/   Hono: static files, og meta injection for GET /, GET /api/png and /api/og.png
+cli/      the `venn` command: friendly letter-based spec on top of the same engine
+skills/   Claude Code skill shipped by the plugin in .claude-plugin/
 deploy/   Dockerfile, compose.yml, compose.dev.yml, deploy.sh
 ```
 
@@ -77,6 +79,50 @@ curl -o venn.png "http://localhost:3000/api/png?s=$S"
 curl -o og.png   "http://localhost:3000/api/og.png?v=5&s=$S&lang=en"
 ```
 
+## Command line
+
+```bash
+npx -y venn-diagram-generator png --set A=Fast --set B=Cheap --set C=Good \
+  --text ABC="Pick two" -o pick-two.png
+```
+
+Nothing is fetched at render time: the fonts ship inside the package and `@resvg/resvg-js` rasterizes locally. Four subcommands — `url` prints the share link, `svg` and `png` write a file, `decode <url-or-s>` prints the JSON behind an existing link. `svg` and `png` print two lines: the absolute path with its pixel size, then the share URL for the same picture.
+
+The CLI never asks you to write a bitmask. Circles are letters (`A` is the first circle, up to `F`) and a text slot is named by the set of circles it belongs to, so `AB` is the overlap of the first two. Letter case and order do not matter, `ba` is `AB`. Which slots exist depends on the arrangement: four circles in a ring means `A` and `D` never touch, so `AD` is rejected — and the error lists every legal slot for that combination.
+
+The whole spec can arrive as JSON instead, which is the only sane way to pass CJK text, apostrophes and newlines through a shell:
+
+```bash
+cat <<'EOF' | npx -y venn-diagram-generator png --json - -o life.png
+{
+  "sets": ["工作", "生活", "睡眠"],
+  "texts": { "AB": "沒有睡眠", "ABC": "都想要" },
+  "title": "選三個",
+  "style": "flat"
+}
+EOF
+```
+
+`--set` and `--text` override individual fields of the JSON; `--arr`, `--style`, `--title`, `--size`, `--bg`, `--opacity`, `--overlap`, `--radius` and `--colors '#aabbcc,#ddeeff'` map to the state fields documented above. The share link's host comes from `--base-url`, then `VENN_BASE_URL`, then `https://venn.applepig.net`. Exit codes: `0` success, `1` bad arguments or an invalid spec, `2` rasterization failed.
+
+`decode` round-trips exactly, including manual font sizes and offsets, so you can paste a link from the editor, edit one label in JSON and re-render everything else untouched.
+
+```bash
+npx -y venn-diagram-generator decode 'https://venn.applepig.net/?s=...' > spec.json
+npx -y venn-diagram-generator png --json spec.json -o updated.png
+```
+
+## Claude Code plugin
+
+This repo is also a Claude Code plugin, so Claude can draw a real diagram instead of guessing at hand-written SVG.
+
+```
+/plugin marketplace add applepig/venn-diagram-generator
+/plugin install venn@venn-diagram-generator
+```
+
+The skill teaches the CLI, carries the table of legal slots for every arrangement, and tells Claude to hand back both the PNG and the editable share URL. Then just ask for a Venn diagram.
+
 ## Local development
 
 ```bash
@@ -115,7 +161,7 @@ Prerequisites on that host: the ssh user must be able to run Docker without an i
 
 ## Environment variables
 
-Copy `.env.example` to `.env` in the repository root and fill it in — on the deployment host, that is the file compose reads. Nothing in this repository has a baked-in default pointing at someone else's infrastructure: no hostname, no analytics id, no watermark.
+Copy `.env.example` to `.env` in the repository root and fill it in — on the deployment host, that is the file compose reads. Nothing the *server* does has a baked-in default pointing at someone else's infrastructure: no hostname, no analytics id, no watermark. The one exception is the CLI's share link, which falls back to this project's public instance (see `VENN_BASE_URL` below) because a link has to point somewhere.
 
 | Variable | Used by | Required | Meaning |
 |---|---|---|---|
@@ -124,6 +170,7 @@ Copy `.env.example` to `.env` in the repository root and fill it in — on the d
 | `VENN_GTM_ID` | server | no | Google Tag Manager container id. Unset injects no GTM snippet at all — leave it unset unless it is *your* container. |
 | `PUBLIC_ORIGIN` | server, build | no | Absolute origin for `og:image` / `og:url`. Unset falls back to the request headers; `deploy/compose.yml` derives it from `VENN_PUBLIC_HOST`. |
 | `PORT` | server | no | Listen port, default 3000. |
+| `VENN_BASE_URL` | `venn` CLI | no | Origin the CLI puts in share links. `--base-url` wins over it; unset falls back to `https://venn.applepig.net`. Point it at your own instance after forking. |
 | `VENN_DEPLOY_HOST` | `deploy/deploy.sh` | **yes** | ssh target of the deployment host. The script exits 1 and names the missing variable. |
 | `VENN_DEPLOY_PATH` | `deploy/deploy.sh` | **yes** | Directory on that host to rsync into. |
 | `VENN_DEV_HOST` | `deploy/compose.dev.yml` | **yes** | Hostname of the source-mounted dev site; compose refuses to start without it. |
@@ -139,6 +186,7 @@ The visual branding is not generic, so swap these before you publish your own in
 - **`VENN_WATERMARK`** — set it to your own hostname, or leave it unset for no watermark.
 - **`VENN_GTM_ID`** — set your own container id, or leave it unset so no analytics load at all. Never inherit someone else's.
 - **`VENN_PUBLIC_HOST`** / **`VENN_DEV_HOST`** — your own hostnames. There are no defaults to forget to change.
+- **`VENN_BASE_URL`** and `package.json`'s `homepage` — the CLI's share links point at this project's instance unless you change both.
 
 ## Notes
 

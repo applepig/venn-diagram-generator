@@ -14,6 +14,8 @@ engine/   types、defaults、shapes/（ring 與 row registry）、layout、regio
 content/  palette、templates/、strings/、locale、state-presets（預設 meme 與介面字串）
 ui/       Vite + vanilla TS 編輯器
 server/   Hono：靜態檔、GET / 的 og meta 注射、GET /api/png 與 /api/og.png
+cli/      `venn` 命令：架在同一套 engine 上的字母式友善輸入層
+skills/   plugin（.claude-plugin/）帶的 Claude Code skill
 deploy/   Dockerfile、compose.yml、compose.dev.yml、deploy.sh
 ```
 
@@ -76,6 +78,50 @@ curl -o venn.png "http://localhost:3000/api/png?s=$S"
 curl -o og.png   "http://localhost:3000/api/og.png?v=5&s=$S&lang=zh-TW"
 ```
 
+## 命令列
+
+```bash
+npx -y venn-diagram-generator png --set A=工作 --set B=生活 \
+  --text AB=沒有睡眠 -o life.png
+```
+
+出圖不連外：字型隨套件走，點陣化由本機的 `@resvg/resvg-js` 做。四個子命令——`url` 印分享連結，`svg` 與 `png` 寫檔，`decode <網址或 s>` 印出既有連結背後的 JSON。`svg` 與 `png` 會印兩行：檔案的絕對路徑與像素尺寸，接著是同一張圖的分享網址。
+
+CLI 不讓人寫 bitmask。圈就是字母（`A` 是第一圈，最多到 `F`），文字槽的名字就是它所屬的圈集合，所以 `AB` 是前兩圈的交集。大小寫與字母順序都不影響，`ba` 等於 `AB`。哪些槽存在取決於排列：四圈環狀時 `A` 與 `D` 根本不相交，所以 `AD` 會被拒絕，而錯誤訊息會把該組合的全部合法槽列出來。
+
+整份 spec 也可以用 JSON 給。要把中文、引號與換行安全地穿過 shell，這是唯一不折騰的做法：
+
+```bash
+cat <<'EOF' | npx -y venn-diagram-generator png --json - -o life.png
+{
+  "sets": ["工作", "生活", "睡眠"],
+  "texts": { "AB": "沒有睡眠", "ABC": "都想要" },
+  "title": "選三個",
+  "style": "flat"
+}
+EOF
+```
+
+`--set` 與 `--text` 會覆蓋 JSON 裡對應的欄位；`--arr`、`--style`、`--title`、`--size`、`--bg`、`--opacity`、`--overlap`、`--radius` 與 `--colors '#aabbcc,#ddeeff'` 對應上面那份 state 的欄位。分享連結的主機依序取 `--base-url`、`VENN_BASE_URL`、`https://venn.applepig.net`。退出碼：`0` 成功、`1` 參數或 spec 有誤、`2` 點陣化失敗。
+
+`decode` 的往返是等價的，連手動字級與位移都留著，所以可以把編輯器的連結貼回來、在 JSON 裡改一格文字，其餘原封不動重出一張。
+
+```bash
+npx -y venn-diagram-generator decode 'https://venn.applepig.net/?s=...' > spec.json
+npx -y venn-diagram-generator png --json spec.json -o updated.png
+```
+
+## Claude Code plugin
+
+這個 repo 同時是一個 Claude Code plugin，讓 Claude 直接產出真的圖，而不是自己猜著手刻 SVG。
+
+```
+/plugin marketplace add applepig/venn-diagram-generator
+/plugin install venn@venn-diagram-generator
+```
+
+Skill 教的就是上面這支 CLI，並且把各排列的合法槽位表整份帶著，也要求 Claude 回報時 PNG 與可編輯的分享網址兩個都給。裝好之後，開口要一張文氏圖就行。
+
 ## 本機開發
 
 ```bash
@@ -114,7 +160,7 @@ script 開頭會先 source repo 根目錄的 `.env`，所以這兩個變數可�
 
 ## 環境變數
 
-把 `.env.example` 複製成 repo 根目錄的 `.env` 再填——部署主機上 compose 讀的就是這份。這個 repo 裡沒有任何指向他人環境的內建預設值：沒有 hostname、沒有分析 id、沒有浮水印。
+把 `.env.example` 複製成 repo 根目錄的 `.env` 再填——部署主機上 compose 讀的就是這份。**server** 的行為沒有任何指向他人環境的內建預設值：沒有 hostname、沒有分析 id、沒有浮水印。唯一的例外是 CLI 的分享連結，連結總得指向某個站，所以它退回本專案的公開站（見下方的 `VENN_BASE_URL`）。
 
 | 變數 | 用在 | 必填 | 意義 |
 |---|---|---|---|
@@ -123,6 +169,7 @@ script 開頭會先 source repo 根目錄的 `.env`，所以這兩個變數可�
 | `VENN_GTM_ID` | server | 否 | Google Tag Manager 容器 id。沒設就完全不注入 GTM——不是你自己的容器就別填。 |
 | `PUBLIC_ORIGIN` | server、build | 否 | `og:image`／`og:url` 的絕對 origin。沒設就退回看 request header；`deploy/compose.yml` 會從 `VENN_PUBLIC_HOST` 推出來。 |
 | `PORT` | server | 否 | 監聽的 port，預設 3000。 |
+| `VENN_BASE_URL` | `venn` CLI | 否 | CLI 印在分享連結裡的 origin。`--base-url` 優先；沒設就退回 `https://venn.applepig.net`。Fork 之後改成你自己的站。 |
 | `VENN_DEPLOY_HOST` | `deploy/deploy.sh` | **是** | 部署目標主機的 ssh host。缺少時 script 印出缺哪個變數並 exit 1。 |
 | `VENN_DEPLOY_PATH` | `deploy/deploy.sh` | **是** | 要 rsync 進去的遠端目錄。 |
 | `VENN_DEV_HOST` | `deploy/compose.dev.yml` | **是** | 掛原始碼的開發站 hostname；沒給 compose 直接拒絕啟動。 |
@@ -138,6 +185,7 @@ script 開頭會先 source repo 根目錄的 `.env`，所以這兩個變數可�
 - **`VENN_WATERMARK`**：改成你自己的網址，或留空不畫浮水印。
 - **`VENN_GTM_ID`**：填你自己的容器 id，或留空完全不載分析。絕不要沿用別人的。
 - **`VENN_PUBLIC_HOST`**／**`VENN_DEV_HOST`**：你自己的 hostname。沒有預設值可以忘記改。
+- **`VENN_BASE_URL`** 與 `package.json` 的 `homepage`：兩個都不改的話，CLI 的分享連結會指回原專案的站。
 
 ## 注意事項
 
