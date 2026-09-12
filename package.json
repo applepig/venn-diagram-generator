@@ -2,6 +2,17 @@
   "name": "venn-diagram-generator",
   "version": "1.0.0",
   "private": true,
+  "description": "WYSIWYG Venn diagram generator — the whole editor state lives in the URL, the server renders the same SVG to PNG and og:image",
+  "license": "MIT",
+  "author": "Dominic Wu (https://applepig.idv.tw)",
+  "homepage": "https://venn.applepig.net",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/applepig/venn-diagram-generator.git"
+  },
+  "bugs": {
+    "url": "https://github.com/applepig/venn-diagram-generator/issues"
+  },
   "type": "module",
   "packageManager": "pnpm@11.22.0",
   "scripts": {

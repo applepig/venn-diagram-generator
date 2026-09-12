@@ -665,6 +665,28 @@ select {
   cursor: pointer;
 }
 
+/* ---- 頁尾 ---- */
+/* grid 的兩欄都跨過去，才會落在 panel 與畫布下方而不是擠進某一欄 */
+.site-footer {
+  grid-column: 1 / -1;
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  color: var(--muted);
+  font-weight: 400;
+  font-size: 13px;
+}
+
+.site-footer a {
+  color: var(--muted);
+  text-decoration: none;
+}
+
+.site-footer a:hover {
+  color: var(--fg);
+  text-decoration: underline;
+}
+
 /* sticky 小圖條整塊只存在於窄版面 */
 .peek {
   display: none;
@@ -730,6 +752,13 @@ select {
     border-width: 1px 0 0;
     border-radius: 0;
     padding: 14px 12px 20px;
+  }
+
+  /* 面板在窄版面排最後，頁尾要跟在它後面；.app 的 padding 在這裡是 0，自己補 */
+  .site-footer {
+    order: 4;
+    border-top: 1px solid var(--line);
+    padding: 16px 12px;
   }
 
   .peek .canvas-wrap {
