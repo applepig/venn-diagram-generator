@@ -4,7 +4,7 @@
  */
 import { describe, expect, it } from 'vitest';
 import { LOCALES, t } from '../content/locale';
-import { isExtraShape, shapeMenuItems } from '../ui/shape-menu';
+import { isExtraShape, shapeIcon, shapeMenuItems } from '../ui/shape-menu';
 import { isShape } from '../engine/shapes/index';
 
 describe('AC1 額外形狀選單的項目', () => {
@@ -47,6 +47,38 @@ describe('AC1 額外形狀選單的項目', () => {
     for (const item of shapeMenuItems('row', 5).concat(shapeMenuItems('row', 6))) {
       for (const locale of LOCALES) {
         expect(t(item.key, locale), `${item.key} / ${locale}`).not.toBe('');
+      }
+    }
+  });
+});
+
+/** 選到額外形狀後按鈕上換成示意圖，圖要真的是那個組合、且畫得進 icon 畫布 */
+describe('額外形狀的示意圖', () => {
+  const cases = [
+    ['row', 3],
+    ['row', 4],
+    ['ring', 5],
+    ['ring', 6],
+  ] as const;
+
+  it('圓的數量就是該組合的圈數', () => {
+    for (const [arr, n] of cases) {
+      expect(shapeIcon(arr, n).match(/<circle /g) ?? [], `${arr}(${n})`).toHaveLength(n);
+    }
+  });
+
+  it('每顆圓連描邊都落在 40×22 的 icon 畫布內', () => {
+    const STROKE = 1.6 / 2;
+    for (const [arr, n] of cases) {
+      const circles = [...shapeIcon(arr, n).matchAll(/cx="([\d.]+)" cy="([\d.]+)" r="([\d.]+)"/g)];
+
+      for (const [, cx, cy, r] of circles) {
+        const [x, y, radius] = [Number(cx), Number(cy), Number(r) + STROKE];
+
+        expect(x - radius, `${arr}(${n})`).toBeGreaterThanOrEqual(0);
+        expect(x + radius, `${arr}(${n})`).toBeLessThanOrEqual(40);
+        expect(y - radius, `${arr}(${n})`).toBeGreaterThanOrEqual(0);
+        expect(y + radius, `${arr}(${n})`).toBeLessThanOrEqual(22);
       }
     }
   });

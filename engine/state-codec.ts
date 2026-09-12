@@ -175,7 +175,13 @@ export function validateState(input: unknown): VennState {
   if (arr !== 'ring') state.arr = arr;
   // 空標題同樣不寫進編碼，理由與 ring 相同
   const title = input.title === undefined ? '' : parseTitle(input.title);
-  if (title !== '') state.title = title;
+  const title_fill =
+    input.title_fill === undefined ? undefined : requireHex(input.title_fill, 'title_fill');
+  if (title !== '') {
+    state.title = title;
+    // 字色只跟著標題走：沒有標題就沒有東西可以上色，留著只會讓同一張圖有兩種編碼
+    if (title_fill !== undefined) state.title_fill = title_fill;
+  }
   return state;
 }
 

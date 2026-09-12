@@ -449,6 +449,8 @@ describe('decodeState：解壓輸出上限（AC1）', () => {
         overlap,
         texts,
         title,
+        // 標題帶字色才是真的最壞：它只在有標題時進編碼
+        title_fill: '#a1b2c3',
       };
     }
 

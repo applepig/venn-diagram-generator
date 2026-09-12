@@ -19,7 +19,9 @@
     "#2e9be6",
     "#e6a92e",
     "#e04848",
-    "#3cb54a"
+    "#3cb54a",
+    "#8b5cf6",
+    "#e05fa0"
   ],
   "cases": [
     {
@@ -27,72 +29,72 @@
       "ac": "a",
       "label": "2 圈 zh template 預設連結",
       "s": "XcmxasJQGEDhdzlZfyS5gYD_q9QON3qVQEgk9ypqyCAtXUo7i3MXHdutz9O0PoZksIMcOMvXskYToUKN4MO2dCjz0gaEemmnRdii8SgT6rVrSrtEk5ERGjsrVn6gVJjWZd149IHIuHHuMoTIZXZsHI9CvkCJ5nYIwRc7hyYmjoXgNsGjLcmwgHI5ffb746T6Oz7_fL_SCeZGv09fd5T-0-G9_zhNqv7l7XI-03XdFQ",
-      "svg_sha256": "0f18debab173efebe731400b2cd82b2877ea5c1aeb5f33bc71ffca84f7a531e2",
-      "png_sha256": "930f97bd37aaf800b398351c4fa1a297ca2e0f7ca89c481ef58687dd05d3353f",
-      "og_png_sha256": "8a953075850111c9a1bc844774dc35773427d9def96b1e431e1c2a2a084c2876"
+      "svg_sha256": "6c48e6cee78c23d37ea6670680bc0be320a529497065ed2852bd18e049f19a13",
+      "png_sha256": "faeb930279cf13c9530f18af00e743bf7dce9e4982b075c0740f19b9dedf20b9",
+      "og_png_sha256": "f29cfaf5215e2d8258a348ca6361cc500f8336b69cf414789750d047704685fe"
     },
     {
       "id": "tpl-3",
       "ac": "a",
       "label": "3 圈 zh template 預設連結",
       "s": "TYrNasJAFIXf5WR7kcwYU3NfpbgY09sSCIlkRvGHLETsrvQFuiq0G8GCuOjG-jKm2LeQEVLkwuF837kLTMCKUIC7BOtmuYDhKlPYfJxK4UAoRybN3AwcdmJCOZEqNyOw6qgeoTIP2dj6TSeEtMzLyoLvEWhJhhKDEEhsEi3XFkb9qI8BYfgERvBo_IFgs7mAlQ5DgpOps-AFlA8Hxvlz2Rw3qAn6Vn0cvOr-q93ec3Tzcvo5Nts3b3ut_Xu-ctzy7_rd813Lp--X5vXrvDqgrusL",
-      "svg_sha256": "c9704eb9d7317eae8642b6f3b23166ed7979a60822d82a47a05e9f35d1f87d98",
-      "png_sha256": "70109667e9b628577f334a9ae2aed11e152156f9b62e1ac4b2f6770d292c181c",
-      "og_png_sha256": "50c45c683f258528a4e7d9d7b78c95c39df0af22ecfe71425079c852e5d9a707"
+      "svg_sha256": "4b839af33a6a45e1f4fe01730e7a68293530d3c7e47aa5b1dd6eefe01e56ba3f",
+      "png_sha256": "a1c6f7fc97a206e9bb830270084a59c16089116f1241566038c8ae3ae682c78f",
+      "og_png_sha256": "5881717efc7640e4de713d66d40826cfb7b2525bb95bfc880e9b547840aec7a1"
     },
     {
       "id": "tpl-4",
       "ac": "a",
       "label": "4 圈 zh template 預設連結",
       "s": "TU9dSwJBFP0tXl-H2F030Xnppaf-QtvDalMIMivuKlkIWlFqayU9BCWB9OlqVpAl1vpn2hnHfxFTbciFyz33nnM4dweKgFUEFLCOwHZKWQIYrIKTzVACCKycmc44JcDKQhyBVST5rJmTKIEgb65nCrYEsRiCtJW18jbgVYhqJJkicUAQJXEzqZGfSdETekJOsXRqUTdhDUFqEzBEN0xZgMDObBPAqqYoCByy5diAd0CVzQEMyytQRqCFcNaoiI5rUH76xlxPnmLh6avispt7NnibDu94rWVQUfXZrR_5qjQlTw950_o9G_XkanFOKqo-P9zltRZrPxhUeF7wUZmNP9n58dKfQSJks5Meez5hj12D8kaDP12KzrXY7wWjI4NOL_aZ5zPPlwpVmc9WuxWDs99gnjft94Oxy_udMJ6qzXGDUVNUfdF94e093q4blF28zg6b0nzi8qt2qPl_QOaoHxlU1Opi-B5MDiIRKJfL3w",
-      "svg_sha256": "5e1ab3875b3562ebcb5541d2eb2967636b10dc58d591094255cdc2862a9f2780",
-      "png_sha256": "55dfe6893b1678ce977d61840b175fdaf1165b71d385e8d01f196dd6c5a9b5d3",
-      "og_png_sha256": "a8ad14da6cb212f0a59d0fb2a10b14c7903c8bf17ff35eb5d21cd292109c9a2e"
+      "svg_sha256": "361e62703458669aa9c24b6301499823cf501c170b6b8d237a32b6bc886419e2",
+      "png_sha256": "a127603cc4eb0ff3753cd9d95749179bce3654948dac34c40b84912f1eed3091",
+      "og_png_sha256": "c5c8790bf8a200409b6a203151707ac2018332568c64166b20d79ce23c98fe08"
     },
     {
       "id": "full-translucent",
       "ac": "b",
       "label": "4 圈 13 槽全填，translucent ＋ 深色背景 ＋ 自訂透明度",
       "s": "XVDLbsJADPyX4WqQNw-63V9BPYRkt4oUEZQEBEV7QFX_oJf-Aeee6P-0qvoXlZNAAokU2fGMZzwHbGEUYQUTEepmX1gYNFWyqotNalcNCOU6SfNmD8OzKCaUW1sVyVpaTaiSLN_U0oQhIS2LsqphFpioIIziOQiTZJlm1knF7JzWUjnHPJ_jibB8hsFEJSoJLAh1_mJhVMBMaOyuqWEOUPJpYPD7_glPCC7999cHCK7V50dPCEfIfpgXhSi49hF2dGWfBZDtWnbgCfGYfR6tjjvYlGesCFmbBStPeLjVE5In6EHhiA4_7SUUj7x344tDxfIKX6n7tcfBSyiAYHSDTOVfeOu-1-6uay_obXAs6OjGx50VrdO0C0tdM_l5O_29ngYf0bA8vGYi5ZC41szw3v8D",
-      "svg_sha256": "5b1c5fb5028a2e4ca779ffd749abf3b92c13af48a86fbbda66f2265a3d4d2356",
-      "png_sha256": "7fae3fee725e713f0681090f9ffc1ccf711b804e95d1882eef8846a7ebcd0aed",
-      "og_png_sha256": "225af65b900d0f1620d30065e0907097c95374ab14572db6b9a8b134f3566e10"
+      "svg_sha256": "0a9ced8dfae0c75ef6d22c1a24e2f27d5d2e66f760d3d74cf8e6dc4a1805cdf2",
+      "png_sha256": "3390ec6aa9be8d5929db27fd7f1654a8bd932fbb59db689b986edd4fc8aaeb6b",
+      "og_png_sha256": "2db590a550f1086fe8889129ab8137fce50e106cc8a7689a50db2faa6278c212"
     },
     {
       "id": "full-flat",
       "ac": "b",
       "label": "4 圈 13 槽全填，flat ＋ fill override ＋ size 800",
       "s": "XVBBboMwEPzLcN1EawzU9VeqHgjgCgmVKJAoaeRDVPUHvfQHOfeU_qdV1V9UCySQ2JK1653Zmd09NrCK8AwbEZp2VxWwcFXaglAv06xsd7A8Twj1plhV6VIyQ1ilebluJNGakNVVvWpgHxCoUEdxAkKQLrK8cBIxO2eMRM4xJwkeCYsnWAQulQtCU74UsIaZ0BbbtoHdQ8nTwuL3_ROeEJ7z768PEFwnz_eeoCfIoVhWVSfQHWFHF_ZJAPm2Y4eeEE_Zp0nruIfNeM6KkHebYOUJd9d6QvIEMyoc0ONng4Tiife-fHaoWK7wlbptexi9aAGEkxmkKn_62v2g3U_XTTDY4FjQ0ZWPGyvGZFm_LHXZyc_b8e_1OPqIxub6shMJx40bwwzv_T8",
-      "svg_sha256": "149965a9f00c439dcdd3af6fd033a049ca710ec22956aaa0841cfd984242887b",
-      "png_sha256": "b5f81d1f0434294156198586f59e9991850a2c0a03dd404b0498077947bf00c1",
-      "og_png_sha256": "845e0c458a3bdf4462321bc00d40fa69e1ca495534d1e7f52b94d226b0e9130b"
+      "svg_sha256": "95fdff2c6151ef175a6244097f7816f50f43fc4b9723fb0f56eb3480ef51b8ff",
+      "png_sha256": "3cade176f75d82134c850305a0acfba3af8b009492f781228852607549d8e9c0",
+      "og_png_sha256": "783e46f837096d086f139066748e3ba2bd986c10d40e35495aeba27b07c96f95"
     },
     {
       "id": "full-outline",
       "ac": "b",
       "label": "4 圈 13 槽全填，outline",
       "s": "XVBBbsIwEPzLcF3QOk5S119BPYQkriJFBJGAoMgHVPUHvfQHnHui_2lV9RfVJoEEbMna9c7szO4BW1hFWMKGhLrZlzksqk1TFsschGqVpEWzh-VZTKi2-bpMVpIZwjrJik0tidaEtCqrdQ07x0QFOoxiECbJIs1yJxGzc8ZI5BxzHOOJsHiGxcQlckGoi5ccVgXMhCbfNTXsAUqeBha_75_whOCSf399gOBafX70BD1C9sWiLFuF9gg7vLLPAsh2LTvwhGjMPo9aRx1syjNWhKxdBStPeLjVE5InmEHhiA4_7SUUj7x35YtDxXKFr9R92-PgRQsgGM0gVfnTt-577W66doLeBkeCDm983FkxJk27ZanrTn7eTn-vp8FHODTX151IOGzcGGZ47_8B",
-      "svg_sha256": "5c0ee035062f83e519cad3865d07f11f9a029cb943c6050175cb0919e90b94cd",
-      "png_sha256": "8009fea39b3a5ecf05c3ad1f5a0e1144a587a927afdfb30a2d763e41b4e4a314",
-      "og_png_sha256": "fc75189593dc644e5124743d0c6db45a82e0644b82b001dbd66d7fb0d7061e1b"
+      "svg_sha256": "f75b08dc558f12cf581d170de3f0ce39e1cc8acbb9bbc74d9f915d67d7738afb",
+      "png_sha256": "f3894e3433e113ded668edb29d345cc3e0579d83504426713fa8a9ccd4a39cc1",
+      "og_png_sha256": "7eb90cc5fe1a9fbd61a2cad06a34e77f5ac1b189e0c3335365ba188412a7e68d"
     },
     {
       "id": "overlap-min",
       "ac": "c",
       "label": "4 圈 overlap 0.6（下限）",
       "s": "XVBLTsMwEL3L63ZajeMkGF8FsUjzQZGiBiVu1VJ5USFuwIYbdM2q3AeEuAWaJG3S2pI143lv3pvZYwOrCCvYkNC6XZXDwjXJqq3Wab5yINTPSVq6HSwvYkK9yZsqeR6yJsnKdSuJ1oS0ruqmhX3ATAU6jGIQZskyzfJCIuaiMEaiomCOYzwSlk-wmBWJXBDa8iWHVQEzweVb18LuoeRxsPh9_4QnBOf8--sDhKLT53tP0BPkUCyrqlPojrDDC_skgGzbsQNPiKbs06R11MPmvGBFyLpVsPKEu2s9IXmCGRUO6PHzQULxxHtfPjtULFf4St22PYxetACCyQxSlT997X7Q7qfrJhhscCTo8MrHjRVj0rRflrrs5Oft-Pd6HH2EY3N92YmE48aNYYb3_h8",
-      "svg_sha256": "4946539d78ca1ebd44d05ab7eae5b507cbbe846ea5a6d960bf5531ae484acd93",
-      "png_sha256": "71083a8ef4a9b80c8f912d31eb550d5c4cbf6a4f2df69c8efa1e37051c5e05e3",
-      "og_png_sha256": "372ccb2656e95fea02e47b6694fa23ba8b18796124c59f5cc8994df806d50645"
+      "svg_sha256": "a1b3601ab33651dd06c27bb1b78b43a6c494906202d36c0b5176e35df6d8ae62",
+      "png_sha256": "3bb04141a79351531329a151683639067e9be2f652cb3367eabadddd07cf18b7",
+      "og_png_sha256": "b2efc9144c882386003a1d25d9ae9e0129fa8fef34c41323dcae284932da9095"
     },
     {
       "id": "overlap-max",
       "ac": "c",
       "label": "4 圈 overlap 1.6（上限，五個區域消失）",
       "s": "XVDLTsMwEPyX6XVbrfPC-FcQhzSJUaSoQYlbtVQ-VIg_4MIf9Myp_A8I8Rdok7RJG0vR2juzMzt7bGAUYQUTEVq3qwoYuCZdtdU6K1YOhPo5zUq3g-FFQqg3RVOlzzBKbk2al-tWWmFIyOqqblqYB8xUEEZxAsIsXWZ5YaVitlZrqaxlThI8EpZPMJjZVA4IbflSwKiAmeCKrWth9lDyczD4ff-EJwTn-_fXBwi20-d7TwgnyKFZVlWn0H3Cji7skwDybccOPCGesk-T0XEPm_OCFSHvomDlCXfXekLyBD0qHNDj54OE4on3vn12qFiO8JW6HXsYvYQCCCY7SFfewmv3g3a_XbfBYINjQUdXPm6saJ1lfVjqksnP2_Hv9Tj6iMbh4SUTKcfEtWaG9_4f",
-      "svg_sha256": "e27c64d451bf4032125091bd398ddfd315d11ed15f7f839fd112fc340a90a921",
-      "png_sha256": "68fa64f65ec7ed7dc414dd353ad580e21f848732a60264774417a77c89ec877c",
-      "og_png_sha256": "8312dd929f44aad8276ac7b93e949e118a5f18b3adadfeb6281636f1b62d5286"
+      "svg_sha256": "cb8d155ffe1449d548840897628a732166ebf8a81498d2141edd4aa36e3c2b35",
+      "png_sha256": "02964c5933a76a6246cc6674f446fedff3b8f58d9f8ff8db78519208bd9010aa",
+      "og_png_sha256": "3c14722d3b45e16ef3f0afb16f35844b85cd1c06dce2eb72846abdde95adfbd6"
     }
   ]
 }

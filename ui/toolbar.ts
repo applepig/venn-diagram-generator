@@ -1,7 +1,6 @@
 import {
   INTERSECTION_ASPECT,
   LABEL_ASPECT,
-  MAX_TEXT_LEN,
   OVERLAP_MAX,
   OVERLAP_MIN,
   SIZE_CHOICES,
@@ -16,6 +15,7 @@ import { ts, uiLocale } from './i18n';
 import { createColorControl } from './color-control';
 import { COUNT_CHOICES, createShapeMenu, isExtraShape } from './shape-menu';
 import { createSlotRow, type SlotRow } from './slot-row';
+import { createTitleRow } from './title-row';
 
 // 文案在 createToolbar 裡才取：模組載入時語言還沒決定（uiLocale 要讀 DOM 上的 <html lang>）
 function styleLabels(): [VennStyle, string][] {
@@ -151,14 +151,8 @@ function labeledRow(label_text: string, control: HTMLElement): HTMLElement {
 export function createToolbar(root: HTMLElement, handlers: ToolbarHandlers): ToolbarController {
   root.replaceChildren();
 
-  // 圖片標題：面板頂端第一格，打字即時反映到預覽與連結（AC6）
-  const title_input = document.createElement('input');
-  title_input.type = 'text';
-  title_input.className = 'title-input';
-  // 比照槽的文字：超過上限 encodeState 會拋錯而停止更新 URL，在輸入端就打住
-  title_input.maxLength = MAX_TEXT_LEN;
-  title_input.addEventListener('input', () => handlers.onPatch({ title: title_input.value }));
-  const title_row = labeledRow(ts('field.title'), title_input);
+  // 圖片標題：外形與文字槽同一套，排在槽那一組的第一列（AC6）
+  const title_row = createTitleRow({ onPatch: handlers.onPatch });
 
   // 圈數 icon 只剩經典的 ring 2／3／4；其餘組合走尾端的額外形狀選單（AC1）
   const count_seg = segmented<CircleCount>(
@@ -268,7 +262,6 @@ export function createToolbar(root: HTMLElement, handlers: ToolbarHandlers): Too
   const divider = () => document.createElement('hr');
 
   root.append(
-    title_row,
     count_row,
     style_row,
     bg_row,
@@ -307,7 +300,8 @@ export function createToolbar(root: HTMLElement, handlers: ToolbarHandlers): Too
           },
         }),
       );
-      slots_el.replaceChildren(...rows.map((row) => row.root));
+      // 標題列固定在最前面：它不隨組合換，重建槽列時要跟著放回去
+      slots_el.replaceChildren(title_row.root, ...rows.map((row) => row.root));
     }
 
     const circles = circlesForState(state);
@@ -324,7 +318,7 @@ export function createToolbar(root: HTMLElement, handlers: ToolbarHandlers): Too
       latest_state = state;
       const arr = arrOf(state);
 
-      syncValue(title_input, state.title ?? '');
+      title_row.update(state);
       // 額外形狀時圈數 icon 全部退出 active，兩者互斥（AC1）
       count_seg.setActive(isExtraShape(arr, state.n) ? null : state.n);
       shape_menu.update(arr, state.n);

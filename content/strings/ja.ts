@@ -14,7 +14,7 @@ export const STRINGS = {
 
   'lang.field': '言語',
 
-  'shape.more': 'その他の形',
+  'shape.more': 'その他',
   'shape.row3': '横一列 3 つ',
   'shape.row4': 'アウディ（4 つ）',
   'shape.ring5': '花びら 5 つ',
@@ -34,6 +34,7 @@ export const STRINGS = {
   'field.size': 'サイズ',
   'field.fs': '文字サイズ',
   'field.color': '色',
+  'field.textColor': '文字色',
 
   'action.downloadPng': 'PNG を保存',
   'action.downloadSvg': 'SVG を保存',
@@ -44,6 +45,7 @@ export const STRINGS = {
   'fs.stepDown': '文字を小さく',
   'fs.stepUp': '文字を大きく',
   'color.autoMix': '自動で混色',
+  'color.autoContrast': '自動で白黒',
 
   'slot.empty': '（空）',
   'slot.noRegion': '今の円の大きさと重なりでは、この領域はありません。形を調整すると現れます。',

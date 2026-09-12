@@ -82,23 +82,6 @@ body {
   width: 100%;
 }
 
-/* ---- 圖片標題 ---- */
-.title-input {
-  flex: 1;
-  min-width: 0;
-  background: var(--panel-2);
-  border: 1px solid var(--line);
-  border-radius: 7px;
-  color: var(--fg);
-  font: inherit;
-  font-size: 13px;
-  padding: 5px 8px;
-}
-
-.title-input:focus {
-  border-color: var(--accent);
-}
-
 /* ---- 圈數與額外形狀 ---- */
 .counts-row {
   display: flex;
@@ -145,14 +128,19 @@ body {
   background: var(--panel-2);
   border: 1px solid var(--line);
   border-radius: 8px;
-  padding: 7px 2px 5px;
+  padding: 7px 10px 5px;
   cursor: pointer;
   color: var(--muted);
+  font: inherit;
+  font-size: 12px;
+  white-space: nowrap;
 }
 
+/* 選到額外形狀時按鈕從文字換成示意圖，左右留白比照圈數 icon */
 .shape-trigger[aria-pressed='true'] {
   border-color: var(--accent);
   color: var(--fg);
+  padding: 7px 2px 5px;
 }
 
 .shape-pop {
@@ -437,6 +425,15 @@ input[type='range'] {
   border-radius: 3px;
   border: 1px solid #0007;
   flex: none;
+}
+
+/* 標題那一列調的是字色：色塊畫成一個字母，不要讀成跟其他列一樣的底色 */
+.slot .swatch.text {
+  display: grid;
+  place-items: center;
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 1;
 }
 
 .tag {

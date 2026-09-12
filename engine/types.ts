@@ -35,6 +35,8 @@ export interface VennState {
    * 編碼時一律省略（與 `arr` 同一手法），所以 `v` 維持 1、舊連結的編碼字串不變。
    */
   title?: string;
+  /** 標題的字色（`#rrggbb`）；缺席代表自動：依標題壓著的底色取黑或白。沒有標題時一律不寫進編碼。 */
+  title_fill?: string;
   style: VennStyle;
   opacity: number;
   overlap: number;

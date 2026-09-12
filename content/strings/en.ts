@@ -15,7 +15,7 @@ export const STRINGS = {
 
   'lang.field': 'Language',
 
-  'shape.more': 'More shapes',
+  'shape.more': 'More',
   'shape.row3': 'Row of 3',
   'shape.row4': 'Audi (4 circles)',
   'shape.ring5': 'Flower (5 circles)',
@@ -35,6 +35,7 @@ export const STRINGS = {
   'field.size': 'Export size',
   'field.fs': 'Font size',
   'field.color': 'Color',
+  'field.textColor': 'Text color',
 
   'action.downloadPng': 'Download PNG',
   'action.downloadSvg': 'Download SVG',
@@ -45,6 +46,7 @@ export const STRINGS = {
   'fs.stepDown': 'Smaller text',
   'fs.stepUp': 'Larger text',
   'color.autoMix': 'Auto blend',
+  'color.autoContrast': 'Auto B/W',
 
   'slot.empty': '(empty)',
   'slot.noRegion': 'This region does not exist at the current circle size and overlap. Adjust the geometry to bring it back.',

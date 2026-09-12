@@ -1,4 +1,5 @@
 import type { StringKey } from '../content/locale';
+import { circlesFor, shapeDefaults } from '../engine/shapes/index';
 import type { Arrangement, CircleCount } from '../engine/types';
 import { ts } from './i18n';
 
@@ -40,6 +41,40 @@ export function shapeMenuItems(arr: Arrangement, n: CircleCount): ShapeChoice[] 
   return items;
 }
 
+/** icon 的畫布，與圈數 icon 同一個 viewBox；PAD 留給 1.6 的描邊不被裁掉 */
+const ICON_W = 40;
+const ICON_H = 22;
+const ICON_PAD = 1.2;
+
+/**
+ * 某個組合的示意圖：直接拿 engine 的預設幾何等比塞進 icon 畫布，
+ * 所以選到什麼形狀，按鈕上畫的就是那個形狀，不必為每個組合手寫一組座標。
+ */
+export function shapeIcon(arr: Arrangement, n: CircleCount): string {
+  const { radius, overlap } = shapeDefaults(arr, n);
+  const circles = circlesFor(arr, n, radius, overlap);
+
+  const min_x = Math.min(...circles.map((c) => c.x - c.r));
+  const max_x = Math.max(...circles.map((c) => c.x + c.r));
+  const min_y = Math.min(...circles.map((c) => c.y - c.r));
+  const max_y = Math.max(...circles.map((c) => c.y + c.r));
+  const scale = Math.min(
+    (ICON_W - 2 * ICON_PAD) / (max_x - min_x),
+    (ICON_H - 2 * ICON_PAD) / (max_y - min_y),
+  );
+  const tx = (ICON_W - (max_x - min_x) * scale) / 2 - min_x * scale;
+  const ty = (ICON_H - (max_y - min_y) * scale) / 2 - min_y * scale;
+  const round = (v: number) => Number(v.toFixed(2));
+
+  return circles
+    .map(
+      (c) =>
+        `<circle cx="${round(c.x * scale + tx)}" cy="${round(c.y * scale + ty)}" ` +
+        `r="${round(c.r * scale)}"/>`,
+    )
+    .join('');
+}
+
 export interface ShapeMenu {
   root: HTMLElement;
   /** 依目前組合重建選單項目與 active 態 */
@@ -58,13 +93,24 @@ export function createShapeMenu(onPick: (arr: Arrangement, n: CircleCount) => vo
   trigger.type = 'button';
   trigger.className = 'shape-trigger';
   trigger.title = ts('shape.more');
-  trigger.setAttribute('aria-label', ts('shape.more'));
   trigger.setAttribute('aria-haspopup', 'true');
-  trigger.innerHTML =
-    `<svg viewBox="0 0 40 22" fill="none" stroke="currentColor" stroke-width="1.6">` +
-    `<circle cx="14" cy="11" r="6"/><circle cx="24" cy="11" r="6"/>` +
-    `<path d="M32 9.5 L35 13 L38 9.5" stroke-linecap="round" stroke-linejoin="round"/>` +
-    `</svg>`;
+
+  /**
+   * 沒選到額外形狀時按鈕上是文字：一個沒亮的示意圖看不出是「還有別的形狀」還是「現在是這個形狀」。
+   * 選到之後才換成該組合的示意圖，與左邊的圈數 icon 讀起來就是同一排。
+   */
+  const setTriggerFace = (arr: Arrangement, n: CircleCount, extra: boolean): void => {
+    trigger.setAttribute('aria-label', extra ? ts(`shape.${arr}${n}` as StringKey) : ts('shape.more'));
+    if (!extra) {
+      trigger.textContent = ts('shape.more');
+      return;
+    }
+    trigger.innerHTML =
+      `<svg viewBox="0 0 ${ICON_W} ${ICON_H}" fill="none" stroke="currentColor" stroke-width="1.6">` +
+      `${shapeIcon(arr, n)}</svg>`;
+  };
+  // 先畫成文字態：第一次 update() 之前按鈕不能是空的
+  setTriggerFace('ring', 2, false);
 
   const menu = document.createElement('div');
   menu.className = 'shape-pop';
@@ -109,7 +155,9 @@ export function createShapeMenu(onPick: (arr: Arrangement, n: CircleCount) => vo
           return btn;
         }),
       );
-      trigger.setAttribute('aria-pressed', String(isExtraShape(arr, n)));
+      const extra = isExtraShape(arr, n);
+      trigger.setAttribute('aria-pressed', String(extra));
+      setTriggerFace(arr, n, extra);
     },
   };
 }

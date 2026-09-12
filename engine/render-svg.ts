@@ -6,6 +6,33 @@ import type { Circle, VennState } from './types';
 
 const FONT_FAMILY = 'Noto Sans TC';
 
+/**
+ * 文字視覺置中的基線位移（字級比例）：基線放在文字中心下方這麼多，墨跡才真的落在中心上。
+ *
+ * 不用 `dominant-baseline="central"`：它取的是字型 ascent／descent 的中點，
+ * Noto Sans TC 的 ascent 偏高（1.16／−0.288），中點比墨跡中心高 0.065em，畫出來整體偏下；
+ * 而且瀏覽器與 resvg 對 central 的解讀不一致，同一份 SVG 前後端會差一點。自己算就兩邊同一把尺。
+ * 0.37 是實測值：Noto Sans TC Bold 的大寫墨跡中心在基線上方 0.372em、漢字 0.357～0.388em。
+ */
+const BASELINE_SHIFT = 0.37;
+
+/** 一個文字區塊的 `<text>` 行：多行以中心對稱展開，每行各自套括號置中補償 */
+function textLines(
+  block: { cx: number; cy: number; fs: number; lines: string[] },
+  size: number,
+): string {
+  const fs = block.fs * size;
+  const line_h = fs * LINE_HEIGHT;
+  const y0 = block.cy * size - ((block.lines.length - 1) * line_h) / 2 + BASELINE_SHIFT * fs;
+  return block.lines
+    .map(
+      (line, i) =>
+        `<text x="${(block.cx + centerShift(line, block.fs)) * size}" y="${y0 + i * line_h}" ` +
+        `font-size="${fs}">${escapeXml(line)}</text>`,
+    )
+    .join('');
+}
+
 export function escapeXml(s: string): string {
   return s
     .replace(/&/g, '&amp;')
@@ -170,28 +197,26 @@ function watermark(state: VennState, text: string, backdrop: string): string {
 // ---------- 圖片標題 ----------
 
 /**
- * 畫布頂端 title band 裡的標題（08 AC4）。標題壓在背景上，字色只看背景亮度、不加光暈；
+ * 標題的字色：`title_fill` 指定就用它，缺席代表自動——依標題實際壓著的顏色取黑或白。
+ * 面板的色塊與 SVG 都走這個函式，兩邊看到的顏色才一定一致。
+ */
+export function titleColor(state: VennState, backdrop: string = state.bg): string {
+  if (state.title_fill !== undefined) return state.title_fill;
+  return relativeLuminance(backdrop) >= ON_BG_DARK_TEXT_LUMINANCE ? '#000000' : '#ffffff';
+}
+
+/**
+ * 畫布頂端 title band 裡的標題（08 AC4）。標題壓在背景上，不加光暈；
  * 不帶 `data-region`：它不是可編輯的文字槽，畫布點選不該把它當成一區。
  */
 function titleMarkup(state: VennState, backdrop: string): string {
   const block = layoutTitle(state);
   if (!block) return '';
 
-  const size = state.size;
-  const fill = relativeLuminance(backdrop) >= ON_BG_DARK_TEXT_LUMINANCE ? '#000000' : '#ffffff';
-  const fs = block.fs * size;
-  const line_h = fs * LINE_HEIGHT;
-  const y0 = block.cy * size - ((block.lines.length - 1) * line_h) / 2;
-  const tspans = block.lines
-    .map(
-      (line, i) =>
-        `<text x="${(block.cx + centerShift(line, block.fs)) * size}" y="${y0 + i * line_h}" ` +
-        `font-size="${fs}">${escapeXml(line)}</text>`,
-    )
-    .join('');
   return (
-    `<g data-title="" fill="${fill}" font-family="${FONT_FAMILY}" font-weight="700" ` +
-    `text-anchor="middle" dominant-baseline="central">${tspans}</g>`
+    `<g data-title="" fill="${escapeXml(titleColor(state, backdrop))}" ` +
+    `font-family="${FONT_FAMILY}" font-weight="700" text-anchor="middle">` +
+    `${textLines(block, state.size)}</g>`
   );
 }
 
@@ -268,20 +293,10 @@ export function renderSvg(state: VennState, opts: RenderOptions = {}): string {
       relativeLuminance(regionColor(state, block.mask)) >= DARK_TEXT_LUMINANCE;
     const text_fill = is_outline || on_light ? '#000000' : '#ffffff';
     const glow_attr = is_outline || on_light ? '' : ' filter="url(#glow)"';
-    const fs = block.fs * size;
-    const line_h = fs * LINE_HEIGHT;
-    const y0 = block.cy * size - ((block.lines.length - 1) * line_h) / 2;
-    const tspans = block.lines
-      .map(
-        (line, i) =>
-          `<text x="${(block.cx + centerShift(line, block.fs)) * size}" y="${y0 + i * line_h}" ` +
-          `font-size="${fs}">${escapeXml(line)}</text>`,
-      )
-      .join('');
     body +=
       `<g data-region="${block.mask}" fill="${text_fill}" ` +
-      `font-family="${FONT_FAMILY}" font-weight="700" text-anchor="middle" ` +
-      `dominant-baseline="central"${glow_attr}>${tspans}</g>`;
+      `font-family="${FONT_FAMILY}" font-weight="700" text-anchor="middle"` +
+      `${glow_attr}>${textLines(block, size)}</g>`;
   }
 
   return (

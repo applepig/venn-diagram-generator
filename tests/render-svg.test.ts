@@ -8,7 +8,7 @@ import { PALETTE } from '../content/palette';
 import { defaultState, sampleState } from '../content/state-presets';
 import type { Arrangement, CircleCount, VennStyle } from '../engine/types';
 import { FONT_FILE } from './helpers/font';
-import { pngSize } from './helpers/png';
+import { decodePng, pngPixel, pngSize } from './helpers/png';
 
 const STYLES: VennStyle[] = ['translucent', 'flat', 'outline'];
 
@@ -120,6 +120,68 @@ describe('renderSvg：flat 平面填色', () => {
 
     expect(seam_pixels).toBeGreaterThan(500); // 前提：真的掃到接縫，否則本測試無意義
     expect(too_bright.slice(0, 5)).toEqual([]);
+  });
+});
+
+/**
+ * 文字的垂直位置。這條只能由真的 renderer 來判：SVG 字串裡的 y 是基線，
+ * 「看起來有沒有置中」要看點陣化後的墨跡落在哪裡——`dominant-baseline="central"`
+ * 產出的字串一樣「合法」，畫出來卻整體偏下。
+ */
+describe('renderSvg：文字的視覺垂直置中', () => {
+  const size = 800;
+
+  /** 深底白字，畫面上只有一段文字，所以整張掃白點就是那段字的墨跡 */
+  function oneTextState(text: string) {
+    return {
+      ...defaultState(2),
+      style: 'flat' as const,
+      size,
+      bg: '#101010',
+      colors: ['#123456', '#225533'],
+      texts: { '3': { t: text } },
+    };
+  }
+
+  function inkCenterY(png: Uint8Array): number {
+    const img = decodePng(Buffer.from(png));
+    let top = -1;
+    let bottom = -1;
+    for (let y = 0; y < img.height; y++) {
+      for (let x = 0; x < img.width; x++) {
+        const [r, g, b] = pngPixel(img, x, y);
+        if (r > 235 && g > 235 && b > 235) {
+          if (top < 0) top = y;
+          bottom = y;
+          break;
+        }
+      }
+    }
+    expect(top, '掃不到白字，這個測試就沒有意義').toBeGreaterThan(0);
+    return (top + bottom) / 2;
+  }
+
+  // 大寫拉丁與漢字的墨跡框不同高，兩種都要落在中心上
+  for (const text of ['ABC', '中文字']) {
+    it(`「${text}」的墨跡中心落在區塊中心上`, () => {
+      const state = oneTextState(text);
+      const block = layout(state).find((b) => b.mask === 3)!;
+
+      const offset = inkCenterY(renderPng(renderSvg(state))) - block.cy * size;
+
+      // 容差 5% 字級：抗鋸齒與字型本身的上下不對稱都在這個量級之內
+      expect(Math.abs(offset), `偏移 ${offset}px`).toBeLessThan(0.05 * block.fs * size);
+    });
+  }
+
+  it('多行文字整組對稱於區塊中心', () => {
+    const state = oneTextState('上面一行\n下面一行');
+    const block = layout(state).find((b) => b.mask === 3)!;
+
+    const offset = inkCenterY(renderPng(renderSvg(state))) - block.cy * size;
+
+    expect(block.lines).toHaveLength(2);
+    expect(Math.abs(offset), `偏移 ${offset}px`).toBeLessThan(0.05 * block.fs * size);
   });
 });
 

@@ -19,7 +19,7 @@ export const STRINGS = {
   'lang.field': '語言',
 
   // 額外形狀選單（圈數 icon 只放經典的 ring 2／3／4）
-  'shape.more': '其他形狀',
+  'shape.more': '更多',
   'shape.row3': '橫向三圈',
   'shape.row4': '四圈奧迪',
   'shape.ring5': '五瓣花',
@@ -40,6 +40,8 @@ export const STRINGS = {
   'field.size': '尺寸',
   'field.fs': '字級',
   'field.color': '顏色',
+  /** 標題壓在背景上、沒有自己的區域，能調的是字色 */
+  'field.textColor': '字色',
 
   'action.downloadPng': '下載 PNG',
   'action.downloadSvg': '下載 SVG',
@@ -50,6 +52,7 @@ export const STRINGS = {
   'fs.stepDown': '縮小字級',
   'fs.stepUp': '放大字級',
   'color.autoMix': '自動混色',
+  'color.autoContrast': '自動黑白',
 
   'slot.empty': '（空）',
   'slot.noRegion': '目前的圓大小與重疊度下沒有這一區，調過幾何它才會出現。',
