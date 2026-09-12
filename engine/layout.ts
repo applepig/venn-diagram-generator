@@ -7,8 +7,9 @@ import {
   MIN_FS,
   popCount,
 } from './defaults';
+import { transformBlock } from './fit';
 import { arrOf, circlesFor, circlesForState, shapeDefaults } from './shapes/index';
-import { diagramTransform, titleBox, titleTextOf, transformBlock } from './title';
+import { diagramTransform, titleBox, titleTextOf } from './title';
 import type {
   Arrangement,
   Circle,
@@ -237,11 +238,21 @@ export function regionBox(circles: Circle[], mask: number, aspect: number): Regi
 }
 
 function computeRegionBox(circles: Circle[], mask: number, aspect: number): RegionBox | null {
+  /**
+   * 取樣範圍跟著圓的包圍盒走（09 AC4）：幾何超出畫布時（fit 之前的原始座標）
+   * 只掃 `[0,1)` 會把區域重心截掉，文字就會擠在畫布邊上。
+   * 幾何在畫布內時起點與終點就是 0 與 1，迴圈與現況完全相同。
+   */
+  const x_start = Math.min(0, ...circles.map((c) => c.x - c.r));
+  const x_end = Math.max(1, ...circles.map((c) => c.x + c.r));
+  const y_start = Math.min(0, ...circles.map((c) => c.y - c.r));
+  const y_end = Math.max(1, ...circles.map((c) => c.y + c.r));
+
   let sum_x = 0;
   let sum_y = 0;
   let count = 0;
-  for (let y = 0; y < 1; y += SAMPLE_STEP) {
-    for (let x = 0; x < 1; x += SAMPLE_STEP) {
+  for (let y = y_start; y < y_end; y += SAMPLE_STEP) {
+    for (let x = x_start; x < x_end; x += SAMPLE_STEP) {
       if (maskAt(circles, x, y) === mask) {
         sum_x += x;
         sum_y += y;
@@ -275,6 +286,15 @@ function computeRegionBox(circles: Circle[], mask: number, aspect: number): Regi
   if (half_w === 0) return null;
 
   return { cx, cy, w: 2 * half_w * BOX_INSET, h: ((2 * half_w) / aspect) * BOX_INSET };
+}
+
+/**
+ * 這一槽在目前的幾何下畫不畫得出來（09 AC7）。
+ * `layout()` 與 `ui/toolbar.ts` 的「區域不存在」都問這一個函式，兩邊因此不會各自取樣：
+ * 判定一律用原始幾何（fit 與標題都是等比後製變換，不會讓區域生出來或消失）。
+ */
+export function regionExists(state: VennState, mask: number): boolean {
+  return regionBox(circlesForState(state), mask, aspectFor(kindOf(mask))) !== null;
 }
 
 function startFsFor(kind: 'label' | 'intersection'): number {

@@ -1,14 +1,7 @@
-import {
-  INTERSECTION_ASPECT,
-  LABEL_ASPECT,
-  OVERLAP_MAX,
-  OVERLAP_MIN,
-  SIZE_CHOICES,
-  popCount,
-} from '../engine/defaults';
+import { OVERLAP_MAX, OVERLAP_MIN, SIZE_CHOICES } from '../engine/defaults';
 import { BG_SWATCHES } from '../content/palette';
-import { layout, regionBox, slotMasks } from '../engine/layout';
-import { arrOf, circlesForState, radiusRange } from '../engine/shapes/index';
+import { layout, regionExists, slotMasks } from '../engine/layout';
+import { arrOf, radiusRange } from '../engine/shapes/index';
 import { LOCALES, LOCALE_NAMES, type Locale } from '../content/locale';
 import type { Arrangement, CircleCount, TextSlot, VennState, VennStyle } from '../engine/types';
 import { ts, uiLocale } from './i18n';
@@ -304,12 +297,10 @@ export function createToolbar(root: HTMLElement, handlers: ToolbarHandlers): Too
       slots_el.replaceChildren(title_row.root, ...rows.map((row) => row.root));
     }
 
-    const circles = circlesForState(state);
     const blocks = new Map(layout(state).map((block) => [block.mask, block]));
     for (const row of rows) {
-      const aspect = popCount(row.mask) === 1 ? LABEL_ASPECT : INTERSECTION_ASPECT;
-      const exists = regionBox(circles, row.mask, aspect) !== null;
-      row.update(state, blocks.get(row.mask), exists);
+      // 區域存不存在只問 engine（AC7）：面板自己取樣就會和 layout() 各自漂移
+      row.update(state, blocks.get(row.mask), regionExists(state, row.mask));
     }
   }
 

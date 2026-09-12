@@ -92,9 +92,10 @@
       "ac": "c",
       "label": "4 圈 overlap 1.6（上限，五個區域消失）",
       "s": "XVDLTsMwEPyX6XVbrfPC-FcQhzSJUaSoQYlbtVQ-VIg_4MIf9Myp_A8I8Rdok7RJG0vR2juzMzt7bGAUYQUTEVq3qwoYuCZdtdU6K1YOhPo5zUq3g-FFQqg3RVOlzzBKbk2al-tWWmFIyOqqblqYB8xUEEZxAsIsXWZ5YaVitlZrqaxlThI8EpZPMJjZVA4IbflSwKiAmeCKrWth9lDyczD4ff-EJwTn-_fXBwi20-d7TwgnyKFZVlWn0H3Cji7skwDybccOPCGesk-T0XEPm_OCFSHvomDlCXfXekLyBD0qHNDj54OE4on3vn12qFiO8JW6HXsYvYQCCCY7SFfewmv3g3a_XbfBYINjQUdXPm6saJ1lfVjqksnP2_Hv9Tj6iMbh4SUTKcfEtWaG9_4f",
-      "svg_sha256": "cb8d155ffe1449d548840897628a732166ebf8a81498d2141edd4aa36e3c2b35",
-      "png_sha256": "02964c5933a76a6246cc6674f446fedff3b8f58d9f8ff8db78519208bd9010aa",
-      "og_png_sha256": "3c14722d3b45e16ef3f0afb16f35844b85cd1c06dce2eb72846abdde95adfbd6"
+      "refrozen": "09 fit：這張圖的四個角本來被畫布切掉，正是本 sprint 要修的行為（spec 09 AC2 的唯一例外）。fit 參數 scale=0.8367、tx=ty=0.08165；其餘 7 個 case 一個位元都沒動。",
+      "svg_sha256": "316dff0718eb2a6e4ce77270a83cb3769415077d01d770a7b26ea97435bb47fc",
+      "png_sha256": "b7f052637237be542945414a0c11b8acba8c55c71ea4783b00d4476eba4163e7",
+      "og_png_sha256": "8a58f01909d8734a5c972038370c3539d4d256f4fd2d2040ba60b22cbca2ee14"
     }
   ]
 }

@@ -1,5 +1,13 @@
+import {
+  IDENTITY_TRANSFORM,
+  STROKE_INSET,
+  composeTransform,
+  fitTransform,
+  transformCircle,
+  type DiagramTransform,
+} from './fit';
 import { circlesForState } from './shapes/index';
-import type { Circle, RegionBox, TextBlock, VennState } from './types';
+import type { Circle, RegionBox, VennState } from './types';
 
 /**
  * 圖片標題佔畫布頂端的高度比例（08 AC4）。
@@ -27,54 +35,35 @@ export function titleBox(): RegionBox {
   };
 }
 
-/** 單位空間的相似變換：先等比縮放，再平移 */
-export interface DiagramTransform {
-  scale: number;
-  tx: number;
-  ty: number;
-}
-
-const IDENTITY: DiagramTransform = { scale: 1, tx: 0, ty: 0 };
-
 /**
- * 圖區的擺放方式：沒有標題時是恆等變換（舊連結的輸出一個位元都不變），
+ * 標題造成的圖區位移：沒有標題時是恆等變換（舊連結的輸出一個位元都不變），
  * 有標題時等比縮小、水平置中、下移到 band 之下並貼齊畫布底緣。
  */
-export function diagramTransform(state: VennState): DiagramTransform {
-  if (titleTextOf(state) === '') return IDENTITY;
+export function titleTransform(state: VennState): DiagramTransform {
+  if (titleTextOf(state) === '') return IDENTITY_TRANSFORM;
   const scale = 1 - TITLE_BAND_H;
   return { scale, tx: (1 - scale) / 2, ty: 1 - scale };
 }
 
-function transformCircle(c: Circle, t: DiagramTransform): Circle {
-  return { x: c.x * t.scale + t.tx, y: c.y * t.scale + t.ty, r: c.r * t.scale };
+/**
+ * 圖區的總變換：先把超界的圓縮回畫布（fit），再套標題位移（09 AC4）。
+ *
+ * 兩者都是後製變換，排版與槽表仍在原始幾何上算；順序是先 fit 再 title，
+ * 所以有標題時圖區是「塞得下的那張圖」再整組縮進 band 之下。
+ *
+ * fit 的內縮量要先除以標題的縮放：描邊寬度是畫布常數、不隨變換縮，
+ * 在原始空間多留 `inset / title_scale`，經標題縮放後才剛好剩下一個描邊半寬。
+ */
+export function diagramTransform(state: VennState): DiagramTransform {
+  const title = titleTransform(state);
+  const fit = fitTransform(circlesForState(state), STROKE_INSET / title.scale);
+  return composeTransform(fit, title);
 }
 
-/** 已套用標題位移的圓；`renderSvg()` 與 `layout()` 都走這個變換，兩邊自動一致 */
+/** 已套用總變換的圓；`renderSvg()` 與 `layout()` 都走這個變換，兩邊自動一致 */
 export function circlesForRender(state: VennState): Circle[] {
   const t = diagramTransform(state);
   const circles = circlesForState(state);
-  if (t === IDENTITY) return circles;
+  if (t === IDENTITY_TRANSFORM) return circles;
   return circles.map((c) => transformCircle(c, t));
-}
-
-/**
- * 把預設空間排好的文字區塊搬到同一個變換上。
- * 排版本身仍在預設空間算（取樣密度與槽表不受標題影響），只有結果跟著圖區縮放，
- * 所以有無標題的版面是嚴格的等比關係。
- */
-export function transformBlock(block: TextBlock, t: DiagramTransform): TextBlock {
-  if (t === IDENTITY) return block;
-  return {
-    ...block,
-    box: {
-      cx: block.box.cx * t.scale + t.tx,
-      cy: block.box.cy * t.scale + t.ty,
-      w: block.box.w * t.scale,
-      h: block.box.h * t.scale,
-    },
-    cx: block.cx * t.scale + t.tx,
-    cy: block.cy * t.scale + t.ty,
-    fs: block.fs * t.scale,
-  };
 }

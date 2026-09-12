@@ -1,0 +1,101 @@
+import type { Circle, TextBlock } from './types';
+
+/** 單位空間的相似變換：先等比縮放，再平移 */
+export interface DiagramTransform {
+  scale: number;
+  tx: number;
+  ty: number;
+}
+
+/** 唯一的恆等變換物件：呼叫端用 `=== IDENTITY_TRANSFORM` 判斷「什麼都不用做」，輸出因此逐位元不變 */
+export const IDENTITY_TRANSFORM: DiagramTransform = { scale: 1, tx: 0, ty: 0 };
+
+/**
+ * 描邊半寬（畫布寬比例）：outline 樣式的圓描邊是 `size * 0.006`，一半落在圓外。
+ * 圓心 ± r 剛好貼齊畫布時那半條線會被切掉，所以包圍盒要外擴這個量再判斷有沒有超界。
+ */
+export const STROKE_INSET = 0.003;
+
+/** 判定「在畫布內」的容差：浮點合成後 1e-16 級的殘差不該讓預設幾何被判成超界 */
+const EPS = 1e-12;
+
+export function transformCircle(c: Circle, t: DiagramTransform): Circle {
+  return { x: c.x * t.scale + t.tx, y: c.y * t.scale + t.ty, r: c.r * t.scale };
+}
+
+/**
+ * 把預設空間排好的文字區塊搬到同一個變換上。
+ * 排版本身仍在預設空間算（取樣密度與槽表不受標題與 fit 影響），只有結果跟著圖區縮放，
+ * 所以有無標題、有無 fit 的版面都是嚴格的等比關係。
+ */
+export function transformBlock(block: TextBlock, t: DiagramTransform): TextBlock {
+  if (t === IDENTITY_TRANSFORM) return block;
+  return {
+    ...block,
+    box: {
+      cx: block.box.cx * t.scale + t.tx,
+      cy: block.box.cy * t.scale + t.ty,
+      w: block.box.w * t.scale,
+      h: block.box.h * t.scale,
+    },
+    cx: block.cx * t.scale + t.tx,
+    cy: block.cy * t.scale + t.ty,
+    fs: block.fs * t.scale,
+  };
+}
+
+/** 先套 inner 再套 outer 的合成變換；任一邊是恆等就直接回另一邊（同一個物件，不製造浮點殘差） */
+export function composeTransform(
+  inner: DiagramTransform,
+  outer: DiagramTransform,
+): DiagramTransform {
+  if (inner === IDENTITY_TRANSFORM) return outer;
+  if (outer === IDENTITY_TRANSFORM) return inner;
+  return {
+    scale: inner.scale * outer.scale,
+    tx: inner.tx * outer.scale + outer.tx,
+    ty: inner.ty * outer.scale + outer.ty,
+  };
+}
+
+/** 一維上把 `[lo, hi]` 推回 `[inset, 1 − inset]` 所需的最小平移；已經在裡面就是 0 */
+function minShift(lo: number, hi: number, inset: number): number {
+  if (lo < inset) return inset - lo;
+  if (hi > 1 - inset) return 1 - inset - hi;
+  return 0;
+}
+
+/**
+ * 圓組（含描邊）塞回畫布的變換（09 AC1）：包圍盒外擴 `inset` 後仍在畫布內就是恆等變換，
+ * 超界時等比縮到塞得下，再補最小平移。
+ *
+ * `inset` 預設是描邊半寬。呼叫端後面還要再套一層縮放時（標題），要傳「除以那層縮放」的值：
+ * 描邊寬度是畫布常數、不隨變換縮，先多留一點，經過那層縮放後才剛好剩下描邊半寬。
+ *
+ * 只縮不放：預設幾何因此逐位元不變（AC2），而且「圓比畫布小但整組偏出去」時放大只會讓
+ * 版面跟著 radius 跳動，平移回來就夠了。
+ * 平移只補超出的那一側、不置中：ring(5) 的包圍盒上下不對稱，置中會在跨越臨界點時整組跳位（AC6）。
+ */
+export function fitTransform(circles: Circle[], inset = STROKE_INSET): DiagramTransform {
+  if (circles.length === 0) return IDENTITY_TRANSFORM;
+
+  const left = Math.min(...circles.map((c) => c.x - c.r));
+  const right = Math.max(...circles.map((c) => c.x + c.r));
+  const top = Math.min(...circles.map((c) => c.y - c.r));
+  const bottom = Math.max(...circles.map((c) => c.y + c.r));
+  const inside =
+    left - inset >= -EPS &&
+    right + inset <= 1 + EPS &&
+    top - inset >= -EPS &&
+    bottom + inset <= 1 + EPS;
+  if (inside) return IDENTITY_TRANSFORM;
+
+  // 圓的包圍盒要塞進的是內縮後的可用範圍 [inset, 1 − inset]
+  const scale = Math.min(1, (1 - 2 * inset) / Math.max(right - left, bottom - top));
+
+  return {
+    scale,
+    tx: minShift(left * scale, right * scale, inset),
+    ty: minShift(top * scale, bottom * scale, inset),
+  };
+}
