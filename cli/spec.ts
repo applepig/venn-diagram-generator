@@ -7,7 +7,7 @@
  */
 import { slotMasks } from '../engine/layout';
 import { popCount } from '../engine/defaults';
-import { arrOf, isArrangement, shapeDefaults } from '../engine/shapes/index';
+import { arrOf, isArrangement, isCircleCount, shapeDefaults } from '../engine/shapes/index';
 import { validateState } from '../engine/state-codec';
 import type { Arrangement, CircleCount, TextSlot, VennState } from '../engine/types';
 import { defaultState } from '../content/state-presets';
@@ -24,10 +24,10 @@ export class SpecError extends Error {
 
 /**
  * 一格文字。多數情況只需要文字本身，所以直接給字串；
- * 從編輯器連結 decode 回來的圖可能帶手動字級／位移／填色，那時才會是物件形式——
+ * 從編輯器連結 decode 回來的圖可能帶手動字級或區域填色，那時才會是物件形式——
  * 沒有這個形式，「decode → 改字 → 重新產圖」會把使用者在編輯器裡調過的東西弄丟。
  */
-export type SpecSlot = string | { t: string; fs?: number; dx?: number; dy?: number; fill?: string };
+export type SpecSlot = string | { t: string; fs?: number; fill?: string };
 
 /** `--json` 收的、`venn decode` 吐的友善格式 */
 export interface VennSpec {
@@ -81,6 +81,12 @@ export function validSlotLetters(arr: Arrangement, n: CircleCount): string[] {
   return slotMasks(arr, n).map(lettersFromMask);
 }
 
+/** 圈數就是 `sets` 的長度；CLI 在解析 per-slot 旗標前也要先確定它，所以獨立成一個檢查 */
+export function circleCountOf(count: number): CircleCount {
+  if (!isCircleCount(count)) throw new SpecError(`sets must have 2 to 6 entries, not ${count}`);
+  return count;
+}
+
 /**
  * 字母組合 → mask，並確認該槽在這個組合裡真的存在。
  * 合法槽隨 `arr × n` 變（`ring(4)` 的 A 與 D 根本不相交），所以錯誤訊息一律附上完整清單——
@@ -105,18 +111,15 @@ function slotOf(raw: SpecSlot, key: string): TextSlot | null {
   if (typeof raw.t !== 'string') throw new SpecError(`text slot "${key}" is missing t`);
   if (raw.t === '') return null;
 
-  // fs/dx/dy/fill 的值域由 validateState 把關，這裡只負責搬過去
+  // fs/fill 的值域由 validateState 把關，這裡只負責搬過去
   const slot: TextSlot = { t: raw.t };
   if (raw.fs !== undefined) slot.fs = raw.fs;
-  if (raw.dx !== undefined) slot.dx = raw.dx;
-  if (raw.dy !== undefined) slot.dy = raw.dy;
   if (raw.fill !== undefined) slot.fill = raw.fill;
   return slot;
 }
 
 function specSlotOf(slot: TextSlot): SpecSlot {
-  const rich =
-    slot.fs !== undefined || slot.dx !== undefined || slot.dy !== undefined || slot.fill !== undefined;
+  const rich = slot.fs !== undefined || slot.fill !== undefined;
   return rich ? { ...slot } : slot.t;
 }
 
@@ -126,14 +129,12 @@ function specSlotOf(slot: TextSlot): SpecSlot {
  */
 export function specToState(spec: VennSpec): VennState {
   if (!Array.isArray(spec.sets)) throw new SpecError('sets is required and must be an array');
-  const n = spec.sets.length;
-  if (n < 2 || n > 6) throw new SpecError(`sets must have 2 to 6 entries, not ${n}`);
+  const count = circleCountOf(spec.sets.length);
 
   if (spec.arr !== undefined && !isArrangement(spec.arr)) {
     throw new SpecError('arr must be "ring" or "row"');
   }
   const arr: Arrangement = spec.arr ?? 'ring';
-  const count = n as CircleCount;
 
   const base = defaultState(count);
   const geometry = shapeDefaults(arr, count);

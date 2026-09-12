@@ -14,7 +14,7 @@ engine/   types, defaults, shapes/ (ring & row registry), layout, region-geometr
 content/  palette, templates/, strings/, locale, state-presets — default memes and UI strings
 ui/       Vite + vanilla TS editor
 server/   Hono: static files, og meta injection for GET /, GET /api/png and /api/og.png
-cli/      the `venn` command: friendly letter-based spec on top of the same engine
+cli/      the `venn` command: spec (letters <-> masks), flags (merging), venn (I/O shell)
 skills/   Claude Code skill shipped by the plugin in .claude-plugin/
 deploy/   Dockerfile, compose.yml, compose.dev.yml, deploy.sh
 ```
@@ -86,11 +86,11 @@ npx -y venn-diagram-generator png --set A=Fast --set B=Cheap --set C=Good \
   --text ABC="Pick two" -o pick-two.png
 ```
 
-Nothing is fetched at render time: the fonts ship inside the package and `@resvg/resvg-js` rasterizes locally. Four subcommands — `url` prints the share link, `svg` and `png` write a file, `decode <url-or-s>` prints the JSON behind an existing link. `svg` and `png` print two lines: the absolute path with its pixel size, then the share URL for the same picture.
+Nothing is fetched at render time: the fonts ship inside the package and `@resvg/resvg-js` rasterizes locally. Four subcommands — `url` prints the share link, `svg` and `png` write a file, `decode <url-or-s>` prints the JSON behind an existing link (`--raw` prints the `VennState` documented above instead of the friendly format). `svg` and `png` print two lines: the absolute path with its pixel size, then the share URL for the same picture.
 
 The CLI never asks you to write a bitmask. Circles are letters (`A` is the first circle, up to `F`) and a text slot is named by the set of circles it belongs to, so `AB` is the overlap of the first two. Letter case and order do not matter, `ba` is `AB`. Which slots exist depends on the arrangement: four circles in a ring means `A` and `D` never touch, so `AD` is rejected — and the error lists every legal slot for that combination.
 
-The whole spec can arrive as JSON instead, which is the only sane way to pass CJK text, apostrophes and newlines through a shell:
+The whole spec can arrive as JSON instead, which is the only sane way to pass CJK text, apostrophes and newlines through a shell. `--json` takes either format and tells them apart by which key is present — `sets` means the friendly spec, `v` means a raw `VennState`, the exact object the URL carries and `decode --raw` prints. An object with both or neither is rejected rather than guessed at.
 
 ```bash
 cat <<'EOF' | npx -y venn-diagram-generator png --json - -o life.png
@@ -103,9 +103,11 @@ cat <<'EOF' | npx -y venn-diagram-generator png --json - -o life.png
 EOF
 ```
 
-`--set` and `--text` override individual fields of the JSON; `--arr`, `--style`, `--title`, `--size`, `--bg`, `--opacity`, `--overlap`, `--radius` and `--colors '#aabbcc,#ddeeff'` map to the state fields documented above. The share link's host comes from `--base-url`, then `VENN_BASE_URL`, then `https://venn.applepig.net`. Exit codes: `0` success, `1` bad arguments or an invalid spec, `2` rasterization failed.
+Every state field has a flag, so nothing is JSON-only. `--arr`, `--style`, `--title`, `--size`, `--bg`, `--opacity`, `--overlap`, `--radius` and `--colors '#aabbcc,#ddeeff'` map to the fields documented above, and the per-slot ones take the same letter keys: `--fs AB=0.09`, `--fill AB=#ffffff`, `--nudge AB=0.01,-0.02`. Either half of `--nudge` may be left out (`AB=,0.02`); an omitted half stays automatic rather than becoming zero. All of them override whatever `--json` supplied, and `--set` / `--text` replace only the text, leaving that slot's existing size, offset and fill alone.
 
-`decode` round-trips exactly, including manual font sizes and offsets, so you can paste a link from the editor, edit one label in JSON and re-render everything else untouched.
+The share link's host comes from `--base-url`, then `VENN_BASE_URL`, then `https://venn.applepig.net`. Exit codes: `0` success, `1` bad arguments or an invalid spec, `2` rasterization failed.
+
+`decode` round-trips exactly, including manual font sizes, offsets and region colours, so you can paste a link from the editor, edit one label in JSON and re-render everything else untouched.
 
 ```bash
 npx -y venn-diagram-generator decode 'https://venn.applepig.net/?s=...' > spec.json

@@ -14,7 +14,7 @@ engine/   types、defaults、shapes/（ring 與 row registry）、layout、regio
 content/  palette、templates/、strings/、locale、state-presets（預設 meme 與介面字串）
 ui/       Vite + vanilla TS 編輯器
 server/   Hono：靜態檔、GET / 的 og meta 注射、GET /api/png 與 /api/og.png
-cli/      `venn` 命令：架在同一套 engine 上的字母式友善輸入層
+cli/      `venn` 命令：spec（字母↔mask）、flags（旗標合併）、venn（I/O 外殼）
 skills/   plugin（.claude-plugin/）帶的 Claude Code skill
 deploy/   Dockerfile、compose.yml、compose.dev.yml、deploy.sh
 ```
@@ -85,11 +85,11 @@ npx -y venn-diagram-generator png --set A=工作 --set B=生活 \
   --text AB=沒有睡眠 -o life.png
 ```
 
-出圖不連外：字型隨套件走，點陣化由本機的 `@resvg/resvg-js` 做。四個子命令——`url` 印分享連結，`svg` 與 `png` 寫檔，`decode <網址或 s>` 印出既有連結背後的 JSON。`svg` 與 `png` 會印兩行：檔案的絕對路徑與像素尺寸，接著是同一張圖的分享網址。
+出圖不連外：字型隨套件走，點陣化由本機的 `@resvg/resvg-js` 做。四個子命令——`url` 印分享連結，`svg` 與 `png` 寫檔，`decode <網址或 s>` 印出既有連結背後的 JSON（加 `--raw` 改印上面那份原始 `VennState`）。`svg` 與 `png` 會印兩行：檔案的絕對路徑與像素尺寸，接著是同一張圖的分享網址。
 
 CLI 不讓人寫 bitmask。圈就是字母（`A` 是第一圈，最多到 `F`），文字槽的名字就是它所屬的圈集合，所以 `AB` 是前兩圈的交集。大小寫與字母順序都不影響，`ba` 等於 `AB`。哪些槽存在取決於排列：四圈環狀時 `A` 與 `D` 根本不相交，所以 `AD` 會被拒絕，而錯誤訊息會把該組合的全部合法槽列出來。
 
-整份 spec 也可以用 JSON 給。要把中文、引號與換行安全地穿過 shell，這是唯一不折騰的做法：
+整份 spec 也可以用 JSON 給。要把中文、引號與換行安全地穿過 shell，這是唯一不折騰的做法。`--json` 兩種格式都收，靠哪個 key 在來判別——有 `sets` 是友善格式，有 `v` 是原始 `VennState`，也就是 URL 裡編的那份、`decode --raw` 印的那份。兩個都有或都沒有一律報錯，不猜：
 
 ```bash
 cat <<'EOF' | npx -y venn-diagram-generator png --json - -o life.png
@@ -102,9 +102,11 @@ cat <<'EOF' | npx -y venn-diagram-generator png --json - -o life.png
 EOF
 ```
 
-`--set` 與 `--text` 會覆蓋 JSON 裡對應的欄位；`--arr`、`--style`、`--title`、`--size`、`--bg`、`--opacity`、`--overlap`、`--radius` 與 `--colors '#aabbcc,#ddeeff'` 對應上面那份 state 的欄位。分享連結的主機依序取 `--base-url`、`VENN_BASE_URL`、`https://venn.applepig.net`。退出碼：`0` 成功、`1` 參數或 spec 有誤、`2` 點陣化失敗。
+每個 state 欄位都有對應旗標，沒有哪個欄位只能走 JSON。`--arr`、`--style`、`--title`、`--size`、`--bg`、`--opacity`、`--overlap`、`--radius` 與 `--colors '#aabbcc,#ddeeff'` 對應上面那份 state 的欄位；per-slot 的三個用同一套字母 key：`--fs AB=0.09`、`--fill AB=#ffffff`、`--nudge AB=0.01,-0.02`。`--nudge` 可以只給一半（`AB=,0.02`），沒給的那一邊維持自動置中而不是變成 0。這些旗標一律覆蓋 `--json` 給的底稿；`--set`／`--text` 只換文字，該格既有的字級、位移與填色原樣留著。
 
-`decode` 的往返是等價的，連手動字級與位移都留著，所以可以把編輯器的連結貼回來、在 JSON 裡改一格文字，其餘原封不動重出一張。
+分享連結的主機依序取 `--base-url`、`VENN_BASE_URL`、`https://venn.applepig.net`。退出碼：`0` 成功、`1` 參數或 spec 有誤、`2` 點陣化失敗。
+
+`decode` 的往返是等價的，連手動字級、位移與區域填色都留著，所以可以把編輯器的連結貼回來、在 JSON 裡改一格文字，其餘原封不動重出一張。
 
 ```bash
 npx -y venn-diagram-generator decode 'https://venn.applepig.net/?s=...' > spec.json

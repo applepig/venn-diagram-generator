@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { type Flags, applyFlags, specFromJson } from '../cli/flags';
 import {
   SpecError,
   lettersFromMask,
@@ -10,6 +11,12 @@ import {
 import { slotMasks } from '../engine/layout';
 import { defaultState } from '../content/state-presets';
 import type { VennState } from '../engine/types';
+
+/** 走完整條 CLI 輸入路徑：`--json` 的底稿 ＋ 旗標 → state */
+function stateFromFlags(flags: Flags, json?: unknown): VennState {
+  const base = json === undefined ? { sets: [] } : specFromJson(json);
+  return specToState(applyFlags(base, flags));
+}
 
 describe('字母 ↔ mask', () => {
   it('單一字母對應圈 index 的位元', () => {
@@ -84,11 +91,13 @@ describe('state ↔ 友善 spec 的 round-trip', () => {
       colors: ['#112233', '#445566', '#778899'],
       texts: { '1': { t: '快' }, '7': { t: '都想要' } },
     },
-    '編輯器調過的槽（手動字級與位移）': {
+    '調過的槽：同一格有 fs 與 fill': {
       ...defaultState(4),
+      style: 'flat',
       texts: {
-        '1': { t: '便宜', fs: 0.09, dx: -0.01 },
-        '15': { t: '媽媽煮的', dy: 0.02, fill: '#ffffff' },
+        '1': { t: '便宜', fs: 0.09, fill: '#ffffff' },
+        '15': { t: '媽媽煮的', fs: 0.033 },
+        '3': { t: '別人請客', fill: '#111111' },
       },
     },
     'row 排列': {
@@ -119,5 +128,95 @@ describe('預設值', () => {
   it('sets 的空字串代表該圈不給標籤', () => {
     const state = specToState({ sets: ['工作', ''], texts: { AB: '沒睡' } });
     expect(state.texts).toEqual({ '1': { t: '工作' }, '3': { t: '沒睡' } });
+  });
+});
+
+describe('--json 兩種格式', () => {
+  const raw: VennState = {
+    ...defaultState(2),
+    texts: { '1': { t: '工作' }, '3': { t: '沒睡', fs: 0.07, fill: '#ffffff' } },
+  };
+
+  it('原始 VennState 直接吃，per-slot 欄位全部留著', () => {
+    expect(stateFromFlags({}, raw)).toEqual(raw);
+  });
+
+  it('友善 spec 與等價的原始 state 得到同一份 state', () => {
+    const friendly = { sets: ['工作', ''], texts: { AB: { t: '沒睡', fs: 0.07, fill: '#ffffff' } } };
+    expect(stateFromFlags({}, friendly)).toEqual(stateFromFlags({}, raw));
+  });
+
+  it('兩種鑑別欄位都沒有時報錯，訊息把兩種格式都寫出來', () => {
+    let message = '';
+    try {
+      specFromJson({ n: 2, texts: {} });
+    } catch (err) {
+      message = (err as Error).message;
+    }
+    expect(message).toContain('sets');
+    expect(message).toContain('"v"');
+    expect(message).toContain('neither');
+  });
+
+  it('兩種鑑別欄位都有時也報錯，不猜', () => {
+    expect(() => specFromJson({ v: 1, sets: ['a', 'b'] })).toThrow(/both/);
+  });
+});
+
+describe('per-slot 旗標', () => {
+  it('--fs 與 --fill 寫進對應的槽', () => {
+    const state = stateFromFlags({
+      set: ['A=工作', 'B=生活'],
+      text: ['AB=沒睡'],
+      fs: ['AB=0.09'],
+      fill: ['AB=#ffffff'],
+    });
+    expect(state.texts['3']).toEqual({ t: '沒睡', fs: 0.09, fill: '#ffffff' });
+  });
+
+  it('單圈標籤也吃得到 per-slot 旗標', () => {
+    const state = stateFromFlags({ set: ['A=工作', 'B=生活'], fs: ['A=0.12'] });
+    expect(state.texts['1']).toEqual({ t: '工作', fs: 0.12 });
+  });
+
+  it('槽裡沒有文字時報錯，而不是產生一個沒有 t 的槽', () => {
+    expect(() => stateFromFlags({ set: ['A=工作', 'B=生活'], fs: ['AB=0.09'] })).toThrow(
+      /needs text in slot AB/,
+    );
+  });
+
+  it('非法槽位的 per-slot 旗標，錯誤訊息與 --text 同一套', () => {
+    expect(() =>
+      stateFromFlags({ set: ['A=1', 'B=2', 'C=3', 'D=4'], fill: ['AD=#ffffff'] }),
+    ).toThrow(/valid slots for ring\(4\)/);
+  });
+});
+
+describe('旗標疊在 JSON 底稿上', () => {
+  const raw: VennState = {
+    ...defaultState(2),
+    style: 'flat',
+    texts: { '1': { t: '工作' }, '3': { t: '沒睡', fs: 0.07, fill: '#ffffff' } },
+  };
+
+  it('--text 只換文字，保留該格既有的 fs 與 fill', () => {
+    const state = stateFromFlags({ text: ['AB=真的沒睡'] }, raw);
+    expect(state.texts['3']).toEqual({ t: '真的沒睡', fs: 0.07, fill: '#ffffff' });
+  });
+
+  it('--set 覆蓋單圈標籤，其餘槽不動', () => {
+    const state = stateFromFlags({ set: ['A=上班'] }, raw);
+    expect(state.texts['1']).toEqual({ t: '上班' });
+    expect(state.texts['3']).toEqual(raw.texts['3']);
+  });
+
+  it('--text 給空字串就把那一格整個拿掉', () => {
+    const state = stateFromFlags({ text: ['AB='] }, raw);
+    expect(state.texts).toEqual({ '1': { t: '工作' } });
+  });
+
+  it('大小寫與亂序的 key 蓋得掉 JSON 裡的同一格，不會變成兩筆', () => {
+    const state = stateFromFlags({ text: ['ba=換掉'] }, raw);
+    expect(state.texts['3']).toEqual({ t: '換掉', fs: 0.07, fill: '#ffffff' });
   });
 });

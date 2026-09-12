@@ -51,9 +51,10 @@ Fields, all optional except `sets`:
 | `opacity`, `overlap`, `radius` | Fill opacity 0-1, how far circles reach into each other 0.6-1.6, circle radius as a fraction of the canvas. |
 | `titleFill`, `titleFs` | Title colour, and title size as a fraction of canvas width. |
 
-A slot value may also be an object, `{"t": "text", "fs": 0.08, "dx": 0, "dy": 0, "fill": "#ffffff"}`,
-to pin a manual size, nudge the text, or recolour one region. Use the plain string form
-unless you are round-tripping a diagram the user already tuned in the editor.
+A slot value may also be an object, `{"t": "text", "fs": 0.08, "fill": "#ffffff"}`, pinning
+a manual font size or recolouring that one region. Write the plain string form yourself.
+A decoded spec may also carry `dx` / `dy` offsets on a slot — leave those exactly as they
+are, they are the user's own tuning and you cannot see the canvas to judge them.
 
 ## Not every overlap exists
 
@@ -87,7 +88,7 @@ non-zero and prints the full legal list for that combination — read it and fix
 | `decode <url-or-s>` | Prints the JSON spec behind an existing share URL. |
 
 Individual flags work too and override the JSON: `--set A=Work`, `--text AB=No sleep`,
-`--arr`, `--style`, `--title`, `--size`, `--bg`, `--colors '#aabbcc,#ddeeff'`, `--base-url`.
+`--json`, `--arr`, `--style`, `--title`, `--size`, `-o`, `--base-url`.
 
 ## Reporting back
 

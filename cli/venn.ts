@@ -1,6 +1,7 @@
 /**
  * `venn` CLI：把友善 spec 變成分享網址、SVG 或 PNG。
  *
+ * 這一層只做 I/O：讀檔、讀 stdin、寫檔、退出碼。旗標怎麼併成一份 spec 在 `cli/flags.ts`。
  * 參數解析用 Node 內建的 `util.parseArgs`，套件因此維持零 runtime 依賴（resvg 除外）——
  * 這是離線出圖承諾的一部分：`npx` 只下載字型與 resvg，不拉一串 CLI 框架。
  */
@@ -8,23 +9,12 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
-import { popCount } from '../engine/defaults';
 import { renderSvg } from '../engine/render-svg';
-import { isArrangement } from '../engine/shapes/index';
-import { validateState } from '../engine/state-codec';
 import { encodeState, decodeState } from '../engine/state-codec-node';
-import type { Arrangement, CircleCount, VennState } from '../engine/types';
+import type { VennState } from '../engine/types';
 import { shareUrl } from '../ui/share-url';
-import {
-  LETTERS,
-  SpecError,
-  type SpecSlot,
-  type VennSpec,
-  lettersFromMask,
-  slotMaskIn,
-  specToState,
-  stateToSpec,
-} from './spec';
+import { type Flags, applyFlags, specFromJson, str } from './flags';
+import { SpecError, type VennSpec, specToState, stateToSpec } from './spec';
 
 /** 分享網址的最後手段；與 package.json 的 homepage 一致 */
 const FALLBACK_BASE_URL = 'https://venn.applepig.net';
@@ -47,7 +37,7 @@ Usage:
   venn url    [options]            print the shareable editor URL
   venn svg    [options] [-o file]  write an SVG (default: venn.svg)
   venn png    [options] [-o file]  write a PNG  (default: venn.png)
-  venn decode <url-or-s>           print the friendly JSON behind a share URL
+  venn decode <url-or-s> [--raw]   print the JSON behind a share URL
 
 Describing a diagram:
   Circles are letters: A is the first circle, B the second, up to F.
@@ -56,8 +46,12 @@ Describing a diagram:
   --set A=Work            label of a circle; repeat once per circle (order fixes A, B, C...)
   --text AB=No sleep      text inside an overlap; repeat as needed
                           Letter case and order do not matter: ba == AB.
-  --json <file|->         read the whole spec as JSON ("-" reads stdin).
-                          Individual --set/--text flags override the JSON.
+  --fs AB=0.09            manual font size for one slot, as a fraction of the canvas
+  --fill AB=#ffffff       colour override for one region (flat style only)
+  --json <file|->         read the whole spec as JSON ("-" reads stdin). Accepts either
+                          the friendly format (has "sets") or a raw VennState (has "v"),
+                          which is what "venn decode --raw" and the URL both use.
+                          The flags above override whatever the JSON said.
 
 Not every overlap exists. The legal slots depend on arrangement x circle count:
 ring(4) draws four circles in a square, so A and D never touch and "AD" is
@@ -74,6 +68,7 @@ Options:
   --radius <number>       circle radius as a fraction of the canvas
   --colors '#aabbcc,#ddeeff'   one colour per circle
   --base-url <origin>     host for the share URL (env: VENN_BASE_URL)
+      --raw               decode only: print the raw VennState instead of friendly JSON
   -o, --out <file>        output file for svg/png
   -h, --help              show this help
       --version           print the version
@@ -82,11 +77,12 @@ Examples:
   venn png --set A=Work --set B=Life --text AB="No sleep" -o life.png
   echo '{"sets":["工作","生活"],"texts":{"AB":"沒有睡眠"}}' | venn png --json -
   venn decode 'https://venn.applepig.net/?s=...'
+  venn decode 'https://venn.applepig.net/?s=...' --raw > state.json
 `;
 
 function readPackageVersion(): string {
-  const pkg = JSON.parse(readFileSync(fileURLToPath(new URL('../package.json', import.meta.url)), 'utf8'));
-  return String(pkg.version);
+  const file = fileURLToPath(new URL('../package.json', import.meta.url));
+  return String(JSON.parse(readFileSync(file, 'utf8')).version);
 }
 
 async function readStdin(): Promise<string> {
@@ -95,36 +91,6 @@ async function readStdin(): Promise<string> {
   return Buffer.concat(chunks).toString('utf8');
 }
 
-/** `A=工作` → `[0, '工作']`。等號右邊原樣保留，中文與空白都不動。 */
-function parsePair(flag: string, raw: string): [string, string] {
-  const at = raw.indexOf('=');
-  if (at < 0) throw new SpecError(`--${flag} expects KEY=value, got "${raw}"`);
-  return [raw.slice(0, at), raw.slice(at + 1)];
-}
-
-function toNumber(name: string, raw: string): number {
-  const value = Number(raw);
-  if (!Number.isFinite(value)) throw new SpecError(`--${name} must be a number, got "${raw}"`);
-  return value;
-}
-
-type Flags = Record<string, string | boolean | string[] | undefined>;
-
-function str(flags: Flags, name: string): string | undefined {
-  const value = flags[name];
-  return typeof value === 'string' ? value : undefined;
-}
-
-function list(flags: Flags, name: string): string[] {
-  const value = flags[name];
-  return Array.isArray(value) ? value : [];
-}
-
-/**
- * `--json` 收兩種格式：友善 spec（字母 key）與原始 `VennState`（bitmask key，`venn decode --raw`
- * 與 URL 裡的那份）。使用者手上常常已經有後者——從分享連結 decode 出來、或從測試 fixture 複製，
- * 不該被逼著先手轉一次。原始 state 先過 `validateState()` 再轉成友善 spec，旗標才有東西可以疊。
- */
 async function loadJsonSpec(source: string): Promise<VennSpec> {
   const raw = source === '-' ? await readStdin() : readFileSync(resolve(source), 'utf8');
   let parsed: unknown;
@@ -133,67 +99,13 @@ async function loadJsonSpec(source: string): Promise<VennSpec> {
   } catch (err) {
     throw new SpecError(`--json is not valid JSON: ${(err as Error).message}`);
   }
-  if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
-    throw new SpecError('--json must contain a JSON object');
-  }
-
-  const object = parsed as Record<string, unknown>;
-  const friendly = object.sets !== undefined;
-  const state = object.v !== undefined;
-  if (friendly === state) {
-    const shape = friendly ? 'has both "sets" and "v"' : 'has neither "sets" nor "v"';
-    throw new SpecError(
-      `--json ${shape}, so the format is ambiguous.\n` +
-        '  friendly spec: {"sets": ["A label", "B label"], "texts": {"AB": "overlap"}}\n' +
-        '  raw VennState: {"v": 1, "n": 2, "texts": {"3": {"t": "overlap"}}, ...} — bitmask keys, as printed by `venn decode --raw`',
-    );
-  }
-  return friendly ? (parsed as VennSpec) : stateToSpec(validateState(parsed));
+  return specFromJson(parsed);
 }
 
-/** 旗標疊在 `--json` 之上：JSON 給底稿，命令列上明寫的覆蓋它。 */
 async function buildSpec(flags: Flags): Promise<VennSpec> {
-  const json_source = str(flags, 'json');
-  const base: VennSpec = json_source === undefined ? { sets: [] } : await loadJsonSpec(json_source);
-
-  const sets: (SpecSlot | undefined)[] = Array.isArray(base.sets) ? [...base.sets] : [];
-  for (const raw of list(flags, 'set')) {
-    const [key, value] = parsePair('set', raw);
-    const letter = key.replace(/\s+/g, '').toUpperCase();
-    const index = LETTERS.indexOf(letter);
-    if (letter.length !== 1 || index < 0) {
-      throw new SpecError(`--set expects a single circle letter A..F, got "${key}"`);
-    }
-    sets[index] = value;
-  }
-  // sparse 陣列代表使用者跳過了某一圈（給了 A 與 C 卻沒給 B），那幾乎一定是打錯字
-  const missing = [...sets.keys()].filter((i) => sets[i] === undefined).map((i) => LETTERS[i]);
-  if (missing.length > 0) {
-    throw new SpecError(`missing --set for circle ${missing.join(', ')}; circles must be contiguous from A`);
-  }
-
-  const texts: Record<string, SpecSlot> = { ...(base.texts ?? {}) };
-  for (const raw of list(flags, 'text')) {
-    const [key, value] = parsePair('text', raw);
-    texts[key] = value;
-  }
-
-  const spec: VennSpec = { ...base, sets: sets as SpecSlot[], texts };
-  const arr = str(flags, 'arr');
-  if (arr !== undefined) spec.arr = arr as VennSpec['arr'];
-  const style = str(flags, 'style');
-  if (style !== undefined) spec.style = style;
-  const title = str(flags, 'title');
-  if (title !== undefined) spec.title = title;
-  const bg = str(flags, 'bg');
-  if (bg !== undefined) spec.bg = bg;
-  const colors = str(flags, 'colors');
-  if (colors !== undefined) spec.colors = colors.split(',').map((c) => c.trim());
-  for (const name of ['size', 'opacity', 'overlap', 'radius'] as const) {
-    const raw = str(flags, name);
-    if (raw !== undefined) spec[name] = toNumber(name, raw);
-  }
-  return spec;
+  const source = str(flags, 'json');
+  const base: VennSpec = source === undefined ? { sets: [] } : await loadJsonSpec(source);
+  return applyFlags(base, flags);
 }
 
 function baseUrlOf(flags: Flags): string {
@@ -244,7 +156,10 @@ async function main(): Promise<number> {
     options: {
       set: { type: 'string', multiple: true },
       text: { type: 'string', multiple: true },
+      fs: { type: 'string', multiple: true },
+      fill: { type: 'string', multiple: true },
       json: { type: 'string' },
+      raw: { type: 'boolean' },
       arr: { type: 'string' },
       style: { type: 'string' },
       title: { type: 'string' },
@@ -275,7 +190,9 @@ async function main(): Promise<number> {
   if (command === 'decode') {
     const input = positionals[1];
     if (input === undefined) throw new SpecError('decode expects a share URL or an s parameter');
-    console.log(JSON.stringify(stateToSpec(decodeState(stateParamOf(input))), null, 2));
+    const state = decodeState(stateParamOf(input));
+    // --raw 印 URL 裡的那份 state；兩種格式 `--json` 都收得回去
+    console.log(JSON.stringify(flags.raw === true ? state : stateToSpec(state), null, 2));
     return 0;
   }
 
