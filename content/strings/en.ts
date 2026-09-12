@@ -50,7 +50,6 @@ export const STRINGS = {
 
   'slot.empty': '(empty)',
   'slot.noRegion': 'This region does not exist at the current circle size and overlap. Adjust the geometry to bring it back.',
-  'slot.notFlat': 'Only the flat style has fillable regions; other styles blend intersection colors themselves.',
 
   'copy.imageUnsupported': 'This browser cannot copy images. Use “Download PNG” instead.',
   'copy.imageFailed': 'Copying the image failed. Use “Download PNG” instead.',

@@ -37,6 +37,8 @@ export interface VennState {
   title?: string;
   /** 標題的字色（`#rrggbb`）；缺席代表自動：依標題壓著的底色取黑或白。沒有標題時一律不寫進編碼。 */
   title_fill?: string;
+  /** 標題的手動字級，畫布寬比例；缺席代表自動 fit。同樣只在有標題時進編碼。 */
+  title_fs?: number;
   style: VennStyle;
   opacity: number;
   overlap: number;

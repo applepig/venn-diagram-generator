@@ -177,10 +177,14 @@ export function validateState(input: unknown): VennState {
   const title = input.title === undefined ? '' : parseTitle(input.title);
   const title_fill =
     input.title_fill === undefined ? undefined : requireHex(input.title_fill, 'title_fill');
+  const title_fs =
+    input.title_fs === undefined ? undefined : requireNumber(input.title_fs, 'title_fs', 0.001, 1);
   if (title !== '') {
     state.title = title;
-    // 字色只跟著標題走：沒有標題就沒有東西可以上色，留著只會讓同一張圖有兩種編碼
+    // 字色與字級只跟著標題走：沒有標題就沒有東西可以上色或縮放，
+    // 留著只會讓同一張圖有兩種編碼
     if (title_fill !== undefined) state.title_fill = title_fill;
+    if (title_fs !== undefined) state.title_fs = title_fs;
   }
   return state;
 }

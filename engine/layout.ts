@@ -326,7 +326,17 @@ export function layoutTitle(state: VennState): TitleBlock | null {
   if (text === '') return null;
 
   const box = titleBox();
-  const fitted = fitText(text, box, LABEL_START_FS);
+  /**
+   * 手動字級時只換行不縮字，比照文字槽：否則按＋會被自動排版吃掉。
+   * 但字級再大也不能超過 band 裝得下一行的高度——區域文字溢出只是蓋到隔壁，
+   * 標題溢出是直接被畫布上緣切掉（AC4 的「不出界」對手動字級一樣成立）。
+   */
+  const manual_fs =
+    state.title_fs === undefined ? undefined : Math.min(state.title_fs, box.h / LINE_HEIGHT);
+  const fitted =
+    manual_fs === undefined
+      ? fitText(text, box, LABEL_START_FS)
+      : { fs: manual_fs, lines: wrapManualFs(text, manual_fs, box.w) };
   // fitText 縮到字級下限仍放不下時不再檢查高度，行數多的標題會衝出 band 被畫布上緣切掉、
   // 還蓋到圖區。band 是固定高度：截到放得下的行數，寧可少幾行也不出界（AC4）。
   const max_lines = Math.max(1, Math.floor(box.h / (fitted.fs * LINE_HEIGHT)));

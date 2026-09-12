@@ -10,28 +10,7 @@ import { diagramTransform } from '../engine/title';
 import type { TextBlock, TextSlot, VennState } from '../engine/types';
 import { ts } from './i18n';
 import { createColorControl } from './color-control';
-
-/** 每按一次 ± 的字級倍率，與 01 的畫布工具列一致 */
-const FS_STEP = 1.12;
-/** 手動字級的上下限（畫布寬比例）；codec 放到 0.001..1，但那個範圍在 UI 上沒有意義 */
-const FS_MIN = 0.012;
-const FS_MAX = 0.5;
-
-/** 空槽在自動模式沒有字級可顯示：給個佔位符，不要顯示 start fs 誘人去按 ± */
-const NO_FS_PLACEHOLDER = '—';
-
-/**
- * state 的 fs 存在「沒有標題的預設空間」，有標題時圖區會再等比縮 `scale`（見 engine/title.ts）。
- * 面板顯示與寫回都要把這一層算進去，否則按一次＋反而讓畫出來的字變小。
- */
-export function fsToPx(unit_fs: number, size: number, scale: number): number {
-  return Math.round(unit_fs * scale * size);
-}
-
-/** 面板上的 px → state 的 fs，夾在 UI 有意義的上下限內 */
-export function pxToFs(px: number, size: number, scale: number): number {
-  return Math.min(FS_MAX, Math.max(FS_MIN, px / (scale * size)));
-}
+import { FS_MAX, FS_MIN, createFsField, fsToPx, pxToFs } from './fs-field';
 
 export interface SlotRowHandlers {
   onPatchSlot: (mask: number, patch: Partial<TextSlot>) => void;
@@ -83,68 +62,15 @@ export function createSlotRow(mask: number, handlers: SlotRowHandlers): SlotRow 
   text_input.maxLength = MAX_TEXT_LEN;
   text_input.addEventListener('input', () => handlers.onPatchSlot(mask, { t: text_input.value }));
 
-  // 字級：[自動] [− N px +]，data-mode 決定哪一邊有 accent 外框
-  const fs_row = document.createElement('div');
-  fs_row.className = 'row';
-  const fs_label = document.createElement('label');
-  fs_label.textContent = ts('field.fs');
-  const fs_box = document.createElement('div');
-  fs_box.className = 'fs';
-
-  const auto_btn = document.createElement('button');
-  auto_btn.type = 'button';
-  auto_btn.className = 'auto-btn';
-  auto_btn.textContent = ts('fs.auto');
-  auto_btn.addEventListener('click', () => handlers.onPatchSlot(mask, { fs: undefined }));
-
-  const steps = document.createElement('div');
-  steps.className = 'steps';
-  const num = document.createElement('input');
-  num.type = 'number';
-  num.className = 'num';
-  num.step = '1';
-  num.setAttribute('aria-label', ts('field.fs'));
-  const unit = document.createElement('span');
-  unit.className = 'unit';
-  unit.textContent = 'px';
-
   // 字級的 state 是畫布寬比例，UI 顯示的是換算到目前輸出尺寸的 px，
   // 所以每次都要拿當下的 size 與圖區縮放（有標題時 < 1）換算
   let size = 1200;
   let scale = 1;
-  let shown_px = 0;
-  let shown_value = '';
 
-  const setPx = (px: number): void => {
-    handlers.onPatchSlot(mask, { fs: pxToFs(px, size, scale) });
-  };
-
-  const step_down = document.createElement('button');
-  step_down.type = 'button';
-  step_down.textContent = '−';
-  step_down.title = ts('fs.stepDown');
-  step_down.addEventListener('click', () => setPx(Math.round(shown_px / FS_STEP)));
-
-  const step_up = document.createElement('button');
-  step_up.type = 'button';
-  step_up.textContent = '+';
-  step_up.title = ts('fs.stepUp');
-  step_up.addEventListener('click', () => setPx(Math.round(shown_px * FS_STEP)));
-
-  // change 而不是 input：邊打邊套用會讓「1」「12」這種中途值先跑一次重繪
-  num.addEventListener('change', () => {
-    const px = Number(num.value);
-    // 清空欄位不是「設成 0」：Number('') 會被 clamp 成最小字級，把字縮到看不見
-    if (num.value.trim() === '' || !Number.isFinite(px)) {
-      num.value = shown_value;
-      return;
-    }
-    setPx(px);
+  const fs_field = createFsField({
+    onAuto: () => handlers.onPatchSlot(mask, { fs: undefined }),
+    onPick: (px) => handlers.onPatchSlot(mask, { fs: pxToFs(px, size, scale) }),
   });
-
-  steps.append(step_down, num, unit, step_up);
-  fs_box.append(auto_btn, steps);
-  fs_row.append(fs_label, fs_box);
 
   const color_row = document.createElement('div');
   color_row.className = 'row';
@@ -166,7 +92,7 @@ export function createSlotRow(mask: number, handlers: SlotRowHandlers): SlotRow 
   const note = document.createElement('p');
   note.className = 'note';
 
-  body.append(text_input, fs_row, color_row, note);
+  body.append(text_input, fs_field.root, color_row, note);
   root.append(summary, body);
 
   return {
@@ -191,37 +117,30 @@ export function createSlotRow(mask: number, handlers: SlotRowHandlers): SlotRow 
         : is_label
           ? LABEL_START_FS
           : INTERSECTION_START_FS;
-      shown_px = fsToPx(slot?.fs ?? auto_fs, size, scale);
-      fs_box.dataset.mode = slot?.fs === undefined ? 'auto' : 'manual';
-      num.min = String(fsToPx(FS_MIN, size, scale));
-      num.max = String(fsToPx(FS_MAX, size, scale));
-      // 沒有文字又是自動模式，就沒有字級可調：顯示 start fs 會讓人按 + 寫入過大的手動字級
-      const no_fs = text === '' && slot?.fs === undefined;
-      num.placeholder = no_fs ? NO_FS_PLACEHOLDER : '';
-      shown_value = no_fs ? '' : String(shown_px);
-      // 正在打字的欄位不回寫，否則游標會被推到尾端
-      if (num !== document.activeElement && num.value !== shown_value) {
-        num.value = shown_value;
-      }
+      fs_field.update({
+        px: fsToPx(slot?.fs ?? auto_fs, size, scale),
+        manual: slot?.fs !== undefined,
+        min_px: fsToPx(FS_MIN, size, scale),
+        max_px: fsToPx(FS_MAX, size, scale),
+      });
 
-      const fill_locked = !is_label && state.style !== 'flat';
       color.setValue(is_label ? (state.colors[circle_index] ?? '#888888') : (slot?.fill ?? null));
-      color.setDisabled(fill_locked || !region_exists);
+
+      /**
+       * 按了不會有任何效果的控制項一律整列收起來，不留半灰的擺設：
+       * 沒有文字就沒有字級可調（顯示 start fs 只會誘人按＋寫入過大的手動值），
+       * 交集區的填色只有 flat 樣式吃得到，區域不存在時整個 body 只剩「為什麼」那一句。
+       */
+      const has_text = text.trim() !== '';
+      fs_field.root.hidden = !region_exists || (!has_text && slot?.fs === undefined);
+      color_row.hidden = !region_exists || (!is_label && state.style !== 'flat');
 
       // AC4：區域不存在就整列停用，不讓使用者打了字卻不出現在圖上
       root.classList.toggle('disabled', !region_exists);
       text_input.disabled = !region_exists;
-      auto_btn.disabled = !region_exists;
-      for (const btn of [step_down, step_up]) btn.disabled = !region_exists || no_fs;
-      num.disabled = !region_exists || no_fs;
 
-      const reason = !region_exists
-        ? ts('slot.noRegion')
-        : fill_locked
-          ? ts('slot.notFlat')
-          : '';
-      note.textContent = reason;
-      note.hidden = reason === '';
+      note.textContent = region_exists ? '' : ts('slot.noRegion');
+      note.hidden = region_exists;
     },
   };
 }

@@ -37,11 +37,18 @@ svg text {
   --fg: #e8eaee;
   --muted: #9aa2b1;
   --accent: #4c8dff;
+  /* 槽列裡每個控制項的高度：字級與顏色併排在同一份清單裡，高度不一致會看起來像兩種東西 */
+  --ctl-h: 26px;
   color-scheme: dark;
 }
 
 * {
   box-sizing: border-box;
+}
+
+/* `.row` 這類自帶 display 的選擇器優先權比 UA 的 [hidden] 高，收起來的列要靠這條才真的消失 */
+[hidden] {
+  display: none !important;
 }
 
 body {
@@ -215,11 +222,6 @@ body {
   gap: 3px;
 }
 
-/* .stack 的 display: flex 會蓋掉 [hidden] 的 UA 樣式，要明寫 */
-.stack[hidden] {
-  display: none;
-}
-
 input[type='range'] {
   width: 100%;
   accent-color: var(--accent);
@@ -266,23 +268,19 @@ input[type='range'] {
   display: flex;
   align-items: center;
   gap: 6px;
+  min-height: var(--ctl-h);
   background: var(--panel-2);
   border: 1px solid var(--line);
   border-radius: 7px;
-  padding: 3px 7px 3px 4px;
+  padding: 0 7px 0 4px;
   cursor: pointer;
   color: var(--muted);
   font: inherit;
   font-size: 11px;
 }
 
-.color > button:hover:not(:disabled) {
+.color > button:hover {
   border-color: var(--accent);
-}
-
-.color > button:disabled {
-  cursor: not-allowed;
-  opacity: 0.45;
 }
 
 .chip {
@@ -495,6 +493,7 @@ textarea:disabled {
 
 .fs .auto-btn,
 .fs .steps {
+  min-height: var(--ctl-h);
   background: var(--panel-2);
   border: 1px solid var(--line);
   border-radius: 7px;
@@ -505,7 +504,7 @@ textarea:disabled {
   font: inherit;
   font-size: 11px;
   font-weight: 400;
-  padding: 3px 8px;
+  padding: 0 8px;
   cursor: pointer;
 }
 
@@ -522,8 +521,9 @@ textarea:disabled {
   font: inherit;
   font-size: 13px;
   line-height: 1;
-  padding: 3px 7px;
+  padding: 0 7px;
   cursor: pointer;
+  align-self: stretch;
 }
 
 .fs .steps .num {
@@ -562,12 +562,6 @@ textarea:disabled {
 .fs[data-mode='manual'] .steps .unit,
 .fs[data-mode='manual'] .steps button {
   color: var(--fg);
-}
-
-.fs button:disabled,
-.fs .num:disabled {
-  cursor: not-allowed;
-  opacity: 0.45;
 }
 
 /* ---- 輸出 ---- */
@@ -665,6 +659,11 @@ select {
 
 /* ---- 窄版面：大圖 → sticky 小圖條 → 完整面板 ---- */
 @media (max-width: 860px) {
+  /* 手指點得到的控制項高度；桌機版的 26px 在觸控上太小 */
+  :root {
+    --ctl-h: 38px;
+  }
+
   /* 改 flex：sticky 的位移空間來自 containing block，grid item 的 area 剛好等於自身高度就黏不住 */
   .app {
     display: flex;
@@ -802,21 +801,23 @@ select {
     padding: 9px 10px;
   }
 
+  /* 觸控高度統一由 --ctl-h 給，各控制項只調水平留白與字級，高度才不會各長各的 */
   .fs .auto-btn {
     font-size: 12px;
-    padding: 7px 12px;
+    padding: 0 12px;
   }
 
   .fs .steps button {
     font-size: 15px;
-    padding: 8px 12px;
+    padding: 0 12px;
   }
 
-  /* .fs .steps .num 的優先權高於上面的 input[type='number']，字級要在這裡再寫一次 */
+  /* .fs .steps .num 的優先權高於上面的 input[type='number']，字級要在這裡再寫一次
+     （16px 是 iOS 不自動放大的門檻，不能為了排版縮小） */
   .fs .steps .num {
     width: 46px;
     font-size: 16px;
-    padding: 7px 0;
+    padding: 0;
   }
 
   .fs .steps .unit {
@@ -825,7 +826,7 @@ select {
 
   .color > button {
     font-size: 12px;
-    padding: 6px 10px 6px 6px;
+    padding: 0 10px 0 6px;
   }
 
   /* 152px 的六欄色票在手機上每格只有 19px */

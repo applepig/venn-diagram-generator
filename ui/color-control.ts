@@ -38,7 +38,6 @@ export interface ColorControl {
   root: HTMLElement;
   /** null 代表「自動」 */
   setValue: (color: string | null) => void;
-  setDisabled: (disabled: boolean) => void;
 }
 
 /**
@@ -148,10 +147,6 @@ export function createColorControl(options: ColorControlOptions): ColorControl {
       }
       if (hex_input.value !== (color ?? '')) hex_input.value = color ?? '';
       native.value = color ?? '#888888';
-    },
-    setDisabled(disabled) {
-      trigger.disabled = disabled;
-      if (disabled && open_pop === pop) closePop();
     },
   };
 }

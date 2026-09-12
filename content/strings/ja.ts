@@ -49,7 +49,6 @@ export const STRINGS = {
 
   'slot.empty': '（空）',
   'slot.noRegion': '今の円の大きさと重なりでは、この領域はありません。形を調整すると現れます。',
-  'slot.notFlat': '塗り分けできるのは「フラット」だけです。ほかのスタイルは交差部分の色を自動で混ぜます。',
 
   'copy.imageUnsupported': 'このブラウザーは画像のコピーに対応していません。「PNG を保存」を使ってください。',
   'copy.imageFailed': '画像のコピーに失敗しました。「PNG を保存」を使ってください。',
