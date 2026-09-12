@@ -8,9 +8,12 @@ import { validateState } from '../engine/state-codec';
 import type { Arrangement, CircleCount } from '../engine/types';
 import {
   LETTERS,
+  SPEC_FIELDS,
   SpecError,
+  type RichSlot,
   type SpecSlot,
   type VennSpec,
+  checkSlot,
   circleCountOf,
   lettersFromMask,
   slotMaskIn,
@@ -65,22 +68,45 @@ export function specFromJson(parsed: unknown): VennSpec {
     );
   }
   // 原始 state 先過 validateState 再轉成友善 spec，旗標才有東西可以疊
-  return friendly ? (parsed as VennSpec) : stateToSpec(validateState(parsed));
+  if (!friendly) return stateToSpec(validateState(parsed));
+
+  /**
+   * 認不得的 top-level 欄位一律報錯。`specToState()` 只讀它認得的欄位，所以少一個 s 的
+   * `"text"`、大寫的 `"Title"` 本來會被靜默吞掉，出一張少了東西的圖並退出碼 0——
+   * agent 看不到畫布，這種「成功地給錯答案」比直接失敗危險得多。
+   */
+  const unknown = Object.keys(object).filter((key) => !SPEC_FIELDS.includes(key));
+  if (unknown.length > 0) {
+    throw new SpecError(
+      `--json has unknown field${unknown.length > 1 ? 's' : ''} ${unknown.map((k) => `"${k}"`).join(', ')}\n` +
+        `valid fields: ${SPEC_FIELDS.join(' ')}`,
+    );
+  }
+  if (!Array.isArray(object.sets)) {
+    throw new SpecError('sets must be an array of circle labels, one per circle');
+  }
+  return parsed as VennSpec;
 }
 
-/** 物件形式的一格文字；per-slot 旗標一律先把字串升級成這個形狀再改 */
-type RichSlot = Exclude<SpecSlot, string>;
-
-/** 只換文字、保留該格既有的 `fs`／`fill`——改一句話不該把別人調過的東西一起洗掉 */
+/**
+ * 只換文字、保留該格既有的 `fs`／`fill`——改一句話不該把別人調過的東西一起洗掉。
+ * 空字串也一樣：`--text AB=` 是「這格不要字」，不是「這格連填色都不要」。
+ * 純字串的槽沒有可留的東西，清空後會在 `slotOf()` 收斂成「整格不存在」。
+ */
 function withText(current: SpecSlot | undefined, text: string): SpecSlot {
-  if (text === '') return '';
   if (current === undefined || typeof current === 'string') return text;
   return { ...current, t: text };
 }
 
 /** 旗標疊在 `--json` 的底稿之上：JSON 給底稿，命令列上明寫的覆蓋它。 */
 export function applyFlags(base: VennSpec, flags: Flags): VennSpec {
-  const sets: (SpecSlot | undefined)[] = Array.isArray(base.sets) ? [...base.sets] : [];
+  if (!Array.isArray(base.sets)) {
+    throw new SpecError('sets must be an array of circle labels, one per circle');
+  }
+  // 形狀先驗過，per-slot 旗標才不會在 `null` 上讀 `.t` 炸成看不懂的 TypeError
+  const sets: (SpecSlot | undefined)[] = base.sets.map((slot, i) =>
+    slot === undefined ? undefined : checkSlot(slot, LETTERS[i] ?? String(i)),
+  );
   const set_flags: [number, string][] = list(flags, 'set').map((raw) => {
     const [key, value] = parsePair('set', raw);
     const letter = key.replace(/\s+/g, '').toUpperCase();
@@ -119,7 +145,8 @@ export function applyFlags(base: VennSpec, flags: Flags): VennSpec {
     };
   };
 
-  for (const [key, value] of Object.entries(base.texts ?? {})) {
+  for (const [key, raw] of Object.entries(base.texts ?? {})) {
+    const value = checkSlot(raw, key);
     const ref = slotRef(key);
     ref.set(typeof value === 'string' ? withText(ref.get(), value) : value);
   }
@@ -147,8 +174,8 @@ export function applyFlags(base: VennSpec, flags: Flags): VennSpec {
     const [key, value] = parsePair(flag, raw);
     const ref = slotRef(key);
     const current = ref.get();
-    const text = current === undefined || typeof current === 'string' ? current : current.t;
-    if (current === undefined || text === undefined || text === '') {
+    const text = current == null || typeof current === 'string' ? current : current.t;
+    if (current == null || text === undefined || text === '') {
       throw new SpecError(
         `--${flag} needs text in slot ${key} first; add --text ${key}=... or --set`,
       );
@@ -175,6 +202,11 @@ export function applyFlags(base: VennSpec, flags: Flags): VennSpec {
   if (title !== undefined) spec.title = title;
   const bg = str(flags, 'bg');
   if (bg !== undefined) spec.bg = bg;
+  // 標題的字色與字級只在有 title 時進編碼，那道收斂在 validateState，這裡照傳即可
+  const title_fill = str(flags, 'title-fill');
+  if (title_fill !== undefined) spec.titleFill = title_fill;
+  const title_fs = str(flags, 'title-fs');
+  if (title_fs !== undefined) spec.titleFs = toNumber('title-fs', title_fs);
   const colors = str(flags, 'colors');
   if (colors !== undefined) spec.colors = colors.split(',').map((c) => c.trim());
   for (const name of ['size', 'opacity', 'overlap', 'radius'] as const) {

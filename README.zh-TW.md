@@ -2,7 +2,7 @@
 
 [English](./README.md) · 線上站：<https://venn.applepig.net>
 
-單頁 WYSIWYG 文氏圖產生器：選 2／3／4 圈（橫排與 5／6 瓣花等額外形狀收在旁邊的下拉選單），加上圖片標題，在畫布上直接點字改字、拖動位置、調字級，一鍵下載社群可貼的 PNG。整份編輯狀態壓進網址的 `s` 參數，所以分享連結就是圖：貼進聊天軟體會透過 `og:image` 直接預覽。無登入、無帳號、server 無狀態。介面支援台灣中文、英文與日文，可從面板的語言下拉切換（記在 `venn.lang` cookie），也認 `?lang=` 與 `Accept-Language`。
+單頁 WYSIWYG 文氏圖產生器：選 2／3／4 圈（橫排與 5／6 瓣花等額外形狀收在旁邊的下拉選單），加上圖片標題，在畫布上直接點字改字、調字級、單獨換區域填色，一鍵下載社群可貼的 PNG。整份編輯狀態壓進網址的 `s` 參數，所以分享連結就是圖：貼進聊天軟體會透過 `og:image` 直接預覽。無登入、無帳號、server 無狀態。介面支援台灣中文、英文與日文，可從面板的語言下拉切換（記在 `venn.lang` cookie），也認 `?lang=` 與 `Accept-Language`。
 
 ## 架構
 
@@ -81,7 +81,7 @@ curl -o og.png   "http://localhost:3000/api/og.png?v=5&s=$S&lang=zh-TW"
 ## 命令列
 
 ```bash
-npx -y venn-diagram-generator png --set A=工作 --set B=生活 \
+npx -y venn-diagram-generator@1 png --set A=工作 --set B=生活 \
   --text AB=沒有睡眠 -o life.png
 ```
 
@@ -89,10 +89,10 @@ npx -y venn-diagram-generator png --set A=工作 --set B=生活 \
 
 CLI 不讓人寫 bitmask。圈就是字母（`A` 是第一圈，最多到 `F`），文字槽的名字就是它所屬的圈集合，所以 `AB` 是前兩圈的交集。大小寫與字母順序都不影響，`ba` 等於 `AB`。哪些槽存在取決於排列：四圈環狀時 `A` 與 `D` 根本不相交，所以 `AD` 會被拒絕，而錯誤訊息會把該組合的全部合法槽列出來。
 
-整份 spec 也可以用 JSON 給。要把中文、引號與換行安全地穿過 shell，這是唯一不折騰的做法。`--json` 兩種格式都收，靠哪個 key 在來判別——有 `sets` 是友善格式，有 `v` 是原始 `VennState`，也就是 URL 裡編的那份、`decode --raw` 印的那份。兩個都有或都沒有一律報錯，不猜：
+整份 spec 也可以用 JSON 給。要把中文、引號與換行安全地穿過 shell，這是唯一不折騰的做法。`--json` 兩種格式都收，靠哪個 key 在來判別——有 `sets` 是友善格式，有 `v` 是原始 `VennState`，也就是 URL 裡編的那份、`decode --raw` 印的那份。兩個都有或都沒有一律報錯，不猜；top-level 欄位拼錯（例如把 `texts` 寫成 `text`）同樣報錯，否則會靜默出一張少了交集文字的圖：
 
 ```bash
-cat <<'EOF' | npx -y venn-diagram-generator png --json - -o life.png
+cat <<'EOF' | npx -y venn-diagram-generator@1 png --json - -o life.png
 {
   "sets": ["工作", "生活", "睡眠"],
   "texts": { "AB": "沒有睡眠", "ABC": "都想要" },
@@ -102,15 +102,15 @@ cat <<'EOF' | npx -y venn-diagram-generator png --json - -o life.png
 EOF
 ```
 
-每個 state 欄位都有對應旗標，沒有哪個欄位只能走 JSON。`--arr`、`--style`、`--title`、`--size`、`--bg`、`--opacity`、`--overlap`、`--radius` 與 `--colors '#aabbcc,#ddeeff'` 對應上面那份 state 的欄位；per-slot 的兩個用同一套字母 key：`--fs AB=0.09`、`--fill AB=#ffffff`。這些旗標一律覆蓋 `--json` 給的底稿；`--set`／`--text` 只換文字，該格既有的字級與填色原樣留著。
+每個 state 欄位都有對應旗標，沒有哪個欄位只能走 JSON。`--arr`、`--style`、`--title`、`--title-fill`、`--title-fs`、`--size`、`--bg`、`--opacity`、`--overlap`、`--radius` 與 `--colors '#aabbcc,#ddeeff'` 對應上面那份 state 的欄位；per-slot 的兩個用同一套字母 key：`--fs AB=0.09`、`--fill AB=#ffffff`。這些旗標一律覆蓋 `--json` 給的底稿；`--set`／`--text` 只換文字，該格既有的字級與填色原樣留著——`--text AB=` 是清掉字，不是連那一區的填色一起丟掉。
 
 分享連結的主機依序取 `--base-url`、`VENN_BASE_URL`、`https://venn.applepig.net`。退出碼：`0` 成功、`1` 參數或 spec 有誤、`2` 點陣化失敗。
 
 `decode` 的往返是等價的，連手動字級與區域填色都留著，所以可以把編輯器的連結貼回來、在 JSON 裡改一格文字，其餘原封不動重出一張。
 
 ```bash
-npx -y venn-diagram-generator decode 'https://venn.applepig.net/?s=...' > spec.json
-npx -y venn-diagram-generator png --json spec.json -o updated.png
+npx -y venn-diagram-generator@1 decode 'https://venn.applepig.net/?s=...' > spec.json
+npx -y venn-diagram-generator@1 png --json spec.json -o updated.png
 ```
 
 ## Claude Code plugin

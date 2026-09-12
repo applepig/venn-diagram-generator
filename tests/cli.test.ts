@@ -163,6 +163,114 @@ describe('--json 兩種格式', () => {
   });
 });
 
+describe('空文字但有填色的槽（flat 的挖白）', () => {
+  const hollow: VennState = {
+    ...defaultState(2),
+    style: 'flat',
+    texts: { '1': { t: '甲' }, '2': { t: '乙' }, '3': { t: '', fill: '#ffffff' } },
+  };
+
+  it('raw state 往返後那一格還在，填色沒被吃掉', () => {
+    expect(stateFromFlags({}, hollow)).toEqual(hollow);
+  });
+
+  it('友善 JSON 往返後那一格還在', () => {
+    const friendly = { sets: ['甲', '乙'], texts: { AB: { t: '', fill: '#ffffff' } } };
+    expect(stateFromFlags({}, friendly).texts['3']).toEqual({ t: '', fill: '#ffffff' });
+  });
+
+  it('改別的標籤之後，空交集仍保有填色', () => {
+    const state = stateFromFlags({ set: ['A=便宜'] }, hollow);
+    expect(state.texts['1']).toEqual({ t: '便宜' });
+    expect(state.texts['3']).toEqual({ t: '', fill: '#ffffff' });
+  });
+
+  it('空文字且沒有任何樣式的槽仍然視為不存在', () => {
+    const state = specToState({ sets: ['甲', '乙'], texts: { AB: { t: '' } } });
+    expect(state.texts).toEqual({ '1': { t: '甲' }, '2': { t: '乙' } });
+  });
+});
+
+describe('友善 JSON 的 top-level 欄位', () => {
+  it('拼錯的 key 報錯並列出合法欄位，不靜默出一張少東西的圖', () => {
+    let message = '';
+    try {
+      specFromJson({ sets: ['甲', '乙'], text: { AB: '交集' } });
+    } catch (err) {
+      message = (err as Error).message;
+    }
+    expect(message).toContain('"text"');
+    expect(message).toContain('texts');
+    expect(message).toContain('sets');
+  });
+
+  it('大小寫不同的 key 也算拼錯', () => {
+    expect(() => specFromJson({ sets: ['甲', '乙'], Title: 'x' })).toThrow(/unknown field/);
+  });
+
+  it('合法欄位全給齊不報錯', () => {
+    const spec = specFromJson({
+      arr: 'ring',
+      sets: ['甲', '乙'],
+      texts: { AB: '交集' },
+      title: '標題',
+      style: 'flat',
+      opacity: 0.5,
+      overlap: 1.2,
+      radius: 0.3,
+      colors: ['#112233', '#445566'],
+      bg: '#ffffff',
+      size: 800,
+      titleFill: '#000000',
+      titleFs: 0.08,
+    });
+    expect(specToState(spec).title).toBe('標題');
+  });
+
+  it('sets 不是陣列時直接報錯，不靜默當成空陣列', () => {
+    expect(() => specFromJson({ sets: '甲乙' })).toThrow(/sets must be an array/);
+  });
+});
+
+describe('標題的字色與字級旗標', () => {
+  it('--title-fill 與 --title-fs 進得了 state', () => {
+    const state = stateFromFlags({
+      set: ['A=甲', 'B=乙'],
+      title: '標題',
+      'title-fill': '#ffffff',
+      'title-fs': '0.08',
+    });
+    expect(state.title_fill).toBe('#ffffff');
+    expect(state.title_fs).toBe(0.08);
+  });
+
+  it('沒有 title 時兩者都不進編碼', () => {
+    const state = stateFromFlags({
+      set: ['A=甲', 'B=乙'],
+      'title-fill': '#ffffff',
+      'title-fs': '0.08',
+    });
+    expect(state).not.toHaveProperty('title_fill');
+    expect(state).not.toHaveProperty('title_fs');
+  });
+});
+
+describe('槽的形狀有問題時的訊息', () => {
+  it('null 槽：帶不帶 --fs 都是同一句話，不是 TypeError', () => {
+    const json = { sets: ['甲', '乙'], texts: { AB: null } };
+    const expected = /text slot "AB" must be a string or an object with t/;
+    expect(() => stateFromFlags({}, json)).toThrow(expected);
+    expect(() => stateFromFlags({ fs: ['AB=0.1'] }, json)).toThrow(expected);
+  });
+
+  it('缺 t 的物件槽同樣兩條路一致', () => {
+    const json = { sets: ['甲', '乙'], texts: { AB: { fill: '#ffffff' } } };
+    const expected = /text slot "AB" is missing t/;
+    expect(() => stateFromFlags({}, json)).toThrow(expected);
+    expect(() => stateFromFlags({ fs: ['AB=0.1'] }, json)).toThrow(expected);
+  });
+});
+
 describe('per-slot 旗標', () => {
   it('--fs 與 --fill 寫進對應的槽', () => {
     const state = stateFromFlags({
@@ -210,9 +318,14 @@ describe('旗標疊在 JSON 底稿上', () => {
     expect(state.texts['3']).toEqual(raw.texts['3']);
   });
 
-  it('--text 給空字串就把那一格整個拿掉', () => {
+  it('--text 給空字串只清文字，該格的 fs 與 fill 留著', () => {
     const state = stateFromFlags({ text: ['AB='] }, raw);
-    expect(state.texts).toEqual({ '1': { t: '工作' } });
+    expect(state.texts['3']).toEqual({ t: '', fs: 0.07, fill: '#ffffff' });
+  });
+
+  it('沒有樣式的槽清空文字後整格消失', () => {
+    const plain: VennState = { ...defaultState(2), texts: { '1': { t: '工作' }, '3': { t: '沒睡' } } };
+    expect(stateFromFlags({ text: ['AB='] }, plain).texts).toEqual({ '1': { t: '工作' } });
   });
 
   it('大小寫與亂序的 key 蓋得掉 JSON 裡的同一格，不會變成兩筆', () => {

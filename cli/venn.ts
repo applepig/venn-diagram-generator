@@ -14,10 +14,8 @@ import { encodeState, decodeState } from '../engine/state-codec-node';
 import type { VennState } from '../engine/types';
 import { shareUrl } from '../ui/share-url';
 import { type Flags, applyFlags, specFromJson, str } from './flags';
+import { RenderError, baseUrlOf, exitCodeFor, stateParamOf } from './run';
 import { SpecError, type VennSpec, specToState, stateToSpec } from './spec';
-
-/** 分享網址的最後手段；與 package.json 的 homepage 一致 */
-const FALLBACK_BASE_URL = 'https://venn.applepig.net';
 
 /**
  * 與 server／bake-og 同一組字型：主字型 TC，日文漢字缺字由 JP 逐字補。
@@ -27,9 +25,6 @@ const FALLBACK_BASE_URL = 'https://venn.applepig.net';
 const FONT_FILES = ['NotoSansTC-Bold.otf', 'NotoSansJP-Bold.otf'].map((name) =>
   fileURLToPath(new URL(`../assets/fonts/${name}`, import.meta.url)),
 );
-
-/** 點陣化失敗；與參數錯誤分開，才能用退出碼區分「使用者打錯」與「這台機器跑不動」 */
-class RenderError extends Error {}
 
 const HELP = `venn — Venn diagram generator
 
@@ -61,6 +56,8 @@ Options:
   --arr ring|row          arrangement (default: ring; row needs 3..6 circles)
   --style translucent|flat|outline
   --title <text>          title drawn above the diagram
+  --title-fill #rrggbb    title colour; default picks black or white by background
+  --title-fs <number>     title font size as a fraction of the canvas; default fits
   --size <px>             canvas size, 400..2000 (default: 1200)
   --bg #rrggbb            background colour
   --opacity <0..1>        fill opacity
@@ -108,11 +105,6 @@ async function buildSpec(flags: Flags): Promise<VennSpec> {
   return applyFlags(base, flags);
 }
 
-function baseUrlOf(flags: Flags): string {
-  const raw = str(flags, 'base-url') ?? process.env.VENN_BASE_URL ?? FALLBACK_BASE_URL;
-  return raw.replace(/\/+$/, '');
-}
-
 function urlFor(state: VennState, flags: Flags): string {
   return shareUrl(baseUrlOf(flags), encodeState(state));
 }
@@ -137,19 +129,6 @@ async function renderPng(svg: string, size: number): Promise<Uint8Array> {
   return image.asPng();
 }
 
-/** 吃完整分享網址或裸的 `s` 字串；貼過來的東西通常是前者 */
-function stateParamOf(input: string): string {
-  const trimmed = input.trim();
-  if (trimmed === '') throw new SpecError('decode expects a share URL or an s parameter');
-  if (/^https?:\/\//i.test(trimmed) || trimmed.includes('?')) {
-    const query = trimmed.slice(trimmed.indexOf('?') + 1);
-    const s = new URLSearchParams(query).get('s');
-    if (!s) throw new SpecError('that URL has no ?s= parameter');
-    return s;
-  }
-  return trimmed;
-}
-
 async function main(): Promise<number> {
   const { values, positionals } = parseArgs({
     allowPositionals: true,
@@ -163,6 +142,8 @@ async function main(): Promise<number> {
       arr: { type: 'string' },
       style: { type: 'string' },
       title: { type: 'string' },
+      'title-fill': { type: 'string' },
+      'title-fs': { type: 'string' },
       size: { type: 'string' },
       bg: { type: 'string' },
       opacity: { type: 'string' },
@@ -231,5 +212,5 @@ try {
   process.exitCode = await main();
 } catch (err) {
   console.error(`venn: ${(err as Error).message}`);
-  process.exitCode = err instanceof RenderError ? 2 : 1;
+  process.exitCode = exitCodeFor(err);
 }

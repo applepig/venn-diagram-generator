@@ -29,6 +29,9 @@ export class SpecError extends Error {
  */
 export type SpecSlot = string | { t: string; fs?: number; fill?: string };
 
+/** 物件形式的一格文字 */
+export type RichSlot = Exclude<SpecSlot, string>;
+
 /** `--json` 收的、`venn decode` 吐的友善格式 */
 export interface VennSpec {
   arr?: Arrangement;
@@ -46,6 +49,44 @@ export interface VennSpec {
   size?: number;
   titleFill?: string;
   titleFs?: number;
+}
+
+/**
+ * `VennSpec` 的全部欄位。型別標成 `Record<keyof VennSpec, true>`：日後增刪欄位卻漏改這張表，
+ * 編譯就會紅——白名單一旦漏掉新欄位，使用者寫對了反而被當成拼錯。
+ */
+const SPEC_FIELD_SET: Record<keyof VennSpec, true> = {
+  arr: true,
+  sets: true,
+  texts: true,
+  title: true,
+  style: true,
+  opacity: true,
+  overlap: true,
+  radius: true,
+  colors: true,
+  bg: true,
+  size: true,
+  titleFill: true,
+  titleFs: true,
+};
+
+/** 友善 spec 認得的 top-level 欄位；拼錯時的錯誤訊息與 skill 文件都取這裡 */
+export const SPEC_FIELDS: string[] = Object.keys(SPEC_FIELD_SET);
+
+/**
+ * 一格文字的形狀檢查。`specToState()` 與 per-slot 旗標共用同一道關卡，
+ * 所以 `{"AB": null}` 不管有沒有配 `--fs`，拿到的都是同一句話。
+ */
+export function checkSlot(raw: unknown, key: string): SpecSlot {
+  if (typeof raw === 'string') return raw;
+  if (raw === null || typeof raw !== 'object' || Array.isArray(raw)) {
+    throw new SpecError(`text slot "${key}" must be a string or an object with t`);
+  }
+  if (typeof (raw as Record<string, unknown>).t !== 'string') {
+    throw new SpecError(`text slot "${key}" is missing t`);
+  }
+  return raw as RichSlot;
 }
 
 /** `AB` → 3。大小寫與字母順序不拘，`BA` 等於 `AB`。 */
@@ -104,17 +145,20 @@ export function slotMaskIn(arr: Arrangement, n: CircleCount, key: string): numbe
 }
 
 function slotOf(raw: SpecSlot, key: string): TextSlot | null {
-  if (typeof raw === 'string') return raw === '' ? null : { t: raw };
-  if (raw === null || typeof raw !== 'object' || Array.isArray(raw)) {
-    throw new SpecError(`text slot "${key}" must be a string or an object with t`);
-  }
-  if (typeof raw.t !== 'string') throw new SpecError(`text slot "${key}" is missing t`);
-  if (raw.t === '') return null;
+  const checked = checkSlot(raw, key);
+  if (typeof checked === 'string') return checked === '' ? null : { t: checked };
 
   // fs/fill 的值域由 validateState 把關，這裡只負責搬過去
-  const slot: TextSlot = { t: raw.t };
-  if (raw.fs !== undefined) slot.fs = raw.fs;
-  if (raw.fill !== undefined) slot.fill = raw.fill;
+  const slot: TextSlot = { t: checked.t };
+  if (checked.fs !== undefined) slot.fs = checked.fs;
+  if (checked.fill !== undefined) slot.fill = checked.fill;
+
+  /**
+   * 空文字＋沒有任何樣式才等於「這一格不存在」。只看文字會弄丟 flat 樣式的挖白手法：
+   * `{"t":"","fill":"#ffffff"}` 是一個沒有字但要塗白的區域，編輯器留得住（`ui/patch-slot.ts`
+   * 只在整格剩下 `t` 時才刪），`renderSvg` 也照樣採用它的 `fill`。
+   */
+  if (slot.t === '' && slot.fs === undefined && slot.fill === undefined) return null;
   return slot;
 }
 

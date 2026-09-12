@@ -10,7 +10,7 @@ lays out circles, picks contrasting text colours, and fits text inside each regi
 which is tedious and error-prone to reproduce by hand.
 
 ```bash
-npx -y venn-diagram-generator png --json - -o diagram.png
+npx -y venn-diagram-generator@1 png --json - -o diagram.png
 ```
 
 No network access is needed after the package downloads: fonts ship inside it and
@@ -25,7 +25,7 @@ Always pipe the spec through stdin with `--json -`. It avoids shell quoting prob
 with CJK text, apostrophes, and newlines.
 
 ```bash
-cat <<'EOF' | npx -y venn-diagram-generator png --json - -o diagram.png
+cat <<'EOF' | npx -y venn-diagram-generator@1 png --json - -o diagram.png
 {
   "arr": "ring",
   "sets": ["Fast", "Cheap", "Good"],
@@ -92,17 +92,18 @@ Individual flags work too and override the JSON: `--set A=Work`, `--text AB=No s
 
 `png` and `svg` print two lines: the file path with its pixel size, then a share URL.
 **Give the user both.** The file is the image; the URL opens the same diagram in a
-WYSIWYG editor where they can drag text, recolour regions, and re-export. Dropping the
-URL throws away the only way for them to tweak the result without another round trip.
+WYSIWYG editor where they can edit the text, adjust font sizes, recolour individual
+regions, and re-export. Dropping the URL throws away the only way for them to tweak
+the result without another round trip.
 
 ## Editing an existing diagram
 
 When the user pastes a share link, decode it, edit the JSON, and render again.
 
 ```bash
-npx -y venn-diagram-generator decode 'https://venn.applepig.net/?s=...' > spec.json
+npx -y venn-diagram-generator@1 decode 'https://venn.applepig.net/?s=...' > spec.json
 # edit spec.json
-npx -y venn-diagram-generator png --json spec.json -o updated.png
+npx -y venn-diagram-generator@1 png --json spec.json -o updated.png
 ```
 
 `decode` round-trips exactly, including any manual text sizes and region colours, so editing

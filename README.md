@@ -2,7 +2,7 @@
 
 [中文說明](./README.zh-TW.md) · Live: <https://venn.applepig.net>
 
-A single-page WYSIWYG Venn diagram generator. Pick 2, 3 or 4 circles (extra shapes such as rows and 5–6 circle flowers live in a dropdown next to them), give the picture a title, click any region on the canvas to type, drag text around, tune font sizes, then download a PNG you can paste anywhere. The whole editor state is compressed into the URL's `s` parameter, so a share link *is* the picture: paste it into a chat app and `og:image` renders a preview. No login, no account, stateless server. UI available in Traditional Chinese, English and Japanese, picked from the language dropdown in the panel (remembered in the `venn.lang` cookie), `?lang=`, or `Accept-Language`.
+A single-page WYSIWYG Venn diagram generator. Pick 2, 3 or 4 circles (extra shapes such as rows and 5–6 circle flowers live in a dropdown next to them), give the picture a title, click any region on the canvas to type, tune font sizes, recolour individual regions, then download a PNG you can paste anywhere. The whole editor state is compressed into the URL's `s` parameter, so a share link *is* the picture: paste it into a chat app and `og:image` renders a preview. No login, no account, stateless server. UI available in Traditional Chinese, English and Japanese, picked from the language dropdown in the panel (remembered in the `venn.lang` cookie), `?lang=`, or `Accept-Language`.
 
 ## Architecture
 
@@ -82,7 +82,7 @@ curl -o og.png   "http://localhost:3000/api/og.png?v=5&s=$S&lang=en"
 ## Command line
 
 ```bash
-npx -y venn-diagram-generator png --set A=Fast --set B=Cheap --set C=Good \
+npx -y venn-diagram-generator@1 png --set A=Fast --set B=Cheap --set C=Good \
   --text ABC="Pick two" -o pick-two.png
 ```
 
@@ -90,10 +90,10 @@ Nothing is fetched at render time: the fonts ship inside the package and `@resvg
 
 The CLI never asks you to write a bitmask. Circles are letters (`A` is the first circle, up to `F`) and a text slot is named by the set of circles it belongs to, so `AB` is the overlap of the first two. Letter case and order do not matter, `ba` is `AB`. Which slots exist depends on the arrangement: four circles in a ring means `A` and `D` never touch, so `AD` is rejected — and the error lists every legal slot for that combination.
 
-The whole spec can arrive as JSON instead, which is the only sane way to pass CJK text, apostrophes and newlines through a shell. `--json` takes either format and tells them apart by which key is present — `sets` means the friendly spec, `v` means a raw `VennState`, the exact object the URL carries and `decode --raw` prints. An object with both or neither is rejected rather than guessed at.
+The whole spec can arrive as JSON instead, which is the only sane way to pass CJK text, apostrophes and newlines through a shell. `--json` takes either format and tells them apart by which key is present — `sets` means the friendly spec, `v` means a raw `VennState`, the exact object the URL carries and `decode --raw` prints. An object with both or neither is rejected rather than guessed at, and so is a misspelt top-level field — `"text"` for `"texts"` would otherwise silently produce a diagram with the overlaps missing.
 
 ```bash
-cat <<'EOF' | npx -y venn-diagram-generator png --json - -o life.png
+cat <<'EOF' | npx -y venn-diagram-generator@1 png --json - -o life.png
 {
   "sets": ["工作", "生活", "睡眠"],
   "texts": { "AB": "沒有睡眠", "ABC": "都想要" },
@@ -103,15 +103,15 @@ cat <<'EOF' | npx -y venn-diagram-generator png --json - -o life.png
 EOF
 ```
 
-Every state field has a flag, so nothing is JSON-only. `--arr`, `--style`, `--title`, `--size`, `--bg`, `--opacity`, `--overlap`, `--radius` and `--colors '#aabbcc,#ddeeff'` map to the fields documented above, and the per-slot ones take the same letter keys: `--fs AB=0.09` and `--fill AB=#ffffff`. Both override whatever `--json` supplied, and `--set` / `--text` replace only the text, leaving that slot's existing size and fill alone.
+Every state field has a flag, so nothing is JSON-only. `--arr`, `--style`, `--title`, `--title-fill`, `--title-fs`, `--size`, `--bg`, `--opacity`, `--overlap`, `--radius` and `--colors '#aabbcc,#ddeeff'` map to the fields documented above, and the per-slot ones take the same letter keys: `--fs AB=0.09` and `--fill AB=#ffffff`. All of them override whatever `--json` supplied, and `--set` / `--text` replace only the text, leaving that slot's existing size and fill alone — `--text AB=` clears the words without discarding the region's colour.
 
 The share link's host comes from `--base-url`, then `VENN_BASE_URL`, then `https://venn.applepig.net`. Exit codes: `0` success, `1` bad arguments or an invalid spec, `2` rasterization failed.
 
 `decode` round-trips exactly, including manual font sizes and region colours, so you can paste a link from the editor, edit one label in JSON and re-render everything else untouched.
 
 ```bash
-npx -y venn-diagram-generator decode 'https://venn.applepig.net/?s=...' > spec.json
-npx -y venn-diagram-generator png --json spec.json -o updated.png
+npx -y venn-diagram-generator@1 decode 'https://venn.applepig.net/?s=...' > spec.json
+npx -y venn-diagram-generator@1 png --json spec.json -o updated.png
 ```
 
 ## Claude Code plugin

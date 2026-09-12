@@ -8,7 +8,7 @@
  * 用法：pnpm tsx scripts/template-baseline.ts [--force]
  */
 import { createHash } from 'node:crypto';
-import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { createApp } from '../server/app';
 import { PALETTE } from '../content/palette';
@@ -125,6 +125,18 @@ for (const id of ['full-translucent', 'full-flat', 'full-outline', 'overlap-min'
   REFROZEN[id] = [...(REFROZEN[id] ?? []), REFROZEN_10];
 }
 
+/**
+ * 對不到任何 case 的 REFROZEN 條目是壞掉的稽核軌跡：case 改名之後，
+ * 理由會留在這裡卻永遠寫不進輸出，而改名的人不會收到任何提示。
+ */
+const CASE_IDS = new Set(CASES.map((item) => item.id));
+const orphans = Object.keys(REFROZEN).filter((id) => !CASE_IDS.has(id));
+if (orphans.length > 0) {
+  console.error(`REFROZEN 有對不到 case 的 id：${orphans.join('、')}`);
+  console.error('case 改名時請一併改這裡，否則重凍理由會靜默消失。');
+  process.exit(1);
+}
+
 function sha256(data: Uint8Array | string): string {
   return createHash('sha256').update(data).digest('hex');
 }
@@ -135,11 +147,27 @@ async function pngSha256(path: string): Promise<string> {
   return sha256(new Uint8Array(await res.arrayBuffer()));
 }
 
+interface GoldenCase {
+  id: string;
+  refrozen?: string[];
+  svg_sha256: string;
+  png_sha256: string;
+  og_png_sha256: string;
+}
+
 if (existsSync(GOLDEN_FILE) && !process.argv.includes('--force')) {
   console.error(`golden 已存在且是 AC1 的凍結基準：${GOLDEN_FILE}`);
   console.error('要重產請確認是刻意的，再加 --force。');
   process.exit(1);
 }
+
+/**
+ * `--force` 只解除「不准覆寫」，不解除「要說理由」。沒有下面這道比對，
+ * 一次 `--force` 就能把任意數量的雜湊換掉而測試照樣全綠——那正是 baseline.test.ts 要擋的事。
+ */
+const previous: { cases?: GoldenCase[] } | null = existsSync(GOLDEN_FILE)
+  ? JSON.parse(readFileSync(GOLDEN_FILE, 'utf8'))
+  : null;
 
 // 全部 case 都走 decodeState(encodeState(state))：與測試取得 state 的路徑完全一致，
 // 順便確保凍結的 `s` 真的解得開。
@@ -161,13 +189,39 @@ for (const item of CASES) {
   console.log(`${item.id.padEnd(17)} svg=${entry.svg_sha256.slice(0, 16)} png=${entry.png_sha256.slice(0, 16)} og=${entry.og_png_sha256.slice(0, 16)}`);
 }
 
+if (previous?.cases) {
+  const before = new Map(previous.cases.map((item) => [item.id, item]));
+  const unexplained: string[] = [];
+  for (const entry of cases) {
+    const old = before.get(entry.id);
+    // 新增的 case 沒有可比的舊值，不需要重凍理由
+    if (!old) continue;
+
+    const changed = (['svg_sha256', 'png_sha256', 'og_png_sha256'] as const).filter(
+      (field) => old[field] !== entry[field],
+    );
+    if (changed.length === 0) continue;
+
+    // 這一次重凍必須留下新的理由；沿用上次那幾條不算解釋這次的改動
+    if ((REFROZEN[entry.id]?.length ?? 0) > (old.refrozen?.length ?? 0)) continue;
+    unexplained.push(`${entry.id}（${changed.join('、')}）`);
+  }
+  if (unexplained.length > 0) {
+    console.error('以下 case 的雜湊變了，但 REFROZEN 沒有為這次重凍新增理由：');
+    for (const line of unexplained) console.error(`  ${line}`);
+    console.error('請在 REFROZEN 對應的 id 底下加一條說明這次為什麼變，再重跑。');
+    process.exit(1);
+  }
+}
+
 const golden = {
   note:
     'AC1 golden：以 07 sprint 重構前的程式產出，任何 milestone 都不得修改。測試紅了是實作錯，不是 golden 錯。' +
     '唯一能重產的情況是行為已由使用者確認要變，重產理由逐案記在各 case 的 refrozen。' +
     '最近一次重產：10 sprint 移除文字位移 dx/dy（使用者決定：編輯器沒有任何控制項能產生位移，欄位不該留在資料結構裡）。' +
-    '五個帶位移的 case（full-translucent／full-flat／full-outline／overlap-min／overlap-max）雜湊改變；' +
-    '三個模板 case（tpl-2／tpl-3／tpl-4）的 s 與 svg／png／og 三個雜湊一個字元都沒變，已逐項 diff 核對。',
+    '該次重產中，五個帶位移的 case（full-translucent／full-flat／full-outline／overlap-min／overlap-max）雜湊改變，' +
+    '三個模板 case（tpl-2／tpl-3／tpl-4）的 s 與三個雜湊未變。' +
+    '重產時腳本會逐 case 比對舊雜湊，有變動而 REFROZEN 沒有新增理由就中止。',
   slot_masks_4: [...slotMasks('ring', 4)],
   palette: PALETTE,
   cases,

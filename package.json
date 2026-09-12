@@ -47,6 +47,7 @@
     "build:cli": "esbuild cli/venn.ts --bundle --platform=node --target=node20 --format=esm --outfile=dist-cli/venn.mjs --external:@resvg/resvg-js --banner:js='#!/usr/bin/env node' && chmod +x dist-cli/venn.mjs",
     "build:server": "esbuild server/index.ts --bundle --platform=node --target=node24 --format=esm --outfile=dist-server/index.mjs --external:@resvg/resvg-js --external:vite",
     "start": "node dist-server/index.mjs",
+    "prepack": "pnpm build:cli",
     "typecheck": "tsc --noEmit",
     "docker:build": "docker build -f deploy/Dockerfile -t venn-diagram-generator .",
     "test": "vitest run"
