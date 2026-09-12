@@ -37,8 +37,14 @@ svg text {
   --fg: #e8eaee;
   --muted: #9aa2b1;
   --accent: #4c8dff;
-  /* 槽列裡每個控制項的高度：字級與顏色併排在同一份清單裡，高度不一致會看起來像兩種東西 */
-  --ctl-h: 26px;
+  /*
+   * 控制項高度只有兩級：`lg` 是第一級入口（圈數／額外形狀、樣式、動作按鈕），
+   * 一般級是列內控制項（顏色、字級、下拉）。所有控制項只調水平留白與字級，
+   * 高度一律吃這兩個變數——各自用 padding 湊，結果就是先前的 36／33／32／26 四種高度，
+   * 而且第一級還比底下的矮。
+   */
+  --ctl-h: 28px;
+  --ctl-h-lg: 38px;
   color-scheme: dark;
 }
 
@@ -103,10 +109,14 @@ body {
 
 .counts button {
   flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: var(--ctl-h-lg);
   background: var(--panel-2);
   border: 1px solid var(--line);
   border-radius: 8px;
-  padding: 7px 0 5px;
+  padding: 0;
   cursor: pointer;
   color: var(--muted);
 }
@@ -131,11 +141,14 @@ body {
 }
 
 .shape-trigger {
-  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: var(--ctl-h-lg);
   background: var(--panel-2);
   border: 1px solid var(--line);
   border-radius: 8px;
-  padding: 7px 10px 5px;
+  padding: 0 10px;
   cursor: pointer;
   color: var(--muted);
   font: inherit;
@@ -147,7 +160,7 @@ body {
 .shape-trigger[aria-pressed='true'] {
   border-color: var(--accent);
   color: var(--fg);
-  padding: 7px 2px 5px;
+  padding: 0 2px;
 }
 
 .shape-pop {
@@ -231,6 +244,7 @@ input[type='range'] {
 .seg {
   display: flex;
   flex: 1;
+  min-height: var(--ctl-h-lg);
   background: var(--panel-2);
   border: 1px solid var(--line);
   border-radius: 7px;
@@ -248,7 +262,7 @@ input[type='range'] {
   font: inherit;
   font-size: 12px;
   font-weight: 400;
-  padding: 4px 0;
+  padding: 0;
   cursor: pointer;
 }
 
@@ -566,13 +580,14 @@ textarea:disabled {
 
 /* ---- 輸出 ---- */
 select {
+  min-height: var(--ctl-h);
   background: var(--panel-2);
   border: 1px solid var(--line);
   border-radius: 7px;
   color: var(--fg);
   font: inherit;
   font-size: 13px;
-  padding: 5px 7px;
+  padding: 0 7px;
   margin-left: auto;
 }
 
@@ -584,8 +599,10 @@ select {
 
 .actions button,
 .actions a {
-  display: block;
-  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: var(--ctl-h-lg);
   text-decoration: none;
   background: var(--panel-2);
   border: 1px solid var(--line);
@@ -593,7 +610,7 @@ select {
   color: var(--fg);
   font: inherit;
   font-size: 13px;
-  padding: 8px 0;
+  padding: 0;
   cursor: pointer;
 }
 
@@ -659,9 +676,10 @@ select {
 
 /* ---- 窄版面：大圖 → sticky 小圖條 → 完整面板 ---- */
 @media (max-width: 860px) {
-  /* 手指點得到的控制項高度；桌機版的 26px 在觸控上太小 */
+  /* 手指點得到的控制項高度；桌機版那兩個值在觸控上太小 */
   :root {
-    --ctl-h: 38px;
+    --ctl-h: 40px;
+    --ctl-h-lg: 48px;
   }
 
   /* 改 flex：sticky 的位移空間來自 containing block，grid item 的 area 剛好等於自身高度就黏不住 */
@@ -789,7 +807,6 @@ select {
 
   .seg button {
     font-size: 13px;
-    padding: 8px 0;
   }
 
   .shape-pop {
