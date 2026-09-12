@@ -7,9 +7,15 @@
  */
 import { describe, expect, it } from 'vitest';
 import { defaultState } from '../content/state-presets';
-import { OVERLAP_MAX, OVERLAP_MIN } from '../engine/defaults';
+import {
+  INTERSECTION_ASPECT,
+  LABEL_ASPECT,
+  OVERLAP_MAX,
+  OVERLAP_MIN,
+  popCount,
+} from '../engine/defaults';
 import { IDENTITY_TRANSFORM, STROKE_INSET, fitTransform } from '../engine/fit';
-import { layout, regionExists, slotMasks } from '../engine/layout';
+import { SAMPLE_STEP, layout, maskAt, regionBox, regionExists, slotMasks } from '../engine/layout';
 import {
   ARRANGEMENTS,
   circleCountRange,
@@ -118,20 +124,54 @@ describe('AC1 fitTransform', () => {
     expect(t.tx).toBeCloseTo(STROKE_INSET + 0.25, 12);
   });
 
-  it('超界時長邊縮到剛好塞滿可用寬度，超出的那一側貼齊內縮線、另一側留白照舊', () => {
+  it('超界時長邊縮到剛好塞滿可用邊長，另一軸以畫布中心為錨點、不被推向畫布左緣', () => {
     const circles = circlesFor('ring', 6, 0.35, 1.6);
     const t = fitTransform(circles);
     const fitted = circles.map((c) => ({ x: c.x * t.scale + t.tx, y: c.y * t.scale + t.ty, r: c.r * t.scale }));
     const box = boundsOf(fitted);
+    const orig = boundsOf(circles);
     const usable = 1 - 2 * STROKE_INSET;
 
     expect(t.scale).toBeLessThan(1);
     // ring(6) 的高比寬長：高縮到剛好等於可用高度，上下都貼齊內縮線
     expect(box.bottom - box.top).toBeCloseTo(usable, 12);
     expect(box.top).toBeCloseTo(STROKE_INSET, 12);
-    // 寬比可用寬度短，所以只有超出的左側被補回內縮線，右側維持縮放後的位置（沒有被置中）
+    // 寬縮完就塞得下，所以水平方向不平移：落點是 AC1 的 x' = 0.5 + scale·(x − 0.5)
     expect(box.right - box.left).toBeLessThan(usable);
+    expect(box.left).toBeCloseTo(0.5 + t.scale * (orig.left - 0.5), 12);
+    expect(box.right).toBeCloseTo(0.5 + t.scale * (orig.right - 0.5), 12);
+  });
+
+  it('row(6) 壓到滿寬時垂直仍在畫布中央，不貼著上緣', () => {
+    const circles = circlesFor('row', 6, 0.35, 1.6);
+    const t = fitTransform(circles);
+    const box = boundsOf(
+      circles.map((c) => ({ x: c.x * t.scale + t.tx, y: c.y * t.scale + t.ty, r: c.r * t.scale })),
+    );
+
+    // 寬是長邊，左右貼齊內縮線
     expect(box.left).toBeCloseTo(STROKE_INSET, 12);
+    expect(box.right).toBeCloseTo(1 - STROKE_INSET, 12);
+    // row 的幾何上下對稱於 0.5，中心錨點縮放後那條中線不動，上下留白因此相等
+    expect((box.top + box.bottom) / 2).toBeCloseTo(0.5, 12);
+    expect(box.top - STROKE_INSET).toBeCloseTo(1 - STROKE_INSET - box.bottom, 12);
+  });
+
+  it('沒超界的那一軸錨在畫布中心 (0.5)，不是把包圍盒置中', () => {
+    // 水平嚴重超界、垂直只佔 [0.1, 0.5]（偏上）：AC1 是 y' = 0.5 + scale·(y − 0.5)，
+    // 縮完仍偏上；把包圍盒置中的話中線會落在 0.5，兩種做法在這組幾何上分得開
+    const wide_and_high: Circle[] = [
+      { x: -0.4, y: 0.3, r: 0.2 },
+      { x: 1.4, y: 0.3, r: 0.2 },
+    ];
+    const t = fitTransform(wide_and_high);
+    const box = boundsOf(
+      wide_and_high.map((c) => ({ x: c.x * t.scale + t.tx, y: c.y * t.scale + t.ty, r: c.r * t.scale })),
+    );
+
+    expect(t.scale).toBeLessThan(1);
+    expect((box.top + box.bottom) / 2).toBeCloseTo(0.5 + t.scale * (0.3 - 0.5), 12);
+    expect((box.top + box.bottom) / 2).toBeLessThan(0.45);
   });
 });
 
@@ -222,6 +262,59 @@ describe('AC4 排版取樣範圍跟著包圍盒走', () => {
         .sort((a, b) => a - b),
     ).toEqual([...slotMasks('row', 6)].sort((a, b) => a - b));
   });
+
+  /**
+   * AC4 定義的重心：取樣範圍 `[min(0, left), max(1, right)] × [min(0, top), max(1, bottom)]`、
+   * 步進 `SAMPLE_STEP`，逐點問 `maskAt`。`regionBox()` 為了省成本會跳過配不到該 mask 的取樣點，
+   * 這支參考實作不跳，用來證明「跳過」一位元都沒改到結果。
+   */
+  function referenceCenter(circles: Circle[], mask: number): { cx: number; cy: number } | null {
+    const x_start = Math.min(0, ...circles.map((c) => c.x - c.r));
+    const x_end = Math.max(1, ...circles.map((c) => c.x + c.r));
+    const y_start = Math.min(0, ...circles.map((c) => c.y - c.r));
+    const y_end = Math.max(1, ...circles.map((c) => c.y + c.r));
+
+    let sum_x = 0;
+    let sum_y = 0;
+    let count = 0;
+    for (let y = y_start; y < y_end; y += SAMPLE_STEP) {
+      for (let x = x_start; x < x_end; x += SAMPLE_STEP) {
+        if (maskAt(circles, x, y) === mask) {
+          sum_x += x;
+          sum_y += y;
+          count++;
+        }
+      }
+    }
+    return count === 0 ? null : { cx: sum_x / count, cy: sum_y / count };
+  }
+
+  const sampled: [Arrangement, CircleCount, number, number][] = [
+    ['row', 6, 0.35, 1.6],
+    ['ring', 6, 0.35, 1.6],
+    // 圓心同高、圓周剛好壓在取樣點上的組合：包圍盒邊界的浮點判定與 maskAt 只要差一個尾數，
+    // 重心就會偏掉（tpl-2 這張 golden 就是這組幾何）
+    ['ring', 2, 0.3, 1.2],
+  ];
+
+  for (const [arr, n, radius, overlap] of sampled) {
+    it(`${arr}(${n}) r=${radius} ov=${overlap}：每個槽的重心與全範圍逐點取樣算出來的完全相同`, () => {
+      const circles = circlesForState(stateOf(arr, n, { radius, overlap }));
+      const masks = slotMasks(arr, n);
+
+      for (const mask of masks) {
+        const aspect = popCount(mask) === 1 ? LABEL_ASPECT : INTERSECTION_ASPECT;
+        const box = regionBox(circles, mask, aspect);
+        const ref = referenceCenter(circles, mask);
+
+        expect(box === null, `mask ${mask} 有無區域`).toBe(ref === null);
+        if (!box || !ref) continue;
+        expect(Object.is(box.cx, ref.cx), `mask ${mask} cx：${box.cx} vs ${ref.cx}`).toBe(true);
+        expect(Object.is(box.cy, ref.cy), `mask ${mask} cy：${box.cy} vs ${ref.cy}`).toBe(true);
+      }
+      expect(masks.length).toBeGreaterThan(0);
+    });
+  }
 });
 
 describe('AC5 fit 與標題變換疊加', () => {

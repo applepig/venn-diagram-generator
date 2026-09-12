@@ -58,23 +58,36 @@ export function composeTransform(
   };
 }
 
-/** 一維上把 `[lo, hi]` 推回 `[inset, 1 − inset]` 所需的最小平移；已經在裡面就是 0 */
-function minShift(lo: number, hi: number, inset: number): number {
-  if (lo < inset) return inset - lo;
-  if (hi > 1 - inset) return 1 - inset - hi;
-  return 0;
+/**
+ * 一維上的平移量：以畫布中心為基準縮放（`x' = 0.5 + scale·(x − 0.5)`，平移量 `(1 − scale) / 2`），
+ * 再對仍超出的那一側取最小必要平移——也就是把中心錨點的平移量夾進「兩側都不出界」的區間。
+ * 沒超界的那一軸因此留在原位，不會漂向原點。
+ *
+ * 夾的順序是先 `hi` 側後 `lo` 側：長邊縮完剛好等於可用邊長，區間的兩個端點只差浮點殘差
+ * （1e-17 級），這時以 `lo` 側（左／上緣貼齊內縮線）優先，落點與 09 既有輸出逐位元相同
+ * （golden overlap-max）。
+ */
+function axisShift(lo: number, hi: number, scale: number, inset: number): number {
+  const flush_lo = inset - lo * scale;
+  const flush_hi = 1 - inset - hi * scale;
+
+  let shift = (1 - scale) / 2;
+  if (shift > flush_hi) shift = flush_hi;
+  if (shift < flush_lo) shift = flush_lo;
+  return shift;
 }
 
 /**
  * 圓組（含描邊）塞回畫布的變換（09 AC1）：包圍盒外擴 `inset` 後仍在畫布內就是恆等變換，
- * 超界時等比縮到塞得下，再補最小平移。
+ * 超界時以畫布中心 (0.5, 0.5) 為基準等比縮到塞得下，再補最小平移。
  *
  * `inset` 預設是描邊半寬。呼叫端後面還要再套一層縮放時（標題），要傳「除以那層縮放」的值：
  * 描邊寬度是畫布常數、不隨變換縮，先多留一點，經過那層縮放後才剛好剩下描邊半寬。
  *
  * 只縮不放：預設幾何因此逐位元不變（AC2），而且「圓比畫布小但整組偏出去」時放大只會讓
  * 版面跟著 radius 跳動，平移回來就夠了。
- * 平移只補超出的那一側、不置中：ring(5) 的包圍盒上下不對稱，置中會在跨越臨界點時整組跳位（AC6）。
+ * 平移只補超出的那一側、不把包圍盒置中：ring(5) 的包圍盒上下不對稱，
+ * 置中會在跨越臨界點時整組跳位（AC6）。
  */
 export function fitTransform(circles: Circle[], inset = STROKE_INSET): DiagramTransform {
   if (circles.length === 0) return IDENTITY_TRANSFORM;
@@ -95,7 +108,7 @@ export function fitTransform(circles: Circle[], inset = STROKE_INSET): DiagramTr
 
   return {
     scale,
-    tx: minShift(left * scale, right * scale, inset),
-    ty: minShift(top * scale, bottom * scale, inset),
+    tx: axisShift(left, right, scale, inset),
+    ty: axisShift(top, bottom, scale, inset),
   };
 }

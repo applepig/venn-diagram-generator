@@ -26,11 +26,13 @@ import type {
  */
 
 // prototype 驗證過的取樣密度：等同 1000px 畫布上每 5px 取一點
-const SAMPLE_STEP = 1 / 200;
+export const SAMPLE_STEP = 1 / 200;
 // 文字框由中心往外長的步進，等同 1000px 畫布上 2px
 const GROW_STEP = 0.002;
 // 長到邊界後留一點內縮，避免字貼著區域邊緣
 const BOX_INSET = 0.92;
+// 取樣時「這個點一定配不到這個 mask」的判定緩衝（見 computeRegionBox）
+const SKIP_GUARD = 1e-9;
 
 const CJK_RANGES = '⺀-鿿豈-﫿＀-￯';
 const CJK_RE = new RegExp(`[${CJK_RANGES}]`);
@@ -248,11 +250,36 @@ function computeRegionBox(circles: Circle[], mask: number, aspect: number): Regi
   const y_start = Math.min(0, ...circles.map((c) => c.y - c.r));
   const y_end = Math.max(1, ...circles.map((c) => c.y + c.r));
 
+  /**
+   * 這一槽的點必須落在**每一顆成員圓**裡，也就是成員圓包圍盒的交集內；
+   * 交集外的點一定配不到這個 mask，跳過不算。迴圈的起點與步進不動，
+   * 算得進來的點與順序都一樣，重心因此逐位元不變——省的是超界幾何撐大取樣範圍後
+   * 那一大片空掃（ring(6) 極端組合約 14 倍）。
+   *
+   * 交集要外擴 `SKIP_GUARD`：包圍盒是 `c.x − c.r` 減出來的，`maskAt` 用的是 hypot，
+   * 圓周上的取樣點兩邊可能差一個浮點尾數（1e-16 級）。緩衝比殘差大七個數量級、
+   * 比取樣步進小六個數量級，邊界點因此一律交給 `maskAt` 裁決。
+   */
+  let mx0 = -Infinity;
+  let mx1 = Infinity;
+  let my0 = -Infinity;
+  let my1 = Infinity;
+  for (let i = 0; i < circles.length; i++) {
+    if (!(mask & (1 << i))) continue;
+    const c = circles[i]!;
+    mx0 = Math.max(mx0, c.x - c.r - SKIP_GUARD);
+    mx1 = Math.min(mx1, c.x + c.r + SKIP_GUARD);
+    my0 = Math.max(my0, c.y - c.r - SKIP_GUARD);
+    my1 = Math.min(my1, c.y + c.r + SKIP_GUARD);
+  }
+
   let sum_x = 0;
   let sum_y = 0;
   let count = 0;
   for (let y = y_start; y < y_end; y += SAMPLE_STEP) {
+    if (y < my0 || y > my1) continue;
     for (let x = x_start; x < x_end; x += SAMPLE_STEP) {
+      if (x < mx0 || x > mx1) continue;
       if (maskAt(circles, x, y) === mask) {
         sum_x += x;
         sum_y += y;
