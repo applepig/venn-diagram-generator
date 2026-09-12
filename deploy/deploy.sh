@@ -57,8 +57,13 @@ rsync -az --delete \
   --exclude '.env' --exclude '.env.*' --exclude '.token' \
   ./ "${HOST}:${DEST}/"
 
+# compose 的 project name 一定要顯式給（同 dev.sh）：預設取 compose 檔所在目錄名＝`deploy`，
+# 那個名字在同一台主機上會被每個「compose 檔放在 deploy/」的專案共用，而 container_name 是寫死的
+# venn-diagram-generator——名字撞上別人的 project，就會變成「compose 管不到卻佔著名字」的孤兒容器。
+PROJECT="venn"
+
 # .env 留在主機上（rsync 不碰）：hostname、GTM id、浮水印屬於該部署，不進 repo。
 # --env-file 相對於 cwd，所以這裡指的是 ${DEST}/.env，不是 deploy/.env。
-ssh "$HOST" "cd '${DEST}' && sudo docker compose --env-file .env -f deploy/compose.yml up -d --build"
+ssh "$HOST" "cd '${DEST}' && sudo docker compose -p '${PROJECT}' --env-file .env -f deploy/compose.yml up -d --build"
 
 echo "deployed → ${HOST}:${DEST}"
