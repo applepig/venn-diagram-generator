@@ -1,6 +1,6 @@
 {
   "name": "venn-diagram-generator",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "private": false,
   "description": "WYSIWYG Venn diagram generator — the whole editor state lives in the URL, the server renders the same SVG to PNG and og:image",
   "license": "MIT",
