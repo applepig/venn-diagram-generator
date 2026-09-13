@@ -48,6 +48,7 @@
     "build:server": "esbuild server/index.ts --bundle --platform=node --target=node24 --format=esm --outfile=dist-server/index.mjs --external:@resvg/resvg-js --external:vite",
     "start": "node dist-server/index.mjs",
     "prepack": "pnpm build:cli",
+    "version": "tsx scripts/sync-plugin-version.ts && git add .claude-plugin",
     "typecheck": "tsc --noEmit",
     "docker:build": "docker build -f deploy/Dockerfile -t venn-diagram-generator .",
     "test": "vitest run"

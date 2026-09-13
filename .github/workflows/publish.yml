@@ -1,0 +1,64 @@
+# 推 v* tag 就發版到 npm。
+#
+# 走 npm trusted publishing（OIDC）：registry 直接認 GitHub 簽發的身分，
+# 所以這裡沒有 NODE_AUTH_TOKEN、沒有任何長期憑證，也不需要 2FA 挑戰。
+# provenance 由 trusted publishing 自動產生，不必加 --provenance。
+#
+# 一次性設定（套件必須先存在才設得了，所以 1.0.0 是手動發的）：
+#   npmjs.com → Packages → venn-diagram-generator → Settings → Trusted publishing
+#   provider: GitHub Actions / repository: applepig/venn-diagram-generator / workflow: publish.yml
+#
+# 發版流程：
+#   npm version minor        # 三處版本號一起改（version hook）、commit、打 tag
+#   git push --follow-tags
+name: Publish
+
+on:
+  push:
+    tags: ['v*']
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest # trusted publishing 不支援 self-hosted runner
+    permissions:
+      id-token: write # OIDC：換取 npm 的發版憑證
+      contents: write # 建 GitHub Release
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      # trusted publishing 需要 npm >= 11.5.1。Node 24 自帶的通常夠新，
+      # 但 runner image 換版時會變，明寫一行免得哪天無聲退回 token 模式。
+      - run: npm install -g npm@latest
+
+      - run: pnpm install --frozen-lockfile
+
+      # tag 與 package.json 對不上就停：發錯版本號救不回來（npm 不給重發同一版）
+      - name: Tag 與 package.json 版本必須一致
+        run: |
+          tag_version="${GITHUB_REF_NAME#v}"
+          pkg_version="$(node -p 'require("./package.json").version')"
+          if [ "$tag_version" != "$pkg_version" ]; then
+            echo "tag $GITHUB_REF_NAME 對應 $tag_version，但 package.json 是 $pkg_version" >&2
+            exit 1
+          fi
+          echo "版本一致：$pkg_version"
+
+      - run: pnpm typecheck
+
+      # 三處版本號一致由 tests/version-sync.test.ts 在這裡一併守住
+      - run: pnpm test
+
+      # prepack 會跑 build:cli 產出 dist-cli/venn.mjs（它不進版控）
+      - run: npm publish
+
+      - name: 建 GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$GITHUB_REF_NAME" --generate-notes --verify-tag

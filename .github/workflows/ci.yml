@@ -1,0 +1,30 @@
+# 每次 push 與 PR 都跑一次型別檢查與全套測試。
+# 發版走 publish.yml，它會再跑一次同樣的閘門——重跑比「相信 tag 指到的 commit 綠過」可靠。
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          # 與 package.json 的 engines 一致；server bundle 的 esbuild target 也是 node24
+          node-version: 24
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - run: pnpm typecheck
+
+      # resvg 會實際點陣化，整套約 40 秒
+      - run: pnpm test
