@@ -3,6 +3,7 @@ import { join } from 'node:path';
 import { renderAsync } from '@resvg/resvg-js';
 import { Hono } from 'hono';
 import type { Context } from 'hono';
+import { bodyLimit } from 'hono/body-limit';
 import { getCookie, setCookie } from 'hono/cookie';
 import {
   LOCALE_COOKIE,
@@ -17,8 +18,8 @@ import {
 import { sampleState } from '../content/state-presets';
 import { MAX_STATE_PARAM_LEN } from '../engine/defaults';
 import { escapeXml, renderSvg } from '../engine/render-svg';
-import { StateError } from '../engine/state-codec';
-import { decodeState, encodeState } from '../engine/state-codec-node';
+import { StateError, validateState } from '../engine/state-codec';
+import { MAX_INFLATED_BYTES, decodeState, encodeState } from '../engine/state-codec-node';
 import type { VennState } from '../engine/types';
 import { OG_HEIGHT, OG_WIDTH, renderOgPng } from './render-og';
 
@@ -74,6 +75,11 @@ function originOf(c: Context, public_origin?: string): string {
   const proto = c.req.header('x-forwarded-proto') ?? url.protocol.replace(':', '');
   const host = c.req.header('x-forwarded-host') ?? c.req.header('host') ?? url.host;
   return `${proto}://${host}`;
+}
+
+/** 可編輯的分享網址：首頁的 og:url 與 POST /api/png 的 x-venn-url 指的是同一個東西 */
+function shareUrl(origin: string, param: string): string {
+  return `${origin}/?s=${param}`;
 }
 
 /** 語言 cookie 的壽命：一年，和「記住我的語言」這件事的期待一致 */
@@ -250,21 +256,15 @@ export function createApp(opts: AppOptions): Hono {
 
   const no_store = { 'cache-control': 'no-store' };
 
-  app.get('/api/png', async (c) => {
-    const s = c.req.query('s');
-    if (!s) return c.json({ error: 'missing state parameter s' }, 400, no_store);
-    // 長度是 HTTP 層的信任邊界：超長的一律不進 decode
-    if (s.length > MAX_STATE_PARAM_LEN)
-      return c.json({ error: 's is too long' }, 400, no_store);
-
-    let state: VennState;
-    try {
-      state = decodeState(s);
-    } catch (err) {
-      const message = err instanceof StateError ? err.message : 'invalid state parameter';
-      return c.json({ error: message }, 400, no_store);
-    }
-
+  /**
+   * 併發閘門加點陣化：`GET` 與 `POST /api/png` 走同一個 in_flight 計數器與同一次渲染，
+   * 差別只在回應標頭（GET 的 URL 即內容，可長期快取；POST 依定義不可快取）。
+   */
+  const respondPng = async (
+    c: Context,
+    state: VennState,
+    headers: Record<string, string>,
+  ): Promise<Response> => {
     if (in_flight >= MAX_CONCURRENT_RENDERS) {
       return c.json({ error: 'renderer is busy, retry later' }, 503, {
         'retry-after': String(RETRY_AFTER_SECONDS),
@@ -282,9 +282,68 @@ export function createApp(opts: AppOptions): Hono {
 
     return c.body(png as unknown as ArrayBuffer, 200, {
       'content-type': 'image/png',
-      'cache-control': CACHE_FOREVER,
+      ...headers,
     });
+  };
+
+  app.get('/api/png', async (c) => {
+    const s = c.req.query('s');
+    if (!s) return c.json({ error: 'missing state parameter s' }, 400, no_store);
+    // 長度是 HTTP 層的信任邊界：超長的一律不進 decode
+    if (s.length > MAX_STATE_PARAM_LEN)
+      return c.json({ error: 's is too long' }, 400, no_store);
+
+    let state: VennState;
+    try {
+      state = decodeState(s);
+    } catch (err) {
+      const message = err instanceof StateError ? err.message : 'invalid state parameter';
+      return c.json({ error: message }, 400, no_store);
+    }
+
+    return respondPng(c, state, { 'cache-control': CACHE_FOREVER });
   });
+
+  /**
+   * 程式化呼叫用：直接收 raw `VennState` JSON，呼叫端不必自己 deflate ＋ base64url。
+   * 代價是沒有 content-addressed 的快取鍵（POST 依定義不可快取），
+   * 要吃 CDN 快取的呼叫端拿回應的 `x-venn-url` 裡那段 `s` 改走 GET。
+   */
+  app.post(
+    '/api/png',
+    // GET 那條路的尺寸閘是解壓上限，POST 跳過解壓，同一個數字改量 request body
+    bodyLimit({
+      maxSize: MAX_INFLATED_BYTES,
+      onError: (c) => c.json({ error: 'request body is too large' }, 413, no_store),
+    }),
+    async (c) => {
+      // 「body 載不進來」與「載得進來但不是 state」對呼叫端是兩種修法，訊息分開講
+      let body: unknown;
+      try {
+        body = await c.req.json();
+      } catch {
+        return c.json({ error: 'request body is not valid JSON' }, 400, no_store);
+      }
+
+      let state: VennState;
+      try {
+        state = validateState(body);
+      } catch (err) {
+        const message = err instanceof StateError ? err.message : 'invalid state';
+        return c.json({ error: message }, 400, no_store);
+      }
+
+      // 長度閘搬到正規化之後量：POST 沒有現成的 s，但分享網址仍得放得進 URL
+      const param = encodeState(state);
+      if (param.length > MAX_STATE_PARAM_LEN)
+        return c.json({ error: 's is too long' }, 400, no_store);
+
+      return respondPng(c, state, {
+        'cache-control': 'no-store',
+        'x-venn-url': shareUrl(originOf(c, opts.publicOrigin), param),
+      });
+    },
+  );
 
   app.get('/api/og.png', async (c) => {
     const s = c.req.query('s');
@@ -352,7 +411,7 @@ export function createApp(opts: AppOptions): Hono {
     const default_image_url = baked_og ? `${origin}/${baked_og}` : og_png_url;
     const image_url = shared ? `${og_png_url}&s=${encodeState(state)}` : default_image_url;
     // og:url 一律帶 s，分享出去的卡片點回來就是那張圖；canonical 是給搜尋引擎的，首頁收斂到 /
-    const share_url = `${origin}/?s=${param}`;
+    const share_url = shareUrl(origin, param);
     const canonical_url = shared ? share_url : `${origin}/`;
     const description = t('site.description', locale);
     const image_alt = t('site.imageAlt', locale);

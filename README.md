@@ -64,6 +64,10 @@ Without `s`, every shape falls back to a default template (in the current UI lan
 
 `GET /api/png?s=<state>` returns `image/png` sized to `state.size`, with `Cache-Control: public, max-age=31536000, immutable` (the parameter *is* the content). A missing, undecodable or invalid `s` returns a 400 JSON body `{ "error": "..." }`. API error messages are always English — it is a machine interface and does not follow the UI language.
 
+`POST /api/png` takes the same diagram as a raw `VennState` JSON body, so a caller does not have to deflate and base64url a state itself. The response is the PNG plus an `X-Venn-Url` header holding the editable share link for that diagram. Same validation and the same concurrency limit as the GET; a body that is not JSON, a state that fails validation, or a body over 32 KB return 400 / 400 / 413 as JSON.
+
+The trade-off is caching. `GET /api/png?s=` is content-addressed and served `immutable`, so a repeated diagram never re-rasterizes; a POST cannot be cached and is answered `Cache-Control: no-store`, meaning every request pays for a render. Use POST to *produce* a diagram, then hand out the `s` from `X-Venn-Url` for anything that will be fetched more than once.
+
 `GET /api/og.png?v=<n>&s=<state>&lang=<zh-TW|en|ja>` is the 1200 × 630 social banner: the branded base image with the diagram composited on top. Without `s` it renders the home-page sample; `lang` only comes from the query string (never `Accept-Language`) so a cached URL cannot be poisoned by whichever crawler arrives first. `v` is the layout cache version, bumped when the base image or composition changes. Invalid `s` returns 400 JSON with `Cache-Control: no-store`.
 
 The home page ships a pre-baked static OG image (`pnpm build` writes `dist/og-default-<hash>.png`); share pages point `og:image` at `/api/og.png` with their own `s`.
@@ -77,6 +81,14 @@ process.stdout.write(encodeState(sampleState()));")
 
 curl -o venn.png "http://localhost:3000/api/png?s=$S"
 curl -o og.png   "http://localhost:3000/api/og.png?v=5&s=$S&lang=en"
+
+# Or skip the encoding step and POST the state itself
+curl -sD headers.txt -o venn.png -H 'content-type: application/json' \
+  --data '{"v":1,"n":2,"style":"translucent","opacity":0.6,"overlap":1,"radius":0.26,
+           "colors":["#4285f4","#ea4335"],"bg":"#ffffff","size":1200,
+           "texts":{"3":{"t":"No sleep"}}}' \
+  http://localhost:3000/api/png
+grep -i x-venn-url headers.txt
 ```
 
 ## Command line

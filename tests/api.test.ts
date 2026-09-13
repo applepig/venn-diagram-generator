@@ -5,7 +5,7 @@ import { join, resolve } from 'node:path';
 import { deflateRawSync } from 'node:zlib';
 import { afterAll, describe, expect, it } from 'vitest';
 import { createApp } from '../server/app';
-import { encodeState } from '../engine/state-codec-node';
+import { decodeState, encodeState } from '../engine/state-codec-node';
 import { encodeBase64Url } from '../engine/state-codec';
 import { MAX_STATE_PARAM_LEN } from '../engine/defaults';
 import { defaultState, sampleState } from '../content/state-presets';
@@ -1164,4 +1164,139 @@ describe('07 M5 API 錯誤訊息是英文固定值', () => {
       expect(body.error).toMatch(/^[\x20-\x7e]+$/);
     });
   }
+});
+
+/**
+ * 11 `POST /api/png`：直接收 raw `VennState` JSON，呼叫端不必自己編一次 s。
+ * 兩條路共用同一個渲染路徑與同一個 in_flight 計數器，差別只在快取（POST 依定義不可快取）。
+ */
+describe('11 POST /api/png：收 raw VennState JSON', () => {
+  function post(body: BodyInit, headers: Record<string, string> = {}) {
+    return app.request(`${ORIGIN}/api/png`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', ...headers },
+      body,
+    });
+  }
+
+  it('AC1 合法 body 出的 PNG 與同一份 state 走 GET ?s= 的輸出位元相同', async () => {
+    const state = { ...sampleState(), size: 400 };
+    const [posted, got] = await Promise.all([
+      post(JSON.stringify(state)),
+      get(`/api/png?s=${encodeState(state)}`),
+    ]);
+
+    expect(posted.status).toBe(200);
+    expect(posted.headers.get('content-type')).toBe('image/png');
+    const posted_png = Buffer.from(await posted.arrayBuffer());
+    const got_png = Buffer.from(await got.arrayBuffer());
+    // 逐 byte 比對但不用 toEqual：不等時 deep diff 會把整張圖印出來
+    expect(posted_png.equals(got_png)).toBe(true);
+  }, 30_000);
+
+  it('AC7 回應不可快取', async () => {
+    const res = await post(JSON.stringify({ ...sampleState(), size: 400 }));
+
+    expect(res.headers.get('cache-control')).toBe('no-store');
+  }, 30_000);
+
+  it('AC2 x-venn-url 是該圖的分享網址，裡面的 s 解得回同一份 state', async () => {
+    const state = sampleState(3);
+    const res = await post(JSON.stringify({ ...state, size: 400 }));
+    const url = new URL(res.headers.get('x-venn-url')!);
+
+    expect(url.origin).toBe(ORIGIN);
+    expect(url.pathname).toBe('/');
+    expect(decodeState(url.searchParams.get('s')!)).toEqual({ ...state, size: 400 });
+  }, 30_000);
+
+  it('AC2 x-venn-url 與 og:url 同一套推導：設了 publicOrigin 就改不動', async () => {
+    const fixed = createApp({ fontFiles: FONT_FILES, publicOrigin: ORIGIN });
+    const res = await fixed.request('http://localhost/api/png', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', 'x-forwarded-host': 'evil.example.com' },
+      body: JSON.stringify({ ...sampleState(), size: 400 }),
+    });
+
+    expect(res.status).toBe(200);
+    expect(res.headers.get('x-venn-url')).toMatch(
+      new RegExp(`^${ORIGIN.replace(/[.]/g, '\\.')}/\\?s=`),
+    );
+  }, 30_000);
+
+  it('AC3 body 不是合法 JSON → 400，訊息講的是 JSON 解析', async () => {
+    const res = await post('{ 這不是 JSON');
+
+    expect(res.status).toBe(400);
+    expect(res.headers.get('content-type')).toContain('application/json');
+    expect(res.headers.get('cache-control')).toBe('no-store');
+    expect(await res.json()).toMatchObject({ error: 'request body is not valid JSON' });
+  });
+
+  // 「載不進來」與「載得進來但不是 state」是兩種修法，訊息不能折成同一句
+  it('AC3 body 是合法 JSON 但不是物件 → 400，訊息講的是 state 形狀', async () => {
+    const res = await post('[]');
+
+    expect(res.status).toBe(400);
+    expect(await res.json()).toMatchObject({ error: 'state must be an object' });
+  });
+
+  const bad_state: [string, unknown, string][] = [
+    ['n 超出範圍', { ...sampleState(), n: 7 }, 'n must be an integer between 2 and 6'],
+    [
+      '用了不存在的文字槽',
+      { ...sampleState(), texts: { '7': { t: 'x' } } },
+      'text slot 7 does not exist in ring(2)',
+    ],
+    ['size 超過上限', { ...sampleState(), size: 2400 }, 'size must be between 400 and 2000'],
+  ];
+
+  for (const [name, value, message] of bad_state) {
+    it(`AC3 ${name} → 400，訊息沿用 StateError 的英文固定值`, async () => {
+      const res = await post(JSON.stringify(value));
+
+      expect(res.status).toBe(400);
+      expect(res.headers.get('cache-control')).toBe('no-store');
+      expect(await res.json()).toMatchObject({ error: message });
+    });
+  }
+
+  it('AC6 與 GET 共用同一個渲染上限：擠爆時回 503 帶 retry-after', async () => {
+    const isolated = createApp({ fontFiles: FONT_FILES });
+    const state = { ...defaultState(4), style: 'flat' as const, size: 1600 };
+    const responses = await Promise.all(
+      Array.from({ length: 6 }, (_, i) =>
+        i % 2 === 0
+          ? isolated.request(`${ORIGIN}/api/png?s=${encodeState(state)}`)
+          : isolated.request(`${ORIGIN}/api/png`, {
+              method: 'POST',
+              headers: { 'content-type': 'application/json' },
+              body: JSON.stringify(state),
+            }),
+      ),
+    );
+
+    expect(responses.some((res) => res.status === 503)).toBe(true);
+    for (const res of responses) {
+      if (res.status !== 503) continue;
+      expect(res.headers.get('retry-after')).toBe('2');
+      expect(res.headers.get('cache-control')).toBe('no-store');
+    }
+  }, 30_000);
+
+  it('AC4 body 超過 32KB → 413，不進 parse', async () => {
+    const res = await post(JSON.stringify({ ...sampleState(), pad: 'x'.repeat(33 * 1024) }));
+
+    expect(res.status).toBe(413);
+  });
+
+  it('AC4 略小於上限的 body 照常出圖（閘門卡在 32KB，不是「大就擋」）', async () => {
+    const body = JSON.stringify({ ...sampleState(), size: 400, pad: 'x'.repeat(30 * 1024) });
+    // 閘門量的是 bytes，不是字元：sampleState 帶 CJK，兩者不相等
+    expect(Buffer.byteLength(body)).toBeLessThan(32 * 1024);
+    const res = await post(body);
+
+    expect(res.status).toBe(200);
+    expect(res.headers.get('content-type')).toBe('image/png');
+  }, 30_000);
 });

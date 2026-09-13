@@ -63,6 +63,10 @@ deploy/   Dockerfile、compose.yml、compose.dev.yml、deploy.sh
 
 `GET /api/png?s=<state>` 回 `image/png`，尺寸等於 `state.size`，帶 `Cache-Control: public, max-age=31536000, immutable`（參數即內容，可以永久快取）。缺 `s`、解不開、schema 不合都回 400 JSON `{ "error": "..." }`。API 錯誤訊息固定英文——它是機器介面，不跟介面語言走。
 
+`POST /api/png` 收同一張圖的 raw `VennState` JSON body，呼叫端不必自己 deflate ＋ base64url 編一次 state。回應是 PNG，外加 `X-Venn-Url` 標頭，裡面是這張圖的可編輯分享網址。驗證與併發上限跟 GET 完全共用；body 不是 JSON、state 驗不過、body 超過 32 KB，分別回 400／400／413 的 JSON。
+
+代價是快取。`GET /api/png?s=` 的參數即內容，帶 `immutable`，同一張圖第二次不會重算；POST 依定義不可快取，回應帶 `Cache-Control: no-store`，等於每個 request 都付一次點陣化成本。所以用 POST **產**圖，會被重複抓取的場合改發 `X-Venn-Url` 裡的那段 `s`。
+
 `GET /api/og.png?v=<n>&s=<state>&lang=<zh-TW|en|ja>` 是社群預覽用的 1200 × 630 橫幅：品牌底圖加上文氏圖內容。缺 `s` 時輸出首頁預設範例；`lang` 只從 query 讀（不看 `Accept-Language`），否則固定 URL 會被第一個爬蟲的語言污染。`v` 是合成版型的 cache 版號，底圖或版型改版時 bump。無效 `s` 回 400 JSON 並帶 `Cache-Control: no-store`。
 
 首頁的 og:image 是 build 時預烤的靜態檔（`pnpm build` 產出 `dist/og-default-<hash>.png`）；分享頁的 `og:image` 則指向帶自己 `s` 的 `/api/og.png`。
@@ -76,6 +80,14 @@ process.stdout.write(encodeState(sampleState()));")
 
 curl -o venn.png "http://localhost:3000/api/png?s=$S"
 curl -o og.png   "http://localhost:3000/api/og.png?v=5&s=$S&lang=zh-TW"
+
+# 或者跳過編碼這一步，直接 POST state 本身
+curl -sD headers.txt -o venn.png -H 'content-type: application/json' \
+  --data '{"v":1,"n":2,"style":"translucent","opacity":0.6,"overlap":1,"radius":0.26,
+           "colors":["#4285f4","#ea4335"],"bg":"#ffffff","size":1200,
+           "texts":{"3":{"t":"沒睡"}}}' \
+  http://localhost:3000/api/png
+grep -i x-venn-url headers.txt
 ```
 
 ## 命令列
