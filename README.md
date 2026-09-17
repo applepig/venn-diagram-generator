@@ -205,6 +205,7 @@ The visual branding is not generic, so swap these before you publish your own in
 ## Notes
 
 - "Copy image" uses `ClipboardItem` and needs a secure context (HTTPS or localhost). Where that is unavailable the UI suggests "Download PNG" instead.
+- "Share image" only appears where `navigator.canShare({ files })` accepts a PNG file — on iPadOS and iOS Safari that share sheet is the only way to get the image into Photos ("Save Image"); `<a download>` stops at Files. Closing the sheet does nothing; any other failure falls back to opening the PNG inline, which you can long-press to add to Photos.
 - How much text fits in a region is bounded by its inscribed rectangle. The centre region of a four-circle diagram is especially tight: past roughly four full-width characters the text overflows even at the minimum font size (2.5% of canvas width). Put long sentences in single-circle or two-circle slots.
 
 ## Licence

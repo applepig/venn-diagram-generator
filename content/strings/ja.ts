@@ -39,6 +39,7 @@ export const STRINGS = {
   'action.downloadPng': 'PNG を保存',
   'action.downloadSvg': 'SVG を保存',
   'action.copyImage': '画像をコピー',
+  'action.shareImage': '画像を共有',
   'action.copyLink': 'リンクをコピー',
 
   'fs.auto': '自動',
@@ -55,5 +56,5 @@ export const STRINGS = {
   'copy.linkPrompt': 'このリンクをコピーしてください：',
 
   'state.tooLong':
-    'テキストが多すぎて URL に収まりません。減らすと「リンクをコピー」と「PNG を保存」が使えるようになります。',
+    'テキストが多すぎて URL に収まりません。減らすと「リンクをコピー」「PNG を保存」「画像を共有」が使えるようになります。',
 } as const;

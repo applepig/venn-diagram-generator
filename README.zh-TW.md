@@ -204,6 +204,7 @@ script 開頭會先 source repo 根目錄的 `.env`，所以這兩個變數可�
 ## 注意事項
 
 - 「複製圖片」用 `ClipboardItem`，需要 secure context（HTTPS 或 localhost）。不支援時會提示改用「下載 PNG」。
+- 「分享圖片」只在 `navigator.canShare({ files })` 收得下 PNG 檔的瀏覽器出現：iPadOS／iOS Safari 要走分享表單的「儲存影像」才進得了「照片」，`<a download>` 只到得了「檔案」。關掉分享表單不會有任何反應；其他失敗會退回直接 inline 開啟 PNG，長按即可加入照片。
 - 每個區域能容納的字數受限於該區域的內接矩形。4 圈中央的四重交集特別小，超過約 4 個全形字就會在最小字級（畫布 2.5%）下超出框線。想塞長句請改用單圈或雙圈的槽。
 
 ## 授權
