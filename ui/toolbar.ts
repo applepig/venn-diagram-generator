@@ -7,6 +7,7 @@ import type { Arrangement, CircleCount, TextSlot, VennState, VennStyle } from '.
 import { ts, uiLocale } from './i18n';
 import { createColorControl } from './color-control';
 import { COUNT_CHOICES, createShapeMenu, isExtraShape } from './shape-menu';
+import { canShareImageFile } from './share-image';
 import { createSlotRow, type SlotRow } from './slot-row';
 import { createTitleRow } from './title-row';
 
@@ -37,6 +38,8 @@ export interface ToolbarHandlers {
   onShape: (arr: Arrangement, n: CircleCount) => void;
   onPatchSlot: (mask: number, patch: Partial<TextSlot>) => void;
   onCopyImage: () => void;
+  /** 只有探測通過時才會被接上按鈕（12 AC1） */
+  onShareImage: () => void;
   onCopyLink: () => void;
   onDownloadSvg: () => void;
   /** 切介面語言；實際的導向與記憶由 ui/i18n.ts 處理 */
@@ -238,11 +241,16 @@ export function createToolbar(root: HTMLElement, handlers: ToolbarHandlers): Too
   };
 
   const copy_link = actionButton(ts('action.copyLink'), handlers.onCopyLink);
+  // 收不下 PNG File 的瀏覽器連按鈕都不建：擺一顆按了必定失敗的鈕比沒有更糟（12 AC1）
+  const share_image = canShareImageFile()
+    ? actionButton(ts('action.shareImage'), handlers.onShareImage)
+    : null;
 
   actions.append(
     download_png,
     actionButton(ts('action.downloadSvg'), handlers.onDownloadSvg),
     actionButton(ts('action.copyImage'), handlers.onCopyImage),
+    ...(share_image ? [share_image] : []),
     copy_link,
   );
 
@@ -342,6 +350,8 @@ export function createToolbar(root: HTMLElement, handlers: ToolbarHandlers): Too
       too_long = next;
       too_long_hint.hidden = !next;
       copy_link.disabled = next;
+      // 分享圖片也要停：它抓的 /api/png 這時同樣是 400（12 AC5）
+      if (share_image) share_image.disabled = next;
       download_png.setAttribute('aria-disabled', String(next));
       download_png.classList.toggle('disabled', next);
       if (next) download_png.removeAttribute('href');

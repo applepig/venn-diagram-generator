@@ -46,6 +46,8 @@ export const STRINGS = {
   'action.downloadPng': '下載 PNG',
   'action.downloadSvg': '下載 SVG',
   'action.copyImage': '複製圖片',
+  /** 只有支援 Web Share 傳檔的瀏覽器看得到；iPad 走這條才存得進「照片」 */
+  'action.shareImage': '分享圖片',
   'action.copyLink': '複製連結',
 
   'fs.auto': '自動',
@@ -62,5 +64,6 @@ export const STRINGS = {
   'copy.linkPrompt': '複製這個連結：',
 
   /** 編出來的 s 超過 server 收得下的長度時顯示；此時分享與產圖都會被 server 擋掉 */
-  'state.tooLong': '文字太多，超過網址裝得下的長度：刪掉一些字，「複製連結」與「下載 PNG」才會恢復。',
+  'state.tooLong':
+    '文字太多，超過網址裝得下的長度：刪掉一些字，「複製連結」、「下載 PNG」與「分享圖片」才會恢復。',
 } as const;

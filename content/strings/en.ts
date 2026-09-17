@@ -40,6 +40,7 @@ export const STRINGS = {
   'action.downloadPng': 'Download PNG',
   'action.downloadSvg': 'Download SVG',
   'action.copyImage': 'Copy image',
+  'action.shareImage': 'Share image',
   'action.copyLink': 'Copy link',
 
   'fs.auto': 'Auto',
@@ -56,5 +57,5 @@ export const STRINGS = {
   'copy.linkPrompt': 'Copy this link:',
 
   'state.tooLong':
-    'Too much text to fit in a share link. Delete some to re-enable “Copy link” and “Download PNG”.',
+    'Too much text to fit in a share link. Delete some to re-enable “Copy link”, “Download PNG” and “Share image”.',
 } as const;

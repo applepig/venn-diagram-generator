@@ -25,6 +25,11 @@ let encoded = '';
 let encode_token = 0;
 /** 最近一次的網址同步；切語言要等它做完才知道正確的 `s` */
 let pending_sync: Promise<void> = Promise.resolve();
+/**
+ * 分享正在進行中；觸控裝置很容易連點兩下，而第二次的 `navigator.share()` 會因為
+ * 已有分享進行中被 reject，接著走 fallback 把整頁跳走——分享表單還開著就離開編輯器。
+ */
+let share_in_flight = false;
 
 // 面板只建一次，之後只做增量更新：在 input 事件裡重建節點會中斷拖曳手勢與游標
 const toolbar = createToolbar(panel_el, {
@@ -32,6 +37,7 @@ const toolbar = createToolbar(panel_el, {
   onShape: (arr, n) => setShape(arr, n),
   onPatchSlot: patchSlot,
   onCopyImage: () => void copyImage(),
+  onShareImage: () => void shareImage(),
   onCopyLink: () => void copyLink(),
   onDownloadSvg: () => downloadSvg(),
   onLocale: (next) => void changeLocale(next),
@@ -87,10 +93,39 @@ async function copyImage(): Promise<void> {
     return;
   }
   try {
-    const blob = await (await fetch(pngUrl())).blob();
-    await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
+    const res = await fetch(pngUrl());
+    // server 出錯時的內文不能當 PNG 寫進剪貼簿；丟出去讓下面的 catch 照常提示失敗
+    if (!res.ok) throw new Error(`/api/png ${res.status}`);
+
+    await navigator.clipboard.write([new ClipboardItem({ 'image/png': await res.blob() })]);
   } catch {
     alert(ts('copy.imageFailed'));
+  }
+}
+
+/**
+ * iPadOS 的 `<a download>` 只到得了「檔案 › 下載項目」，唯一進得了「照片」的路徑是
+ * Web Share 帶 File——iOS 的分享表單這時才會出現「儲存影像」（12 AC2）。
+ */
+async function shareImage(): Promise<void> {
+  if (share_in_flight) return;
+  share_in_flight = true;
+  try {
+    const res = await fetch(pngUrl());
+    // server 出錯時的內文不能包成 venn.png 送進分享表單；丟出去走 fallback，讓錯誤原樣現形
+    if (!res.ok) throw new Error(`/api/png ${res.status}`);
+
+    const file = new File([await res.blob()], 'venn.png', { type: 'image/png' });
+    // 只帶 files：舊 Safari 併上 text／url 會整個分享失敗
+    await navigator.share({ files: [file] });
+  } catch (err) {
+    // 使用者自己關掉分享表單不是錯誤，別跳提示（AC3）
+    if ((err as { name?: string } | null)?.name === 'AbortError') return;
+    // 其餘失敗（例如 await 之後 transient activation 已失效）退回直接開圖：
+    // /api/png 沒有 Content-Disposition，會 inline 顯示，長按就能加入照片（AC4）
+    location.assign(pngUrl());
+  } finally {
+    share_in_flight = false;
   }
 }
 
