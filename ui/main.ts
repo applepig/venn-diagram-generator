@@ -1,7 +1,7 @@
 import './style.css';
 import type { Locale } from '../content/locale';
-import { nextStateForLocale, nextStateForShape } from '../content/next-state';
-import { sampleState } from '../content/state-presets';
+import { nextStateForShape } from '../content/next-state';
+import { initialState } from '../content/state-presets';
 import { MAX_STATE_PARAM_LEN } from '../engine/defaults';
 import { renderSvg } from '../engine/render-svg';
 import { arrOf } from '../engine/shapes/index';
@@ -19,7 +19,7 @@ const canvas_el = document.getElementById('canvas')!;
 const canvas_mini_el = document.getElementById('canvas-mini')!;
 
 const locale = uiLocale();
-let state: VennState = sampleState(2, locale);
+let state: VennState = initialState(2, locale);
 let encoded = '';
 /** 編碼是非同步的，用 token 丟掉過期結果，避免慢的那次蓋掉新的 */
 let encode_token = 0;
@@ -171,11 +171,10 @@ async function boot(): Promise<void> {
   const s = new URLSearchParams(location.search).get('s');
   if (s) {
     try {
-      // 沒編輯過的 template 換成目前語言的版本；使用者改過的字一律不動
-      state = nextStateForLocale(await decodeState(s), locale);
+      state = await decodeState(s);
     } catch {
-      // 壞掉的連結就從範例開始，不要卡在白畫面
-      state = sampleState(2, locale);
+      // 壞掉的連結就從空白狀態開始，不要卡在白畫面
+      state = initialState(2, locale);
     }
   }
   render();

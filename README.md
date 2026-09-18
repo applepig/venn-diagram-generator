@@ -58,7 +58,7 @@ A large `radius` combined with a large `overlap` can push the circles past the c
 
 Which slots a shape offers is derived from its default geometry (a region gets a slot when it has a non-null inscribed box): 3 slots for 2 circles, 7 for 3, 13 for the 2×2 four-circle petal arrangement (4 singles + 4 adjacent pairs + 4 triples + 1 centre; the diagonal pairs have no region at the default overlap). Rings of 5–6 and all rows only ship single-circle labels by default. The shape dropdown lists row(3), row(4), ring(5) and ring(6); row(5) and row(6) stay decodable so older links keep working, and the menu adds the current one as a temporary entry when you open such a link.
 
-Without `s`, every shape falls back to a default template (in the current UI language). If you have not edited any text yet, switching shape or language swaps the whole template; once you have typed something, your text is kept.
+Without `s` the editor starts empty: every shape ships a default template (in the current UI language), but it is only shown as a placeholder — in the text fields and, faintly, on the canvas preview itself (`renderSvg`'s `ghosts` option, which only the editor canvas passes). Nothing is written into the state, so you never have to clear a sample before typing your own, and no download, `/api/png` or og:image ever contains the ghost text. Switching shape while nothing is typed also switches to that template's style; once you have typed something, your text and style are kept. The og:image for the bare home page still renders the 2-circle template, so the social card is not an empty diagram.
 
 ## API
 

@@ -5,10 +5,12 @@ import {
   popCount,
 } from '../engine/defaults';
 import { SWATCH_COLORS } from '../content/palette';
+import { placeholderTexts } from '../content/state-presets';
 import { regionColor } from '../engine/render-svg';
+import { arrOf } from '../engine/shapes/index';
 import { diagramTransform } from '../engine/title';
 import type { TextBlock, TextSlot, VennState } from '../engine/types';
-import { ts } from './i18n';
+import { ts, uiLocale } from './i18n';
 import { createColorControl } from './color-control';
 import { FS_MAX, FS_MIN, createFsField, fsToPx, pxToFs } from './fs-field';
 
@@ -30,9 +32,17 @@ export function slotTag(mask: number): string {
   return parts.join('+');
 }
 
-/** 收合列只放得下一行；空白槽要看得出來是空的，不然那一列像壞掉 */
+/** 收合列只放得下一行；沒有內容時回空字串，由呼叫端決定要顯示提示還是「（空）」 */
 function firstLine(text: string): string {
-  return text.split('\n').find((line) => line.trim() !== '') ?? ts('slot.empty');
+  return text.split('\n').find((line) => line.trim() !== '') ?? '';
+}
+
+/**
+ * 該槽的示範文字：輸入框的 placeholder 與收合列的灰字提示都取自 template。
+ * template 只是提示，不進 state——使用者不必先清掉範例才能寫自己的字。
+ */
+function hintFor(state: VennState, mask: number): string {
+  return placeholderTexts(arrOf(state), state.n, uiLocale())[String(mask)] ?? '';
 }
 
 export function createSlotRow(mask: number, handlers: SlotRowHandlers): SlotRow {
@@ -103,12 +113,17 @@ export function createSlotRow(mask: number, handlers: SlotRowHandlers): SlotRow 
       scale = diagramTransform(state).scale;
       const slot = state.texts[String(mask)];
       const text = slot?.t ?? '';
+      const hint = hintFor(state, mask);
+      text_input.placeholder = hint;
 
       // AC2：單圈列的代表色就是圈色（和展開後的控制項同一個值），交集列取該區實際畫出來的顏色
       swatch.style.background = is_label
         ? (state.colors[circle_index] ?? '#888888')
         : regionColor(state, mask);
-      preview.textContent = firstLine(text);
+      const own_line = firstLine(text);
+      // 自己的字用正常灰；還沒寫字就用更淡的示範字，一眼看得出那不是圖上的內容
+      preview.textContent = own_line || firstLine(hint) || ts('slot.empty');
+      preview.classList.toggle('ghost', own_line === '');
       if (text_input.value !== text) text_input.value = text;
 
       // block.fs 已經套過圖區縮放，換回預設空間才和 slot.fs 同一把尺
