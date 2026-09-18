@@ -126,6 +126,12 @@ describe('ghostTexts：預覽的幽靈字', () => {
     expect(Object.keys(ghostTexts(state))).toHaveLength(3);
   });
 
+  it('只打了圖片標題也算寫過字（標題會進輸出，示範字不會）', () => {
+    expect(ghostTexts({ ...initialState(2), title: '我的圖' })).toEqual({});
+    // 空白標題不算，等同沒打
+    expect(Object.keys(ghostTexts({ ...initialState(2), title: '  ' }))).toHaveLength(3);
+  });
+
   it('跟著呼叫端的語言走', () => {
     expect(ghostTexts(initialState(2, 'en'), 'en')['3']).toBe('Tomorrow');
   });

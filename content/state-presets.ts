@@ -81,12 +81,15 @@ export function placeholderTexts(
 }
 
 /**
- * 畫布預覽要畫的幽靈字。只要使用者在任何一格寫了字就整組收掉：
+ * 畫布預覽要畫的幽靈字。只要使用者寫了字就整組收掉：
  * 預覽是 WYSIWYG，畫面上多一段不會出現在輸出裡的字就是騙人。
  * 反過來，把字全部刪光又回到空白狀態，提示就再出現。
+ *
+ * 圖片標題也算寫過字，但不寫進 `isPristine`：那個函式管的是「切形狀要不要換樣式」，
+ * 只打了標題還沒填任何一格時，樣式仍該跟著形狀走。
  */
 export function ghostTexts(state: VennState, locale: Locale = DEFAULT_LOCALE): Record<string, string> {
-  if (!isPristine(state)) return {};
+  if (!isPristine(state) || (state.title ?? '').trim() !== '') return {};
   return placeholderTexts(arrOf(state), state.n, locale);
 }
 
