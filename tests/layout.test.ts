@@ -37,23 +37,28 @@ function fillAllSlots(n: CircleCount, text: string): VennState {
  * 字寬估算只認 CJK 三段（U+2E80–9FFF、U+F900–FAFF、U+FF00–FFEF）：全形算一格、逐字可斷，
  * 其餘文字算 0.62 格、整段不可拆。邊界寫錯一個碼位，韓文／彝文／私用區就會被當成漢字，
  * 折行與 fit 後的字級跟著走樣，而 golden 裡沒有這些字元、測試會照樣全綠。
+ *
+ * 測資一律寫碼位 escape：U+F900（相容漢字）與 U+8C48（一般漢字）的字形一模一樣，
+ * 私用區的 U+E000 根本畫不出來——貼字元的話下一個人看不出這裡在測什麼、也改不動。
  */
 describe('CJK 判定的邊界', () => {
   const fs = 0.05;
+  const HANGUL = '\u{AC00}\u{B098}\u{B2E4}';
 
   it('韓文不是 CJK：一格算 0.62，整個詞不逐字拆', () => {
-    expect(estimateWidth('가나다', fs)).toBeCloseTo(3 * 0.62 * fs, 12);
+    expect(estimateWidth(HANGUL, fs)).toBeCloseTo(3 * 0.62 * fs, 12);
     // 放得下就是一行，不會被拆成一個字一行
-    expect(wrapText('가나다', fs, 3 * 0.62 * fs + 1e-9)).toEqual(['가나다']);
+    expect(wrapText(HANGUL, fs, 3 * 0.62 * fs + 1e-9)).toEqual([HANGUL]);
   });
 
   it('彝文與私用區也不是 CJK', () => {
-    expect(estimateWidth('ꀀ', fs)).toBeCloseTo(0.62 * fs, 12);
-    expect(estimateWidth('', fs)).toBeCloseTo(0.62 * fs, 12);
+    expect(estimateWidth('\u{A000}', fs)).toBeCloseTo(0.62 * fs, 12);
+    expect(estimateWidth('\u{E000}', fs)).toBeCloseTo(0.62 * fs, 12);
   });
 
-  it('相容漢字與一般漢字都算 CJK：一格一整格', () => {
-    for (const ch of ['豈', '﫿', '豈', '⺀', '鿿', '＀', '￯']) {
+  it('三段的端點與相容漢字都算 CJK：一格一整格', () => {
+    const cjk = ['\u{2E80}', '\u{9FFF}', '\u{8C48}', '\u{F900}', '\u{FAFF}', '\u{FF00}', '\u{FFEF}'];
+    for (const ch of cjk) {
       expect(estimateWidth(ch, fs), `U+${ch.codePointAt(0)!.toString(16)}`).toBeCloseTo(fs, 12);
     }
   });
