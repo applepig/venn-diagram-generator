@@ -70,6 +70,11 @@ body {
 .app {
   display: grid;
   grid-template-columns: 320px minmax(0, 1fr);
+  /*
+   * 兩列：面板與（大圖＋動作列），以及頁尾。多出來的高度全給頁尾那一列（1fr）吸收，
+   * 頁尾才留在視窗底部——不指定的話 min-height 的餘裕會平均撐開每一列。
+   */
+  grid-template-rows: auto 1fr;
   gap: 20px;
   padding: 20px;
   min-height: 100vh;
@@ -596,10 +601,36 @@ select {
   margin-left: auto;
 }
 
-.actions {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
+/*
+ * 圖與動作列綁在同一個直向容器裡，動作列因此永遠緊貼畫布——放在 grid 第二列的話，
+ * 第一列的高度由較高的那一欄（通常是面板）決定，面板一長動作列就被拖到面板底下。
+ * 窄版面這層改成 display: contents，兩者變回 .app 的 flex 子項各自吃 order。
+ */
+.stage-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+/* 動作列排在畫布下方，跟著畫布的寬度式走才會左右對齊 */
+.actions-bar {
+  width: min(100%, 78vh);
+  display: flex;
+  flex-direction: column;
   gap: 6px;
+}
+
+/* 寬版面永遠一行：每顆等分，不設 flex-basis 才不會在矮視窗擠成 4+1 */
+.actions {
+  display: flex;
+  gap: 6px;
+}
+
+.actions > * {
+  flex: 1 1 0;
+  min-width: 0;
 }
 
 .actions button,
@@ -682,6 +713,8 @@ select {
 /* grid 的兩欄都跨過去，才會落在 panel 與畫布下方而不是擠進某一欄 */
 .site-footer {
   grid-column: 1 / -1;
+  /* 頁尾那一列吃掉所有餘裕，自己貼在列底＝視窗底部 */
+  align-self: end;
   display: flex;
   justify-content: center;
   gap: 8px;
@@ -727,6 +760,11 @@ select {
     padding: 0;
   }
 
+  /* 拆掉寬版面的包裹層，讓大圖與動作列各自成為 .app 的 flex 子項、各自吃自己的 order */
+  .stage-col {
+    display: contents;
+  }
+
   .stage {
     order: 1;
     padding: 12px 12px 16px;
@@ -767,9 +805,19 @@ select {
     padding: 14px 12px 20px;
   }
 
-  /* 面板在窄版面排最後，頁尾要跟在它後面；.app 的 padding 在這裡是 0，自己補 */
-  .site-footer {
+  /* 使用者要的順序：大圖 → 控制面板 → 匯出動作（AC6a），同一個節點只換位置 */
+  .actions-bar {
     order: 4;
+    width: auto;
+    border-top: 1px solid var(--line);
+    padding: 16px 12px;
+  }
+
+  /* 面板與動作列在窄版面排最後，頁尾要跟在它們後面；.app 的 padding 在這裡是 0，自己補 */
+  .site-footer {
+    order: 5;
+    /* flex column 下 align-self 管的是水平方向，end 會把頁尾推到右邊 */
+    align-self: auto;
     border-top: 1px solid var(--line);
     padding: 16px 12px;
   }
@@ -777,6 +825,23 @@ select {
   .peek .canvas-wrap {
     width: 56px;
     flex: none;
+  }
+
+  /* 第二份動作只在 overlay 展開時出現：收合的小圖條只有一格高，塞不下也不該塞（AC6b） */
+  .peek .actions-bar {
+    display: none;
+    order: 0;
+    border-top: 0;
+    padding: 0;
+  }
+
+  /*
+   * 超長警告在 overlay 這份不給：它可能好幾行，而 --overlay-chrome 是固定預算，
+   * 算進去等於所有中等高度視窗的預覽圖都永久縮一截。這裡的按鈕超長時本來就是
+   * disabled，看得出不能按，理由到頁面最下方那份看得到。
+   */
+  .peek .actions-bar .note.warn {
+    display: none;
   }
 
   .peek-hint {
@@ -801,10 +866,37 @@ select {
     background: #0b0d10f2;
     border-bottom: 0;
     padding: 20px;
+    /*
+     * 圖以外的東西佔掉的高度：動作列（最多三列 48px 按鈕＋兩道 6px）＋關閉鈕 43＋
+     * 兩道 10px 間距＋上下各 20px padding。overlay 是置中且鎖捲動的，圖不照這個
+     * 扣一次就會把關閉鈕擠出視窗。
+     */
+    --overlay-chrome: 259px;
+    /* 圖與第二份動作列共用同一個寬度式，才會左右對齊 */
+    --overlay-w: min(92vw, 68vh, calc(100vh - var(--overlay-chrome)));
   }
 
   body[data-preview='open'] .peek .canvas-wrap {
-    width: min(92vw, 68vh);
+    width: var(--overlay-w);
+  }
+
+  body[data-preview='open'] .peek .actions-bar {
+    display: flex;
+    width: var(--overlay-w);
+  }
+
+  /*
+   * 橫向手機：overlay 連圖加關閉鈕都快滿了，再加一列按鈕會把內容擠出視窗（AC6c）。
+   * 整頁最下方那份仍在，這裡只是不重複給；沒有動作列，圖能用的高度也跟著放寬。
+   */
+  @media (max-height: 520px) {
+    body[data-preview='open'] .peek {
+      --overlay-chrome: 103px;
+    }
+
+    body[data-preview='open'] .peek .actions-bar {
+      display: none;
+    }
   }
 
   body[data-preview='open'] .peek-hint {
@@ -896,6 +988,15 @@ select {
   .pop .hex {
     font-size: 16px;
     padding: 6px 8px;
+  }
+
+  /* 一行塞不下五顆：換行成一列兩顆，落單的那顆撐滿，不出現水平捲動 */
+  .actions {
+    flex-wrap: wrap;
+  }
+
+  .actions > * {
+    flex: 1 1 calc(50% - 3px);
   }
 
   .actions button,

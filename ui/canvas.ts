@@ -92,6 +92,8 @@ export function createCanvas(els: CanvasElements, handlers: CanvasHandlers): Can
       setOpen(true);
       return;
     }
+    // overlay 裡的匯出鈕按下去要留在原畫面：下載或複製完還看得到圖，不然按一下就被關掉
+    if ((event.target as Element).closest('.actions-bar')) return;
     if ((event.target as Element).closest('.canvas-wrap')) {
       const mask = pickedMask(els.mini, handlers.getState(), event);
       // 點到圓外的空白處不收起，只有點到區域才跳去那一列（14 AC3、AC6）
