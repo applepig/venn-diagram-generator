@@ -1,5 +1,5 @@
 import { DEFAULT_BG, DEFAULT_OPACITY, DEFAULT_SIZE } from '../engine/defaults';
-import { shapeDefaults } from '../engine/shapes/index';
+import { arrOf, shapeDefaults } from '../engine/shapes/index';
 import type { Arrangement, CircleCount, TextSlot, VennState } from '../engine/types';
 import { DEFAULT_LOCALE, type Locale } from './locale';
 import { PALETTE } from './palette';
@@ -78,6 +78,16 @@ export function placeholderTexts(
   const template = templateFor(arr, n, locale);
   if (!template) return {};
   return Object.fromEntries(Object.entries(template.texts).map(([mask, slot]) => [mask, slot.t]));
+}
+
+/**
+ * 畫布預覽要畫的幽靈字。只要使用者在任何一格寫了字就整組收掉：
+ * 預覽是 WYSIWYG，畫面上多一段不會出現在輸出裡的字就是騙人。
+ * 反過來，把字全部刪光又回到空白狀態，提示就再出現。
+ */
+export function ghostTexts(state: VennState, locale: Locale = DEFAULT_LOCALE): Record<string, string> {
+  if (!isPristine(state)) return {};
+  return placeholderTexts(arrOf(state), state.n, locale);
 }
 
 /**
