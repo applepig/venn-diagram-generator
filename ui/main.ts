@@ -7,6 +7,7 @@ import { renderSvg } from '../engine/render-svg';
 import { arrOf } from '../engine/shapes/index';
 import { decodeState, encodeState } from '../engine/state-codec-web';
 import type { Arrangement, CircleCount, TextSlot, VennState } from '../engine/types';
+import { createActions } from './actions';
 import { createCanvas } from './canvas';
 import { switchLocale, ts, uiLocale } from './i18n';
 import { patchSlotTexts } from './patch-slot';
@@ -15,6 +16,7 @@ import { createToolbar } from './toolbar';
 import { watermarkText } from './watermark';
 
 const panel_el = document.getElementById('panel')!;
+const actions_el = document.getElementById('actions')!;
 const canvas_el = document.getElementById('canvas')!;
 const canvas_mini_el = document.getElementById('canvas-mini')!;
 
@@ -36,11 +38,15 @@ const toolbar = createToolbar(panel_el, {
   onPatch: (patch) => setState(patch),
   onShape: (arr, n) => setShape(arr, n),
   onPatchSlot: patchSlot,
+  onLocale: (next) => void changeLocale(next),
+});
+
+// 匯出動作在畫布下方，不在面板裡（16 AC2）
+const actions = createActions(actions_el, {
   onCopyImage: () => void copyImage(),
   onShareImage: () => void shareImage(),
   onCopyLink: () => void copyLink(),
   onDownloadSvg: () => downloadSvg(),
-  onLocale: (next) => void changeLocale(next),
 });
 
 const canvas = createCanvas(
@@ -149,7 +155,8 @@ async function changeLocale(next: Locale): Promise<void> {
 
 function render(): void {
   canvas.render();
-  toolbar.update(state, pngUrl());
+  toolbar.update(state);
+  actions.update(pngUrl());
   pending_sync = syncUrl();
   pending_sync.catch(console.error);
 }
@@ -162,9 +169,9 @@ async function syncUrl(): Promise<void> {
   // 只改 s：lang 這類參數留著，不然按一下滑桿就把使用者選的語言從網址上抹掉
   history.replaceState(null, '', searchWithState(location.search, encoded));
   // 超過 server 收得下的長度時，分享連結與 /api/png 都會被擋成 400：先說明再停用（AC15）
-  toolbar.setTooLong(encoded.length > MAX_STATE_PARAM_LEN);
-  // 編碼完成後才知道正確的下載連結與 og 分享網址，補一次面板
-  toolbar.update(state, pngUrl());
+  actions.setTooLong(encoded.length > MAX_STATE_PARAM_LEN);
+  // 編碼完成後才知道正確的下載連結與 og 分享網址，補一次動作列
+  actions.update(pngUrl());
 }
 
 async function boot(): Promise<void> {

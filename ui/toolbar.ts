@@ -8,7 +8,6 @@ import type { Arrangement, CircleCount, TextSlot, VennState, VennStyle } from '.
 import { ts, uiLocale } from './i18n';
 import { createColorControl } from './color-control';
 import { COUNT_CHOICES, createShapeMenu, isExtraShape } from './shape-menu';
-import { canShareImageFile } from './share-image';
 import { createSlotRow, type SlotRow } from './slot-row';
 import { createTitleRow } from './title-row';
 
@@ -38,22 +37,12 @@ export interface ToolbarHandlers {
   /** 切形狀（排列 × 圈數）；面板只給得出合法組合 */
   onShape: (arr: Arrangement, n: CircleCount) => void;
   onPatchSlot: (mask: number, patch: Partial<TextSlot>) => void;
-  onCopyImage: () => void;
-  /** 只有探測通過時才會被接上按鈕（12 AC1） */
-  onShareImage: () => void;
-  onCopyLink: () => void;
-  onDownloadSvg: () => void;
   /** 切介面語言；實際的導向與記憶由 ui/i18n.ts 處理 */
   onLocale: (locale: Locale) => void;
 }
 
 export interface ToolbarController {
-  update: (state: VennState, png_url: string) => void;
-  /**
-   * 編出來的 `s` 超過 server 收得下的長度時停用會用到它的動作並說明原因（AC15）：
-   * 分享連結與 `/api/png` 這時都會被 server 以 400 擋掉，讓按鈕維持可按只會換來壞掉的結果。
-   */
-  setTooLong: (too_long: boolean) => void;
+  update: (state: VennState) => void;
   /** 展開某一列、捲到看得見並把游標放進文字框（點預覽上的區域時用） */
   openSlot: (mask: number) => void;
 }
@@ -236,42 +225,6 @@ export function createToolbar(root: HTMLElement, handlers: ToolbarHandlers): Too
   );
   const size_row = labeledRow(ts('field.size'), size_select);
 
-  const actions = document.createElement('div');
-  actions.className = 'actions';
-
-  const download_png = document.createElement('a');
-  download_png.className = 'primary';
-  download_png.textContent = ts('action.downloadPng');
-  download_png.download = 'venn.png';
-
-  const actionButton = (label: string, onClick: () => void) => {
-    const btn = document.createElement('button');
-    btn.type = 'button';
-    btn.textContent = label;
-    btn.addEventListener('click', onClick);
-    return btn;
-  };
-
-  const copy_link = actionButton(ts('action.copyLink'), handlers.onCopyLink);
-  // 收不下 PNG File 的瀏覽器連按鈕都不建：擺一顆按了必定失敗的鈕比沒有更糟（12 AC1）
-  const share_image = canShareImageFile()
-    ? actionButton(ts('action.shareImage'), handlers.onShareImage)
-    : null;
-
-  actions.append(
-    download_png,
-    actionButton(ts('action.downloadSvg'), handlers.onDownloadSvg),
-    actionButton(ts('action.copyImage'), handlers.onCopyImage),
-    ...(share_image ? [share_image] : []),
-    copy_link,
-  );
-
-  // 超長提示：平常隱藏，只有 s 塞不進網址時才出現在動作列上方
-  const too_long_hint = document.createElement('p');
-  too_long_hint.className = 'note warn';
-  too_long_hint.textContent = ts('state.tooLong');
-  too_long_hint.hidden = true;
-
   const divider = () => document.createElement('hr');
 
   root.append(
@@ -288,14 +241,11 @@ export function createToolbar(root: HTMLElement, handlers: ToolbarHandlers): Too
     divider(),
     lang_row,
     size_row,
-    too_long_hint,
-    actions,
   );
 
   // 色票與槽列的 handler 都需要最新的 colors，但自己不該持有 state 副本
   let latest_state: VennState | null = null;
   let rows: SlotRow[] = [];
-  let too_long = false;
 
   /**
    * 只有槽表真的換了才重建槽列，其餘情況沿用既有節點（保住展開狀態與游標）。
@@ -327,7 +277,7 @@ export function createToolbar(root: HTMLElement, handlers: ToolbarHandlers): Too
   }
 
   return {
-    update(state, png_url) {
+    update(state) {
       latest_state = state;
       const arr = arrOf(state);
 
@@ -362,21 +312,6 @@ export function createToolbar(root: HTMLElement, handlers: ToolbarHandlers): Too
 
       syncRows(state);
       syncValue(size_select, String(state.size));
-
-      // 超長時不給 href：<a> 沒有 disabled，拿掉連結才真的點不動
-      if (too_long) download_png.removeAttribute('href');
-      else download_png.href = png_url;
-    },
-
-    setTooLong(next) {
-      too_long = next;
-      too_long_hint.hidden = !next;
-      copy_link.disabled = next;
-      // 分享圖片也要停：它抓的 /api/png 這時同樣是 400（12 AC5）
-      if (share_image) share_image.disabled = next;
-      download_png.setAttribute('aria-disabled', String(next));
-      download_png.classList.toggle('disabled', next);
-      if (next) download_png.removeAttribute('href');
     },
 
     openSlot(mask) {

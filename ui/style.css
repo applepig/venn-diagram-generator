@@ -596,10 +596,23 @@ select {
   margin-left: auto;
 }
 
-.actions {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
+/* 動作列排在畫布下方，跟著畫布的寬度式走才會左右對齊 */
+.stage-actions {
+  width: min(100%, 78vh);
+  display: flex;
+  flex-direction: column;
   gap: 6px;
+}
+
+/* 寬版面永遠一行：每顆等分，不設 flex-basis 才不會在矮視窗擠成 4+1 */
+.actions {
+  display: flex;
+  gap: 6px;
+}
+
+.actions > * {
+  flex: 1 1 0;
+  min-width: 0;
 }
 
 .actions button,
@@ -896,6 +909,15 @@ select {
   .pop .hex {
     font-size: 16px;
     padding: 6px 8px;
+  }
+
+  /* 一行塞不下五顆：換行成一列兩顆，落單的那顆撐滿，不出現水平捲動 */
+  .actions {
+    flex-wrap: wrap;
+  }
+
+  .actions > * {
+    flex: 1 1 calc(50% - 3px);
   }
 
   .actions button,
