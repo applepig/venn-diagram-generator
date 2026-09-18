@@ -71,11 +71,10 @@ body {
   display: grid;
   grid-template-columns: 320px minmax(0, 1fr);
   /*
-   * 三列：面板與大圖、動作列、頁尾。多出來的高度全給頁尾那一列（1fr）吸收，
-   * 頁尾才留在視窗底部——不指定的話 min-height 的餘裕會平均撐開每一列，
-   * 圖和它下面的動作列就被拉開。
+   * 兩列：面板與（大圖＋動作列），以及頁尾。多出來的高度全給頁尾那一列（1fr）吸收，
+   * 頁尾才留在視窗底部——不指定的話 min-height 的餘裕會平均撐開每一列。
    */
-  grid-template-rows: auto auto 1fr;
+  grid-template-rows: auto 1fr;
   gap: 20px;
   padding: 20px;
   min-height: 100vh;
@@ -603,15 +602,20 @@ select {
 }
 
 /*
- * 動作列排在畫布下方，跟著畫布的寬度式走才會左右對齊。
- * 它是 .app 的直接子元素而不是 .stage 的內容：窄版面要靠 order 把它移到面板之後，
- * 跨父層搬不動。寬版面用 grid 放回右欄第二列，看起來還是接在圖下面。
+ * 圖與動作列綁在同一個直向容器裡，動作列因此永遠緊貼畫布——放在 grid 第二列的話，
+ * 第一列的高度由較高的那一欄（通常是面板）決定，面板一長動作列就被拖到面板底下。
+ * 窄版面這層改成 display: contents，兩者變回 .app 的 flex 子項各自吃 order。
  */
+.stage-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+/* 動作列排在畫布下方，跟著畫布的寬度式走才會左右對齊 */
 .actions-bar {
-  grid-column: 2;
-  justify-self: center;
-  /* .app 的 20px 間距比圖與動作列該有的距離遠，補回原本的 10px */
-  margin-top: -10px;
   width: min(100%, 78vh);
   display: flex;
   flex-direction: column;
@@ -756,6 +760,11 @@ select {
     padding: 0;
   }
 
+  /* 拆掉寬版面的包裹層，讓大圖與動作列各自成為 .app 的 flex 子項、各自吃自己的 order */
+  .stage-col {
+    display: contents;
+  }
+
   .stage {
     order: 1;
     padding: 12px 12px 16px;
@@ -799,7 +808,6 @@ select {
   /* 使用者要的順序：大圖 → 控制面板 → 匯出動作（AC6a），同一個節點只換位置 */
   .actions-bar {
     order: 4;
-    margin-top: 0;
     width: auto;
     border-top: 1px solid var(--line);
     padding: 16px 12px;
@@ -823,7 +831,6 @@ select {
   .peek .actions-bar {
     display: none;
     order: 0;
-    margin-top: 0;
     border-top: 0;
     padding: 0;
   }
@@ -850,22 +857,34 @@ select {
     background: #0b0d10f2;
     border-bottom: 0;
     padding: 20px;
+    /*
+     * 圖以外的東西佔掉的高度：動作列（最多三列 48px 按鈕＋兩道 6px）＋關閉鈕 43＋
+     * 兩道 10px 間距＋上下各 20px padding。overlay 是置中且鎖捲動的，圖不照這個
+     * 扣一次就會把關閉鈕擠出視窗。
+     */
+    --overlay-chrome: 259px;
+    /* 圖與第二份動作列共用同一個寬度式，才會左右對齊 */
+    --overlay-w: min(92vw, 68vh, calc(100vh - var(--overlay-chrome)));
   }
 
   body[data-preview='open'] .peek .canvas-wrap {
-    width: min(92vw, 68vh);
+    width: var(--overlay-w);
   }
 
   body[data-preview='open'] .peek .actions-bar {
     display: flex;
-    width: min(92vw, 68vh);
+    width: var(--overlay-w);
   }
 
   /*
    * 橫向手機：overlay 連圖加關閉鈕都快滿了，再加一列按鈕會把內容擠出視窗（AC6c）。
-   * 整頁最下方那份仍在，這裡只是不重複給。
+   * 整頁最下方那份仍在，這裡只是不重複給；沒有動作列，圖能用的高度也跟著放寬。
    */
   @media (max-height: 520px) {
+    body[data-preview='open'] .peek {
+      --overlay-chrome: 103px;
+    }
+
     body[data-preview='open'] .peek .actions-bar {
       display: none;
     }

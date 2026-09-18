@@ -11,13 +11,16 @@
   <body>
     <div class="app">
       <aside class="panel" id="panel"></aside>
-      <main class="stage">
-        <div class="canvas-wrap">
-          <div class="canvas" id="canvas"></div>
-        </div>
-      </main>
-      <!-- 匯出動作：寬版面在圖下方，窄版面排到整頁最下方（同一個節點，靠 order 換位置） -->
-      <div class="actions-bar" id="actions"></div>
+      <!-- 寬版面用這層把圖與動作列綁在一起；窄版面它變成 display: contents，兩者各自吃 order -->
+      <div class="stage-col">
+        <main class="stage">
+          <div class="canvas-wrap">
+            <div class="canvas" id="canvas"></div>
+          </div>
+        </main>
+        <!-- 匯出動作：寬版面在圖下方，窄版面排到整頁最下方（同一個節點，靠 order 換位置） -->
+        <div class="actions-bar" id="actions"></div>
+      </div>
       <!-- 窄版面才出現：捲過大圖之後黏在頂端，點一下放大成 overlay -->
       <div class="peek">
         <div class="canvas-wrap">
