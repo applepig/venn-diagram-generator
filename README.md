@@ -39,7 +39,9 @@ Circle positions are always derived from `arr` / `n` / `overlap` / `radius` — 
                               // omitted means the style default (0.006 for outline, 0 otherwise)
   "stroke": "#ff0000",        // outline colour; omitted means #000000.
                               // Never encoded when the resolved width is 0
-  "opacity": 0.6,             // 0–1, only used by translucent
+  "opacity": 0.6,             // 0–1, only used by translucent: a region is its members'
+                              // colours mixed like paint, then laid over the background
+                              // at this opacity, so circle order never changes a colour
   "overlap": 1.2,             // centre distance / r, 0.6–1.6
   "radius": 0.3,              // circle radius as a fraction of canvas width
                               // (ring 0.2–0.35, row 0.1–0.35)

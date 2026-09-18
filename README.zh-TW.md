@@ -39,7 +39,8 @@ deploy/   Dockerfile、compose.yml、compose.dev.yml、deploy.sh
                               // 缺席＝依樣式取預設（outline 0.006，其餘 0）
   "stroke": "#ff0000",        // 框線顏色；缺席＝#000000。
                               // 解析出的寬度是 0 時一律不寫進編碼
-  "opacity": 0.6,             // 0–1，只有 translucent 用得到
+  "opacity": 0.6,             // 0–1，只有 translucent 用得到：一個區域的顏色是成員色的
+                              // 顏料混色，再整體以這個透明度壓在背景上，與圈序無關
   "overlap": 1.2,             // 圓心距 / r，0.6–1.6
   "radius": 0.3,              // 圓半徑，畫布寬比例（ring 0.2–0.35、row 0.1–0.35）
   "colors": ["#2e9be6", "#e6a92e"],  // 長度必須等於 n

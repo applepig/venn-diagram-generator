@@ -43,7 +43,7 @@ export function escapeXml(s: string): string {
     .replace(/'/g, '&apos;');
 }
 
-// ---------- 平面填色的區域配色 ----------
+// ---------- 逐區塗色的配色 ----------
 
 /** state.colors 短於圈數時的備援色（正常流程不會發生，codec 會擋下來） */
 const FALLBACK_COLOR = '#888888';
@@ -107,22 +107,44 @@ export function mixColors(hexes: string[]): string {
   return hslToHex(h, Math.min(1, Math.max(s * 1.7, 0.6)) * (1 - 0.15 * depth), l * (0.8 - 0.15 * depth));
 }
 
+/** 前景色以 alpha 壓在背景色上（`fill-opacity` 的合成定義） */
+function over(fg: string, alpha: number, bg: string): string {
+  const [fr, fg_, fb] = hexToRgb(fg);
+  const [br, bg_, bb] = hexToRgb(bg);
+  return rgbToHex(
+    alpha * fr + (1 - alpha) * br,
+    alpha * fg_ + (1 - alpha) * bg_,
+    alpha * fb + (1 - alpha) * bb,
+  );
+}
+
+/** translucent 的顏料本色：成員色的顏料混色，不含 `opacity` 也不含背景，所以與圈序無關 */
+function paintOf(state: VennState, mask: number): string {
+  return mixColors(membersOf(mask).map((i) => state.colors[i] ?? FALLBACK_COLOR));
+}
+
 /**
- * 平面填色：每個區域一條由弧段串成的閉合路徑（見 engine/region-geometry.ts）。
- * 相鄰區域共用同一段弧，但兩邊各自抗鋸齒仍會在接縫透出一絲背景色，
- * 所以補一道同色細描邊把接縫蓋掉。
+ * 逐區塗色（flat 與 translucent 共用）：每個區域一條由弧段串成的閉合路徑
+ * （見 engine/region-geometry.ts）。相鄰區域共用同一段弧，但兩邊各自抗鋸齒仍會在接縫
+ * 透出一絲背景色，所以補一道同色細描邊把接縫蓋掉。
+ *
+ * translucent 的透明度掛在整組上、區域本身填不透明的顏料色，不把 `state.bg` 預先合成進去：
+ * 群組不透明度是「先把群組畫平再整體壓 alpha」，壓在 `bg` 上的結果與 `regionColor()` 相同，
+ * 而 `background: false` 疊到 og 底圖時底圖才透得出來（預先合成會變成一塊 `bg` 的實心剪影）。
+ * 接縫描邊在群組內仍是 alpha 1，不會像逐區帶 alpha 那樣在接縫處疊成深色。
  */
-function flatRegions(state: VennState, circles: Circle[], size: number): string {
+function paintedRegions(state: VennState, circles: Circle[], size: number): string {
   // 輸出永遠是 1 使用者單位 = 1 像素，所以描邊寬度用固定值（跨 size 一致地蓋掉 1px 級的接縫）
   const seam_w = 1.5;
+  const is_translucent = state.style === 'translucent';
   let body = '';
   for (const [mask, d] of regionPaths(circles, size)) {
-    const color = regionColor(state, mask);
+    const color = is_translucent ? paintOf(state, mask) : regionColor(state, mask);
     body +=
       `<path d="${d}" fill-rule="evenodd" fill="${escapeXml(color)}" ` +
       `stroke="${escapeXml(color)}" stroke-width="${seam_w}"/>`;
   }
-  return body;
+  return is_translucent ? `<g opacity="${state.opacity}">${body}</g>` : body;
 }
 
 // ---------- 亮度與區域代表色 ----------
@@ -146,9 +168,10 @@ function membersOf(mask: number): number[] {
 }
 
 /**
- * 一個區域在目前樣式下實際看到的顏色：
- * flat 是 `fill` override 或自動混色、translucent 是背景與成員色依圈序 source-over 疊出來的、
- * outline 沒有填色所以是背景色；單圈區一律取該圈的顏色，與面板上的顏色控制項一致。
+ * 一個區域在目前樣式下實際看到的顏色，也就是 SVG 真的塗上去的那個值：
+ * flat 是 `fill` override 或自動混色、translucent 是同一支混色再整體壓一次 `opacity`
+ * （所以與圈序無關，而單圈區 `mixColors([c]) === c`，等於改版前疊圓的結果）、
+ * outline 沒有填色所以交集區是背景色——單圈區仍取該圈的顏色，與面板上的顏色控制項一致。
  */
 export function regionColor(state: VennState, mask: number): string {
   const members = membersOf(mask);
@@ -157,18 +180,9 @@ export function regionColor(state: VennState, mask: number): string {
   if (state.style === 'flat') {
     return state.texts[String(mask)]?.fill ?? mixColors(members.map(colorOf));
   }
+  if (state.style === 'translucent') return over(paintOf(state, mask), state.opacity, state.bg);
   if (members.length === 1) return colorOf(members[0]!);
-  if (state.style === 'outline') return state.bg;
-
-  let [r, g, b] = hexToRgb(state.bg);
-  for (const i of members) {
-    const [sr, sg, sb] = hexToRgb(colorOf(i));
-    const a = state.opacity;
-    r = a * sr + (1 - a) * r;
-    g = a * sg + (1 - a) * g;
-    b = a * sb + (1 - a) * b;
-  }
-  return rgbToHex(r, g, b);
+  return state.bg;
 }
 
 // ---------- 浮水印 ----------
@@ -292,19 +306,7 @@ export function renderSvg(state: VennState, opts: RenderOptions = {}): string {
   let body = '';
 
   // outline 沒有填色層，它的圓就只有下面那圈框線
-  if (state.style === 'flat') {
-    body += flatRegions(state, circles, size);
-  } else if (!is_outline) {
-    body +=
-      `<g style="isolation:isolate">` +
-      circles
-        .map(
-          (c, i) =>
-            `<circle cx="${c.x * size}" cy="${c.y * size}" r="${c.r * size}" fill="${escapeXml(state.colors[i] ?? '#888888')}" fill-opacity="${state.opacity}"/>`,
-        )
-        .join('') +
-      `</g>`;
-  }
+  if (!is_outline) body += paintedRegions(state, circles, size);
 
   // 全樣式共用的框線（15 AC3）：畫在填色之上、文字之下；寬度缺席時依樣式取預設
   const stroke_width = strokeOf(state);
