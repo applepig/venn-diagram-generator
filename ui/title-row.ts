@@ -2,10 +2,11 @@ import { MAX_TEXT_LEN } from '../engine/defaults';
 import { SWATCH_COLORS } from '../content/palette';
 import { layoutTitle } from '../engine/layout';
 import { titleColor } from '../engine/render-svg';
+import { maxTitleFs } from '../engine/title';
 import type { VennState } from '../engine/types';
 import { ts } from './i18n';
 import { createColorControl } from './color-control';
-import { FS_MAX, FS_MIN, createFsField, fsToPx, pxToFs } from './fs-field';
+import { createFsField, fsBoundsPx, fsToPx, pxToFs } from './fs-field';
 
 export interface TitleRowHandlers {
   onPatch: (patch: Partial<VennState>) => void;
@@ -94,8 +95,9 @@ export function createTitleRow(handlers: TitleRowHandlers): TitleRow {
         fs_field.update({
           px: fsToPx(block.fs, size, 1),
           manual: state.title_fs !== undefined,
-          min_px: fsToPx(FS_MIN, size, 1),
-          max_px: fsToPx(FS_MAX, size, 1),
+          // 上下限都問 engine：band 長到頭之後標題就不會再變大，欄位上限寫死 FS_MAX
+          // 會留一段按了不動的行程，那正是這次要修掉的「按＋沒反應」
+          ...fsBoundsPx(maxTitleFs(state), size, 1),
         });
       }
 
