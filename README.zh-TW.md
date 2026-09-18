@@ -60,7 +60,7 @@ deploy/   Dockerfile、compose.yml、compose.dev.yml、deploy.sh
 
 `radius` 配上大的 `overlap` 會讓圓超出畫布，`ring(5)`／`ring(6)` 與 row 最容易遇到。超界時整個圖區（圓、所有區域文字，以及已經套過的標題變換）以畫布中心為錨點等比縮小並平移回畫布內，還留一個框線半寬（且不少於 0.3% 畫布寬）的邊距讓描邊不被切。它只縮不放：本來就在畫布內的幾何輸出一個位元都不變。排版仍在未變換的幾何上算，所以有哪些槽、文字落在哪都不受影響——內縮是最後才疊在標題變換之上的。
 
-每個形狀有哪些文字槽，是從它的預設幾何推出來的（區域有內接框才給槽）：2 圈 3 個、3 圈 7 個、4 圈的 2×2 花瓣 13 個（4 單圈＋4 相鄰雙圈＋4 三重＋中央四重；對角雙圈在預設重疊度下沒有區域，不給槽）。5／6 圈與 row 預設只給單圈標籤。形狀下拉選單只列 row(3)、row(4)、ring(5)、ring(6)；row(5)／row(6) 仍然解得開，舊連結照樣能用，載入到它們時選單會臨時多出目前這一項。
+每個形狀有哪些文字槽，是從它的預設幾何推出來的（區域有內接框才給槽）：2 圈 3 個、3 圈環狀 7 個、4 圈的 2×2 花瓣 13 個（4 單圈＋4 相鄰雙圈＋4 三重＋中央四重；對角雙圈在預設重疊度下沒有區域，不給槽）。row 是一條鏈不是一個環，只有相鄰的圓會相交，所以 `row(3)` 是 5 個而不是 7 個——`ring(2)` 與 `ring(3)` 是僅有的兩個「每種組合都有槽」的組合。5／6 圈與 row 預設只給單圈標籤。形狀下拉選單只列 row(3)、row(4)、ring(5)、ring(6)；row(5)／row(6) 仍然解得開，舊連結照樣能用，載入到它們時選單會臨時多出目前這一項。
 
 沒帶 `s` 時編輯器從空白開始：每個形狀仍有一組預設 template（依當前介面語言），但它只當 placeholder：輸入框裡一份，畫布預覽上也用淡色畫一份（`renderSvg` 的 `ghosts` 選項，只有編輯器畫布會傳）。它不寫進 state——不必先清掉範例才能寫自己的字，下載、`/api/png` 與 og:image 也都不會有這些字。還沒打字時切形狀會順帶換成該 template 的樣式；打過字之後文字與樣式都不動。首頁的 og:image 仍然渲染 2 圈 template，社群卡片不會是一張空圖。
 
@@ -75,6 +75,8 @@ deploy/   Dockerfile、compose.yml、compose.dev.yml、deploy.sh
 `GET /api/og.png?v=<n>&s=<state>&lang=<zh-TW|en|ja>` 是社群預覽用的 1200 × 630 橫幅：品牌底圖加上文氏圖內容。缺 `s` 時輸出首頁預設範例；`lang` 只從 query 讀（不看 `Accept-Language`），否則固定 URL 會被第一個爬蟲的語言污染。`v` 是合成版型的 cache 版號，底圖或版型改版時 bump。無效 `s` 回 400 JSON 並帶 `Cache-Control: no-store`。
 
 首頁的 og:image 是 build 時預烤的靜態檔（`pnpm build` 產出 `dist/og-default-<hash>.png`）；分享頁的 `og:image` 則指向帶自己 `s` 的 `/api/og.png`。
+
+`GET /llms.txt` 是本節寫給 agent 的濃縮版——給逛到網站、而不是逛到 repo 的那一種：端點寫成絕對網址、state 的必填欄位、`texts` 的 bitmask key 慣例，以及 CLI 與 plugin 的一行指令。origin 和 `robots.txt` 同一套推導邏輯，所以 fork 出去會是自己的 hostname。API 契約一改，這裡要跟著改。
 
 ```bash
 # 用 Node 產一個 state，或直接從編輯器複製連結

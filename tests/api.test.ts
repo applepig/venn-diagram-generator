@@ -9,7 +9,8 @@ import { decodeState, encodeState } from '../engine/state-codec-node';
 import { encodeBase64Url } from '../engine/state-codec';
 import { MAX_STATE_PARAM_LEN } from '../engine/defaults';
 import { defaultState, sampleState } from '../content/state-presets';
-import type { VennState } from '../engine/types';
+import { slotMasks } from '../engine/layout';
+import type { Arrangement, CircleCount, VennState } from '../engine/types';
 import { t } from '../content/locale';
 import { FONT_FILES } from './helpers/font';
 import { decodePng, meanRgb, pngPixel, pngSize } from './helpers/png';
@@ -560,6 +561,44 @@ describe('AC13 SEO：canonical、robots、structured data', () => {
     expect(res.headers.get('content-type')).toContain('text/plain');
     expect(body).toContain(`Sitemap: ${ORIGIN}/sitemap.xml`);
     expect(body).not.toContain('Disallow');
+  });
+
+  /**
+   * llms.txt 是給 agent 照抄的操作說明：端點寫成絕對網址才貼得動，
+   * 而 texts 的 key 是 bitmask 這件事沒講就一定寫錯，所以兩者都守住。
+   */
+  it('llms.txt 用絕對網址教 API，並講明 texts 的 key 是 bitmask', async () => {
+    const res = await get('/llms.txt');
+    const body = await res.text();
+
+    expect(res.status).toBe(200);
+    expect(res.headers.get('content-type')).toContain('text/plain');
+    expect(body).toContain(`${ORIGIN}/api/png`);
+    expect(body).toContain('bitmask');
+  });
+
+  /**
+   * 合法槽表是 llms.txt 最容易寫錯的一段：槽數依「排列 × 圈數」而定，
+   * row(3) 的兩端不相鄰（沒有 5 與 7），照 ring(3) 寫成 1-7 的 agent 會直接吃 400。
+   * 表由 slotMasks() 現算，這條測試守的是「現算的那份真的整份寫進去了」。
+   */
+  it('llms.txt 的合法槽表逐排列列出，row(3) 不含 ring(3) 才有的 5 與 7', async () => {
+    const body = await (await get('/llms.txt')).text();
+    const line_of = (arr: Arrangement, n: CircleCount) =>
+      body.match(new RegExp(`^${arr}\\(${n}\\)\\s+(.+)$`, 'm'))![1]!.trim().split(' ');
+
+    for (const [arr, n] of [
+      ['ring', 2],
+      ['ring', 3],
+      ['ring', 4],
+      ['row', 3],
+      ['row', 6],
+    ] as const) {
+      expect(line_of(arr, n)).toEqual(slotMasks(arr, n).map(String));
+    }
+    // row(3) 是 `1 2 4 3 6`：兩端的圓不相鄰，沒有 5（A∩C），也沒有 7（A∩B∩C）
+    expect(line_of('row', 3)).not.toContain('5');
+    expect(line_of('row', 3)).not.toContain('7');
   });
 
   it('sitemap.xml 只收首頁', async () => {
