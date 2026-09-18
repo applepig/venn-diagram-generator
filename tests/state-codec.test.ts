@@ -480,6 +480,9 @@ describe('decodeState：解壓輸出上限（AC1）', () => {
         title,
         // 標題帶字色才是真的最壞：它只在有標題時進編碼
         title_fill: '#a1b2c3',
+        // 框線的兩個欄位同理：非預設值才留得住，留得住才佔得到位元組
+        stroke_w: 0.0123,
+        stroke: '#a1b2c4',
       };
     }
 
