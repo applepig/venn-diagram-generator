@@ -78,6 +78,8 @@ The trade-off is caching. `GET /api/png?s=` is content-addressed and served `imm
 
 The home page ships a pre-baked static OG image (`pnpm build` writes `dist/og-default-<hash>.png`); share pages point `og:image` at `/api/og.png` with their own `s`.
 
+`GET /llms.txt` is this section boiled down for an agent that arrives at the site instead of the repo — the endpoints as absolute URLs, the required state fields, the bitmask key convention, and the CLI and plugin one-liners. It is generated from the same origin logic as `robots.txt`, so a fork serves its own hostname. Change the API contract and it changes here too.
+
 ```bash
 # Build a state with Node, or just copy a link out of the editor
 S=$(pnpm exec tsx -e "

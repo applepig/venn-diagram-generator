@@ -562,6 +562,20 @@ describe('AC13 SEO：canonical、robots、structured data', () => {
     expect(body).not.toContain('Disallow');
   });
 
+  /**
+   * llms.txt 是給 agent 照抄的操作說明：端點寫成絕對網址才貼得動，
+   * 而 texts 的 key 是 bitmask 這件事沒講就一定寫錯，所以兩者都守住。
+   */
+  it('llms.txt 用絕對網址教 API，並講明 texts 的 key 是 bitmask', async () => {
+    const res = await get('/llms.txt');
+    const body = await res.text();
+
+    expect(res.status).toBe(200);
+    expect(res.headers.get('content-type')).toContain('text/plain');
+    expect(body).toContain(`${ORIGIN}/api/png`);
+    expect(body).toContain('bitmask');
+  });
+
   it('sitemap.xml 只收首頁', async () => {
     const res = await get('/sitemap.xml');
     const body = await res.text();

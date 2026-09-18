@@ -76,6 +76,8 @@ deploy/   Dockerfile、compose.yml、compose.dev.yml、deploy.sh
 
 首頁的 og:image 是 build 時預烤的靜態檔（`pnpm build` 產出 `dist/og-default-<hash>.png`）；分享頁的 `og:image` 則指向帶自己 `s` 的 `/api/og.png`。
 
+`GET /llms.txt` 是本節寫給 agent 的濃縮版——給逛到網站、而不是逛到 repo 的那一種：端點寫成絕對網址、state 的必填欄位、`texts` 的 bitmask key 慣例，以及 CLI 與 plugin 的一行指令。origin 和 `robots.txt` 同一套推導邏輯，所以 fork 出去會是自己的 hostname。API 契約一改，這裡要跟著改。
+
 ```bash
 # 用 Node 產一個 state，或直接從編輯器複製連結
 S=$(pnpm exec tsx -e "

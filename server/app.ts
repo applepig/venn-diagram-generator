@@ -221,6 +221,64 @@ function jsonLd(origin: string, locale: Locale): string {
 }
 
 /**
+ * llms.txt（llmstxt.org）：給會讀網頁的 agent 看的操作說明，不是給人看的行銷頁。
+ * 只寫「怎麼呼叫 API」需要的事實，來源是 README 的 API 與 URL state 兩節——
+ * 契約變動時兩邊一起改，這裡不自成第二份規格。英文寫，理由同 API 錯誤訊息：機器介面。
+ */
+function llmsTxt(origin: string): string {
+  return `# Venn Diagram Generator
+
+> Renders a Venn diagram of 2-6 circles as a PNG and hands back an editable share link. No account, no API key, no rate limit beyond three concurrent renders; the server keeps nothing — the whole diagram lives in the URL.
+
+## Draw one in a single request
+
+POST the diagram as JSON. The response body is the PNG, and the \`x-venn-url\` response header is the editable share link for that same picture. This request works as written:
+
+\`\`\`bash
+curl -sD headers.txt -o venn.png -H 'content-type: application/json' \\
+  --data '{"v":1,"n":2,"style":"translucent","opacity":0.6,"overlap":1,"radius":0.26,
+           "colors":["#4285f4","#ea4335"],"bg":"#fafafa","size":1200,
+           "texts":{"1":{"t":"Coffee"},"2":{"t":"Sleep"},"3":{"t":"Me at 3am"}}}' \\
+  ${origin}/api/png
+grep -i x-venn-url headers.txt
+\`\`\`
+
+## The diagram
+
+There is no partial form: the body is a complete state, and **\`v\`, \`n\`, \`style\`, \`opacity\`, \`overlap\`, \`radius\`, \`colors\`, \`bg\`, \`size\` and \`texts\` must all be present** — a missing one is a 400, not a default. Copy the request above and change what you need.
+
+- \`v\`: must be \`1\`.
+- \`n\`: how many circles. 2-6 for \`ring\`, 3-6 for \`row\`.
+- \`arr\`: \`"ring"\` (default) or \`"row"\`. The only optional structural field.
+- \`texts\`: the words inside each region. **The key is the bitmask of the circles that region belongs to, written as a decimal string** — circle i is bit i, so \`"1"\` is the first circle alone, \`"2"\` the second alone, \`"3"\` their overlap, \`"7"\` the centre of three. The value is \`{"t": "words"}\`, optionally with \`"fs"\` (font size as a fraction of canvas width) and \`"fill"\` (\`#rrggbb\`, \`flat\` style only). 80 characters per region, \`\\n\` breaks a line. \`{}\` is a legal empty diagram.
+- \`style\`: \`"translucent"\`, \`"flat"\` or \`"outline"\`.
+- \`colors\`: one \`#rrggbb\` per circle; the array length must equal \`n\` exactly. \`bg\`: background colour.
+- \`opacity\`: 0-1, only \`translucent\` uses it, still required. \`overlap\`: 0.6-1.6, centre distance over radius. \`radius\`: fraction of the canvas, 0.2-0.35 for a ring, 0.1-0.35 for a row.
+- \`size\`: output pixels, an integer 400-2000. Output is always square.
+- Optional: \`title\` (drawn in a band above the diagram) with \`title_fill\` and \`title_fs\`; \`stroke_width\` 0-0.03 and \`stroke\` \`#rrggbb\`.
+
+Not every overlap exists, and addressing one that does not is an error rather than a silent omission. Four circles in a ring means the first and fourth never touch, so \`"9"\` gets you \`400 {"error":"text slot 9 does not exist in ring(4)"}\`. Two circles have slots 1, 2, 3; three circles have 1-7; a four-circle ring has the four singles, the four adjacent pairs, the four triples and the centre.
+
+## Fetching one that already exists
+
+\`GET ${origin}/api/png?s=<state>\` returns the same PNG. \`s\` is \`base64url(deflate-raw(<the JSON above>))\` — the same string the editor puts in a share link, and the one inside \`x-venn-url\`. It is content-addressed and answered \`Cache-Control: public, max-age=31536000, immutable\`, so use it for anything fetched more than once; POST is \`no-store\` and re-rasterizes every time. Use POST to produce a diagram, then pass around the \`s\` it hands back.
+
+## Errors
+
+Always JSON, always English, never localized: \`{"error": "..."}\`. A missing, undecodable or invalid state is 400; a request body over 32 KB is 413. An \`s\` longer than 7300 characters is rejected so the share link stays a usable URL.
+
+Three renders run at a time. Over that, the answer is \`503 {"error":"renderer is busy, retry later"}\` with \`Retry-After: 2\` — a queue signal, not a failure. Wait and resend the same request; if you are producing a batch, keep three in flight rather than firing them all at once.
+
+## Off the web
+
+- CLI, no server needed: \`npx -y venn-diagram-generator@1 png --set A=Fast --set B=Cheap --set C=Good --text ABC="Pick two" -o out.png\`. It takes letters instead of bitmasks (\`AB\` is the first two circles overlapping) and fills in every field you leave out, so it is the shorter road when you do not want to spell out a whole state. It takes the spec on stdin with \`--json -\` — the only sane way to pass CJK text, apostrophes and newlines through a shell — and prints the share URL next to the file it wrote. \`decode <url>\` turns an existing link back into JSON.
+- Claude Code plugin: \`/plugin marketplace add applepig/venn-diagram-generator\` then \`/plugin install venn@venn-diagram-generator\`.
+- Source and full documentation: https://github.com/applepig/venn-diagram-generator
+- Editor: ${origin}/
+`;
+}
+
+/**
  * build 後處理烤好的首頁 OG 圖檔名（`og-default-<contenthash>.png`）。
  * 檔名帶 hash，改圖就換 URL，Facebook 那邊自動失效；找不到就退回動態的 /api/og.png。
  * dev 走 middlewareMode 沒有 dist，也是走這條 fallback。
@@ -460,6 +518,12 @@ export function createApp(opts: AppOptions): Hono {
     const origin = originOf(c, opts.publicOrigin);
     // 不 Disallow ?s=：那會連 og 卡片的爬蟲一起擋掉，索引交給頁面自己的 robots meta
     const body = `User-agent: *\nAllow: /\n\nSitemap: ${origin}/sitemap.xml\n`;
+    return c.body(body, 200, { 'content-type': 'text/plain; charset=utf-8' });
+  });
+
+  app.get('/llms.txt', (c) => {
+    const body = llmsTxt(originOf(c, opts.publicOrigin));
+    // 內容是 markdown，但 llms.txt 的慣例是當純文字送：瀏覽器直接顯示，agent 照樣讀得懂
     return c.body(body, 200, { 'content-type': 'text/plain; charset=utf-8' });
   });
 
