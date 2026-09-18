@@ -118,22 +118,33 @@ function over(fg: string, alpha: number, bg: string): string {
   );
 }
 
+/** translucent 的顏料本色：成員色的顏料混色，不含 `opacity` 也不含背景，所以與圈序無關 */
+function paintOf(state: VennState, mask: number): string {
+  return mixColors(membersOf(mask).map((i) => state.colors[i] ?? FALLBACK_COLOR));
+}
+
 /**
  * 逐區塗色（flat 與 translucent 共用）：每個區域一條由弧段串成的閉合路徑
  * （見 engine/region-geometry.ts）。相鄰區域共用同一段弧，但兩邊各自抗鋸齒仍會在接縫
  * 透出一絲背景色，所以補一道同色細描邊把接縫蓋掉。
+ *
+ * translucent 的透明度掛在整組上、區域本身填不透明的顏料色，不把 `state.bg` 預先合成進去：
+ * 群組不透明度是「先把群組畫平再整體壓 alpha」，壓在 `bg` 上的結果與 `regionColor()` 相同，
+ * 而 `background: false` 疊到 og 底圖時底圖才透得出來（預先合成會變成一塊 `bg` 的實心剪影）。
+ * 接縫描邊在群組內仍是 alpha 1，不會像逐區帶 alpha 那樣在接縫處疊成深色。
  */
 function paintedRegions(state: VennState, circles: Circle[], size: number): string {
   // 輸出永遠是 1 使用者單位 = 1 像素，所以描邊寬度用固定值（跨 size 一致地蓋掉 1px 級的接縫）
   const seam_w = 1.5;
+  const is_translucent = state.style === 'translucent';
   let body = '';
   for (const [mask, d] of regionPaths(circles, size)) {
-    const color = regionColor(state, mask);
+    const color = is_translucent ? paintOf(state, mask) : regionColor(state, mask);
     body +=
       `<path d="${d}" fill-rule="evenodd" fill="${escapeXml(color)}" ` +
       `stroke="${escapeXml(color)}" stroke-width="${seam_w}"/>`;
   }
-  return body;
+  return is_translucent ? `<g opacity="${state.opacity}">${body}</g>` : body;
 }
 
 // ---------- 亮度與區域代表色 ----------
@@ -169,9 +180,7 @@ export function regionColor(state: VennState, mask: number): string {
   if (state.style === 'flat') {
     return state.texts[String(mask)]?.fill ?? mixColors(members.map(colorOf));
   }
-  if (state.style === 'translucent') {
-    return over(mixColors(members.map(colorOf)), state.opacity, state.bg);
-  }
+  if (state.style === 'translucent') return over(paintOf(state, mask), state.opacity, state.bg);
   if (members.length === 1) return colorOf(members[0]!);
   return state.bg;
 }

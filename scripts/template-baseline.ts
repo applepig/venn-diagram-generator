@@ -134,8 +134,15 @@ REFROZEN['full-flat'] = [
 /** 18 translucent 改用顏料混色：四個 translucent case 會變，flat 與 outline 的不動 */
 const REFROZEN_18 =
   '18 translucent 改用顏料混色：交集色改由 flat 那支 mixColors() 決定、再整體壓一次 opacity（spec 18 AC1，使用者看過四種樣張後選定並同意舊連結的畫面改變），逐圓 source-over 疊色因此退場。單圈區的顏色不變（mixColors([c]) === c），變的是交集區。tpl-2（flat）、tpl-4 與 full-outline（outline）、full-flat 四個 case 一個位元都沒動。';
+/**
+ * 同一個 sprint 的第二次重凍：第一版把區色預先合成到 `state.bg` 上，`background: false`
+ * 疊到 og 底圖時就變成一塊 bg 的實心剪影（PR #6 的 review 抓到）。改成整組掛 `opacity`、
+ * 區域填不透明的顏料色後，壓在 bg 上的顏色不變，但 markup 與抗鋸齒的落點變了。
+ */
+const REFROZEN_18B =
+  '18 translucent 透明度改掛在整組上（<g opacity>），區域填不透明的顏料色，不再把 bg 預先合成進區色——否則 og 合成（background: false）會變成一塊 state.bg 的實心剪影。壓在 bg 上看到的顏色與前一版相同，變的是 markup 與抗鋸齒；四個 translucent case 因此再重凍一次，flat 與 outline 的四個仍逐位元不變。';
 for (const id of ['tpl-3', 'full-translucent', 'overlap-min', 'overlap-max']) {
-  REFROZEN[id] = [...(REFROZEN[id] ?? []), REFROZEN_18];
+  REFROZEN[id] = [...(REFROZEN[id] ?? []), REFROZEN_18, REFROZEN_18B];
 }
 
 /**

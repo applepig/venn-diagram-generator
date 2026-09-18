@@ -39,11 +39,12 @@
       "label": "3 圈 zh template 預設連結",
       "s": "TYrNasJAFIXf5WR7kcwYU3NfpbgY09sSCIlkRvGHLETsrvQFuiq0G8GCuOjG-jKm2LeQEVLkwuF837kLTMCKUIC7BOtmuYDhKlPYfJxK4UAoRybN3AwcdmJCOZEqNyOw6qgeoTIP2dj6TSeEtMzLyoLvEWhJhhKDEEhsEi3XFkb9qI8BYfgERvBo_IFgs7mAlQ5DgpOps-AFlA8Hxvlz2Rw3qAn6Vn0cvOr-q93ec3Tzcvo5Nts3b3ut_Xu-ctzy7_rd813Lp--X5vXrvDqgrusL",
       "refrozen": [
-        "18 translucent 改用顏料混色：交集色改由 flat 那支 mixColors() 決定、再整體壓一次 opacity（spec 18 AC1，使用者看過四種樣張後選定並同意舊連結的畫面改變），逐圓 source-over 疊色因此退場。單圈區的顏色不變（mixColors([c]) === c），變的是交集區。tpl-2（flat）、tpl-4 與 full-outline（outline）、full-flat 四個 case 一個位元都沒動。"
+        "18 translucent 改用顏料混色：交集色改由 flat 那支 mixColors() 決定、再整體壓一次 opacity（spec 18 AC1，使用者看過四種樣張後選定並同意舊連結的畫面改變），逐圓 source-over 疊色因此退場。單圈區的顏色不變（mixColors([c]) === c），變的是交集區。tpl-2（flat）、tpl-4 與 full-outline（outline）、full-flat 四個 case 一個位元都沒動。",
+        "18 translucent 透明度改掛在整組上（<g opacity>），區域填不透明的顏料色，不再把 bg 預先合成進區色——否則 og 合成（background: false）會變成一塊 state.bg 的實心剪影。壓在 bg 上看到的顏色與前一版相同，變的是 markup 與抗鋸齒；四個 translucent case 因此再重凍一次，flat 與 outline 的四個仍逐位元不變。"
       ],
-      "svg_sha256": "b22c239080997c42d88308c1a7f721b7a15fd5fabc30a8074e76a0e04ad8bbd7",
-      "png_sha256": "c5dcfe433adf29e28988aa605f70169beedbdf9c877ed052e1f7cc1c111d7c8f",
-      "og_png_sha256": "3528be6222ba840c060b5a4754732099cc2069e422af03402bc70cfd387ff6ef"
+      "svg_sha256": "6f6874bee09bd46c5b4dc58dd92cf66e71d5c9ffcea778df7684f4f30cb3dd61",
+      "png_sha256": "e2b9e950fdb0b6b65c2a2edc3770edf2a399218906703f2d3034f94d22a8d8cb",
+      "og_png_sha256": "75a614cada7ddaf714948ebb712d0e236a23f4a43ae25d31ab22f0ecee7c7a80"
     },
     {
       "id": "tpl-4",
@@ -61,11 +62,12 @@
       "s": "XVBLTsMwEL3Ly3aE7PwwvkrFwk1tFMlKqsStKJUXFeIGbHqDrlmV-4AQt0AOTePUI1nzxvPem_EeW0hOaCBzQu92VkPCdarp7abSjQOhXauqdjtIdpcXhHarO6vWAQpCp1b1pg8gywhVa9uuh1wg4WmWFyUIiVpWK21CxpgxQoTMGMbKEo-E5RMkEq64SjUIff2iIXnKGMHpZ9dD7sHD5SDx8_4BT0hH_PV5BMEM_uzBE7Ko8_JYWxsczHACO7-yz8eAi5hzjgQLT7ifC14oYpI4BMxZNFGoTb6chRia-K3WYfLKQkMaTTYqZ_PpxnI-M7zxFKKq_nfl1-W-306_r6fJMI-_RgjG4L3_Aw",
       "refrozen": [
         "10 移除文字位移 dx/dy：本 case 的 texts 帶過位移，重產後雜湊改變。三個 tpl-* 不帶位移，s 與三個雜湊一字未變。",
-        "18 translucent 改用顏料混色：交集色改由 flat 那支 mixColors() 決定、再整體壓一次 opacity（spec 18 AC1，使用者看過四種樣張後選定並同意舊連結的畫面改變），逐圓 source-over 疊色因此退場。單圈區的顏色不變（mixColors([c]) === c），變的是交集區。tpl-2（flat）、tpl-4 與 full-outline（outline）、full-flat 四個 case 一個位元都沒動。"
+        "18 translucent 改用顏料混色：交集色改由 flat 那支 mixColors() 決定、再整體壓一次 opacity（spec 18 AC1，使用者看過四種樣張後選定並同意舊連結的畫面改變），逐圓 source-over 疊色因此退場。單圈區的顏色不變（mixColors([c]) === c），變的是交集區。tpl-2（flat）、tpl-4 與 full-outline（outline）、full-flat 四個 case 一個位元都沒動。",
+        "18 translucent 透明度改掛在整組上（<g opacity>），區域填不透明的顏料色，不再把 bg 預先合成進區色——否則 og 合成（background: false）會變成一塊 state.bg 的實心剪影。壓在 bg 上看到的顏色與前一版相同，變的是 markup 與抗鋸齒；四個 translucent case 因此再重凍一次，flat 與 outline 的四個仍逐位元不變。"
       ],
-      "svg_sha256": "ec202b1b3bf0dd7a9e075edf69ca92a6f86a65e903baf4ec9385431851b888ff",
-      "png_sha256": "28ab1a410759092fd8cd4c97bd46103fdef507167b56b3df7a9c74182f3883b4",
-      "og_png_sha256": "98f5720aadec0e2cba0f22fe9deb324fcdbba4ce1e80ee5784dcdec7e4ade2e6"
+      "svg_sha256": "c6175578e16017fd33593bf53a0dd047d34e2af219b70f06b207836f8be79808",
+      "png_sha256": "ee5864e4bfa8b34248bbacf59a52f6665a5cad899de4a2498c174abbc9fa3674",
+      "og_png_sha256": "32c12c70e08753923f25d8172d0050803cc992cea7d3ec9a4e12c932b71f36d9"
     },
     {
       "id": "full-flat",
@@ -99,11 +101,12 @@
       "s": "XVBBTsMwEPzL5LpCdpwE469UHFI3RpGspErcilL5UCF-wKU_6JlT-Q8I8QvkkDRuvZK1s96Z2fUeWyhOaKAyQu92toKC68qmtxtdNQ6Edl3q2u2g2F1BaLdVZ8v1iLpyVW_6AIQg6Na2XQ-1QMJTkeUFCEm51KvKhIwxY6QMmTGMFQUeCcsnKCSmDAFCX79UUDxljOCqZ9dD7cHD5aDw8_4BT0gn_PV5BMEM_uzBE0TUOT7W1g4Owwns7MI-HwPOY845Esw94f5acKTIWeIQMGfRRKE2-3IWYmjit1qH2UuEhjSabFIW19NN5ezK8MZTSq3_d-WX5b7fTr-vp9kwi79GSsbgvf8D",
       "refrozen": [
         "10 移除文字位移 dx/dy：本 case 的 texts 帶過位移，重產後雜湊改變。三個 tpl-* 不帶位移，s 與三個雜湊一字未變。",
-        "18 translucent 改用顏料混色：交集色改由 flat 那支 mixColors() 決定、再整體壓一次 opacity（spec 18 AC1，使用者看過四種樣張後選定並同意舊連結的畫面改變），逐圓 source-over 疊色因此退場。單圈區的顏色不變（mixColors([c]) === c），變的是交集區。tpl-2（flat）、tpl-4 與 full-outline（outline）、full-flat 四個 case 一個位元都沒動。"
+        "18 translucent 改用顏料混色：交集色改由 flat 那支 mixColors() 決定、再整體壓一次 opacity（spec 18 AC1，使用者看過四種樣張後選定並同意舊連結的畫面改變），逐圓 source-over 疊色因此退場。單圈區的顏色不變（mixColors([c]) === c），變的是交集區。tpl-2（flat）、tpl-4 與 full-outline（outline）、full-flat 四個 case 一個位元都沒動。",
+        "18 translucent 透明度改掛在整組上（<g opacity>），區域填不透明的顏料色，不再把 bg 預先合成進區色——否則 og 合成（background: false）會變成一塊 state.bg 的實心剪影。壓在 bg 上看到的顏色與前一版相同，變的是 markup 與抗鋸齒；四個 translucent case 因此再重凍一次，flat 與 outline 的四個仍逐位元不變。"
       ],
-      "svg_sha256": "8f7cf3e3836b5c6667035bdb8df16c3b7be079ce75bb3555bfc59fbdfafa9b15",
-      "png_sha256": "e8bdc1bcc422d1e995b9ba4b381a01a100ba5da0844ff372ea5be613ef53af88",
-      "og_png_sha256": "d073e388a75961650309db422153cd594ebe61d7dc0ce115904bd4d299960539"
+      "svg_sha256": "94200622ac9e0584e499d6a69aefa9b73116bf8ba7dc70c0f0b4e455e6d598c4",
+      "png_sha256": "9e9c4731f802531601b4b506c9533a92daad0a5bf4ca66e60e4452f230cb7194",
+      "og_png_sha256": "0095fa962e549b5e55033bc4fb29d0c35d63039b5176ce8946637ce383ba0335"
     },
     {
       "id": "overlap-max",
@@ -113,11 +116,12 @@
       "refrozen": [
         "09 fit：這張圖的四個角本來被畫布切掉，正是該 sprint 要修的行為（spec 09 AC2 的唯一例外）。fit 參數 scale=0.8367、tx=ty=0.08165；其餘 7 個 case 一個位元都沒動。",
         "10 移除文字位移 dx/dy：本 case 的 texts 帶過位移，重產後雜湊改變。三個 tpl-* 不帶位移，s 與三個雜湊一字未變。",
-        "18 translucent 改用顏料混色：交集色改由 flat 那支 mixColors() 決定、再整體壓一次 opacity（spec 18 AC1，使用者看過四種樣張後選定並同意舊連結的畫面改變），逐圓 source-over 疊色因此退場。單圈區的顏色不變（mixColors([c]) === c），變的是交集區。tpl-2（flat）、tpl-4 與 full-outline（outline）、full-flat 四個 case 一個位元都沒動。"
+        "18 translucent 改用顏料混色：交集色改由 flat 那支 mixColors() 決定、再整體壓一次 opacity（spec 18 AC1，使用者看過四種樣張後選定並同意舊連結的畫面改變），逐圓 source-over 疊色因此退場。單圈區的顏色不變（mixColors([c]) === c），變的是交集區。tpl-2（flat）、tpl-4 與 full-outline（outline）、full-flat 四個 case 一個位元都沒動。",
+        "18 translucent 透明度改掛在整組上（<g opacity>），區域填不透明的顏料色，不再把 bg 預先合成進區色——否則 og 合成（background: false）會變成一塊 state.bg 的實心剪影。壓在 bg 上看到的顏色與前一版相同，變的是 markup 與抗鋸齒；四個 translucent case 因此再重凍一次，flat 與 outline 的四個仍逐位元不變。"
       ],
-      "svg_sha256": "6bc7cf58209484a66d82c8ae6b5f78ed061b3194edea5ddcc09b5c499e182f7a",
-      "png_sha256": "6432d1fa76cceac5471500d2d1f3e0dabb6c86542189e18938d440206ee17dad",
-      "og_png_sha256": "12541e09fc6cd11f18c1cf954cbd9bf09dd62f3c1534854503e49d2115e35d87"
+      "svg_sha256": "a91fa0f391924e7738308a250e0a6fd8a1ce9a4bd41b7469eab6400b3461c59e",
+      "png_sha256": "3ec9c217fbf5883206b7527fa350aa8d3c13672ce1f1b86e15879d4c3501c264",
+      "og_png_sha256": "d5fa51310dbb6bc56e053053fb0fd74040db47d2707381ad4bee4327530c3ed3"
     }
   ]
 }

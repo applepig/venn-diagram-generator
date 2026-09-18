@@ -3,7 +3,8 @@ import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { renderOgPng } from '../server/render-og';
 import { sampleState } from '../content/state-presets';
-import { TITLE_BAND_H } from '../engine/title';
+import { maskAt } from '../engine/layout';
+import { TITLE_BAND_H, circlesForRender } from '../engine/title';
 import type { VennState } from '../engine/types';
 import { FONT_FILES } from './helpers/font';
 import { decodePng, meanRgb, pngPixel } from './helpers/png';
@@ -94,6 +95,71 @@ describe('renderOgPng：AC4 標題壓在底圖上要看得見', () => {
     '沒有標題時標題帶內沒有暗像素（上一條的暗像素確實來自標題）',
     async () => {
       expect(await darkestInBand(sampleState(2))).toBeGreaterThan(200);
+    },
+    RENDER_TIMEOUT,
+  );
+});
+
+/**
+ * 18：translucent 疊到 og 底圖上時，底圖必須透得出來。
+ * 區域色若已經把 `state.bg` 合成進去，關掉背景也還是一塊 `state.bg` 的實心剪影——
+ * 深色 bg 的圖在 og 上會整塊變黑。
+ */
+describe('renderOgPng：18 translucent 疊在底圖上仍是半透明', () => {
+  const RENDER_TIMEOUT = 30_000;
+
+  function translucentState(bg: string): VennState {
+    return { ...sampleState(3), style: 'translucent', bg };
+  }
+
+  /** 圖表區的版面常數（server/render-og.ts）：單位座標 → og 像素 */
+  const toOg = (u: number, axis: 'x' | 'y') =>
+    Math.round((axis === 'x' ? 645 : 68) + u * 494);
+
+  it(
+    '背景關掉後 state.bg 不再影響輸出（沒有被烘進區域色）',
+    async () => {
+      const [dark, light] = await Promise.all(
+        ['#000000', '#ffffff'].map((bg) =>
+          renderOgPng(translucentState(bg), FONT_FILES, OG_BASE, { dither: false }),
+        ),
+      );
+
+      expect(Buffer.from(dark!).equals(Buffer.from(light!))).toBe(true);
+    },
+    RENDER_TIMEOUT,
+  );
+
+  it(
+    '單圈區是圈色以 opacity 壓在底圖那一點上，底圖顏色仍看得到',
+    async () => {
+      const state = translucentState('#000000');
+      const output = decodePng(
+        Buffer.from(await renderOgPng(state, FONT_FILES, OG_BASE, { dither: false })),
+      );
+      const base = decodePng(OG_BASE);
+      const circles = circlesForRender(state);
+
+      circles.forEach((c, i) => {
+        // 只落在第 i 圈的取樣點：從圓心往離其他圓最遠的方向推到 0.8r
+        const away = Math.atan2(c.y - 0.5, c.x - 0.5);
+        const ux = c.x + 0.8 * c.r * Math.cos(away);
+        const uy = c.y + 0.8 * c.r * Math.sin(away);
+        expect(maskAt(circles, ux, uy), `取樣點只該落在第 ${i} 圈`).toBe(1 << i);
+
+        const x = toOg(ux, 'x');
+        const y = toOg(uy, 'y');
+        const [br, bg_, bb] = pngPixel(base, x, y);
+        const paint = [1, 3, 5].map((k) => parseInt(state.colors[i]!.slice(k, k + 2), 16));
+        const expected = paint.map((v, ch) =>
+          Math.round(state.opacity * v + (1 - state.opacity) * [br, bg_, bb][ch]!),
+        );
+
+        const actual = pngPixel(output, x, y).slice(0, 3);
+        actual.forEach((v, ch) => {
+          expect(Math.abs(v - expected[ch]!), `第 ${i} 圈的通道 ${ch}`).toBeLessThanOrEqual(2);
+        });
+      });
     },
     RENDER_TIMEOUT,
   );

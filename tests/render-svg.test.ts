@@ -2,7 +2,6 @@ import { Resvg } from '@resvg/resvg-js';
 import { describe, expect, it } from 'vitest';
 import { mixColors, regionColor, relativeLuminance, renderSvg } from '../engine/render-svg';
 import { layout, maskAt } from '../engine/layout';
-import { regionPaths } from '../engine/region-geometry';
 import { circlesForRender } from '../engine/title';
 import { circlesFor, circlesForState } from '../engine/shapes/index';
 import { nextStateForShape } from '../content/next-state';
@@ -40,6 +39,48 @@ function renderPng(svg: string) {
   })
     .render()
     .asPng();
+}
+
+function hexRgb(hex: string): [number, number, number] {
+  return [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16)) as [number, number, number];
+}
+
+/**
+ * 每個區域「畫出來」是什麼顏色：點陣化後，在每一區離所有圓周最遠的那個點取樣。
+ * 從像素驗而不是讀 SVG 屬性，填色寫在 path 上還是掛在群組不透明度上都測得到同一件事。
+ */
+function renderedRegionColors(state: VennState): Map<number, [number, number, number]> {
+  const size = state.size;
+  const circles = circlesForRender(state);
+  const png = decodePng(Buffer.from(renderPng(renderSvg(state))));
+
+  const best = new Map<number, { margin: number; x: number; y: number }>();
+  for (let x = 0; x < size; x += 2) {
+    for (let y = 0; y < size; y += 2) {
+      const ux = (x + 0.5) / size;
+      const uy = (y + 0.5) / size;
+      const mask = maskAt(circles, ux, uy);
+      if (mask === 0) continue;
+      const margin = Math.min(...circles.map((c) => Math.abs(Math.hypot(ux - c.x, uy - c.y) - c.r)));
+      const current = best.get(mask);
+      if (!current || margin > current.margin) best.set(mask, { margin, x, y });
+    }
+  }
+
+  const colors = new Map<number, [number, number, number]>();
+  for (const [mask, { margin, x, y }] of best) {
+    if (margin * size < 3) continue; // 太窄的區域取不到不受抗鋸齒影響的點
+    const [r, g, b] = pngPixel(png, x, y);
+    colors.set(mask, [r, g, b]);
+  }
+  return colors;
+}
+
+/** 點陣化的取樣值與預期色比對；±1 容差留給 alpha 合成與我們自己四捨五入的落差 */
+function expectColorNear(actual: [number, number, number], expected_hex: string, label: string) {
+  hexRgb(expected_hex).forEach((v, ch) => {
+    expect(Math.abs(actual[ch]! - v), `${label} 通道 ${ch}`).toBeLessThanOrEqual(1);
+  });
 }
 
 describe('renderSvg：AC2 三種 style 都產出合法 SVG', () => {
@@ -530,32 +571,35 @@ describe('renderSvg：18 translucent 顏料混色', () => {
   }
 
   function translucentState(extra: Partial<VennState> = {}): VennState {
-    return { ...defaultState(3), style: 'translucent', opacity: 0.5, bg: '#102030', ...extra };
-  }
-
-  /** SVG 裡實際畫在該區上的填色：用 `regionPaths()` 的 `d` 反查對應的 `<path>` */
-  function fillOf(state: VennState, mask: number): string {
-    const d = regionPaths(circlesForRender(state), state.size).get(mask)!;
-    const pattern = new RegExp(
-      `<path d="${d.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}"[^>]*fill="(#[0-9a-f]{6})"`,
-    );
-    return pattern.exec(renderSvg(state))![1]!;
+    return {
+      ...defaultState(3),
+      style: 'translucent',
+      opacity: 0.5,
+      bg: '#102030',
+      size: 400,
+      ...extra,
+    };
   }
 
   it('交換圈的顏色後，同一組成員的交集色不變', () => {
     const state = translucentState({ colors: ['#ff0000', '#0000ff', '#00ff00'] });
     const swapped = { ...state, colors: ['#0000ff', '#ff0000', '#00ff00'] };
+    const drawn = renderedRegionColors(state);
+    const drawn_swapped = renderedRegionColors(swapped);
 
-    expect(regionColor(swapped, 3)).toBe(regionColor(state, 3));
-    expect(fillOf(swapped, 3)).toBe(fillOf(state, 3));
-    expect(regionColor(swapped, 7)).toBe(regionColor(state, 7));
+    for (const mask of [3, 7]) {
+      expect(regionColor(swapped, mask), `mask ${mask}`).toBe(regionColor(state, mask));
+      expect(drawn_swapped.get(mask), `mask ${mask} 畫出來的顏色`).toEqual(drawn.get(mask));
+    }
   });
 
   it('每個區域畫出來的顏色都等於 regionColor()（面板色塊與畫布同一個值）', () => {
     const state = translucentState({ colors: ['#ff0000', '#0000ff', '#00ff00'] });
+    const drawn = renderedRegionColors(state);
 
-    for (const mask of regionPaths(circlesForRender(state), state.size).keys()) {
-      expect(fillOf(state, mask), `mask ${mask}`).toBe(regionColor(state, mask));
+    expect(drawn.size).toBe(7); // 前提：三圈七區都取到了樣
+    for (const [mask, color] of drawn) {
+      expectColorNear(color, regionColor(state, mask), `mask ${mask}`);
     }
   });
 
@@ -591,24 +635,25 @@ describe('renderSvg：18 translucent 顏料混色', () => {
 });
 
 describe('renderSvg：style 差異', () => {
-  it('translucent 逐區塗色，outline 用黑框無填色', () => {
-    const state = { ...defaultState(2), style: 'translucent' as const, opacity: 0.6 };
-    const outline = renderSvg({ ...defaultState(2), style: 'outline' });
+  it('translucent 有填色，outline 的區域裡看到的是背景色', () => {
+    const base = { ...defaultState(2), size: 400 };
+    const translucent = { ...base, style: 'translucent' as const, opacity: 0.6 };
+    const outline = { ...base, style: 'outline' as const };
 
-    expect(renderSvg(state)).toContain(`fill="${regionColor(state, 3)}"`);
-    expect(outline).toContain('fill="none"');
-    expect(outline).not.toContain('<path');
+    expectColorNear(renderedRegionColors(translucent).get(3)!, regionColor(translucent, 3), '交集區');
+    expectColorNear(renderedRegionColors(outline).get(3)!, base.bg, 'outline 的交集區');
+    expect(renderSvg(outline)).toContain('fill="none"');
   });
 
   it('opacity 改變會反映在輸出上', () => {
     const at = (opacity: number) => {
-      const state = { ...defaultState(2), style: 'translucent' as const, opacity };
-      const color = regionColor(state, 3);
-      expect(renderSvg(state)).toContain(`fill="${color}"`);
-      return color;
+      const state = { ...defaultState(2), style: 'translucent' as const, opacity, size: 400 };
+      const drawn = renderedRegionColors(state).get(3)!;
+      expectColorNear(drawn, regionColor(state, 3), `opacity ${opacity} 的交集區`);
+      return drawn;
     };
 
-    expect(at(0.3)).not.toBe(at(0.6));
+    expect(at(0.3)).not.toEqual(at(0.6));
   });
 
   it('背景色沿用 state.bg', () => {
@@ -616,11 +661,13 @@ describe('renderSvg：style 差異', () => {
   });
 
   it('每圈顏色沿用 state.colors：單圈區畫的就是該圈的色（壓過 opacity）', () => {
-    const state = { ...defaultState(3), colors: ['#111111', '#222222', '#333333'] };
-    const svg = renderSvg(state);
+    const state = { ...defaultState(3), colors: ['#c01111', '#22b022', '#3333a0'], size: 400 };
+    const drawn = renderedRegionColors(state);
 
-    for (const mask of [1, 2, 4]) expect(svg).toContain(`fill="${regionColor(state, mask)}"`);
-    expect(new Set([1, 2, 4].map((mask) => regionColor(state, mask))).size).toBe(3);
+    for (const mask of [1, 2, 4]) {
+      expectColorNear(drawn.get(mask)!, regionColor(state, mask), `mask ${mask}`);
+    }
+    expect(new Set([1, 2, 4].map((mask) => String(drawn.get(mask)))).size).toBe(3);
   });
 });
 
