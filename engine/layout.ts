@@ -9,11 +9,11 @@ import {
 } from './defaults';
 import { transformBlock } from './fit';
 import { arrOf, circlesFor, circlesForState, shapeDefaults } from './shapes/index';
+import { estimateWidth, hardLines, wrapManualFs, wrapText } from './text-wrap';
 import {
-  TITLE_BAND_MAX,
   circlesForRender,
   diagramTransform,
-  titleBandH,
+  maxTitleFs,
   titleBox,
   titleTextOf,
 } from './title';
@@ -40,133 +40,6 @@ const GROW_STEP = 0.002;
 const BOX_INSET = 0.92;
 // 取樣時「這個點一定配不到這個 mask」的判定緩衝（見 computeRegionBox）
 const SKIP_GUARD = 1e-9;
-
-const CJK_RANGES = '⺀-鿿豈-﫿＀-￯';
-const CJK_RE = new RegExp(`[${CJK_RANGES}]`);
-// token：CJK 逐字可斷、Latin／數字連續段不可拆、空白當分隔
-const TOKEN_RE = new RegExp(`[${CJK_RANGES}]|[^\\s${CJK_RANGES}]+|\\s+`, 'g');
-
-function charWidth(ch: string): number {
-  if (CJK_RE.test(ch)) return 1;
-  if (ch === ' ') return 0.3;
-  return 0.62;
-}
-
-export function estimateWidth(line: string, fs: number): number {
-  let sum = 0;
-  for (const ch of line) sum += charWidth(ch);
-  return sum * fs;
-}
-
-/** 單一 token 本身就比框寬時逐字硬斷，否則不可拆的 Latin 長字會直接溢出框 */
-function breakOversizedToken(token: string, fs: number, max_w: number): string[] {
-  const parts: string[] = [];
-  let cur = '';
-  for (const ch of token) {
-    if (cur && estimateWidth(cur + ch, fs) > max_w) {
-      parts.push(cur);
-      cur = ch;
-    } else {
-      cur += ch;
-    }
-  }
-  if (cur) parts.push(cur);
-  return parts;
-}
-
-// 禁則：這些字不能站在行首（收尾標點），「（ 不能停在行尾（開頭標點）
-const NO_LINE_START = '」!?。，、）';
-const NO_LINE_END = '「（';
-
-/**
- * 把禁字黏到相鄰 token 上，讓貪婪換行沒有機會在禁則位置斷行。
- * 只在黏完仍放得進框寬時才黏：黏不下就讓禁則退讓——溢出框比禁字站行首更糟
- * （01 spec AC1 明訂觸底時保證水平不溢出）。字級還有空間縮時 fitText 會先縮字，
- * 縮到下限才會走到這個退讓路徑。
- */
-function applyKinsoku(tokens: string[], fs: number, max_w: number): string[] {
-  const fits = (s: string) => estimateWidth(s, fs) <= max_w;
-
-  const glued: string[] = [];
-  for (const token of tokens) {
-    const prev = glued[glued.length - 1];
-    if (
-      prev !== undefined &&
-      prev.trim() !== '' &&
-      NO_LINE_START.includes(token[0]!) &&
-      fits(prev + token)
-    ) {
-      glued[glued.length - 1] = prev + token;
-      continue;
-    }
-    glued.push(token);
-  }
-
-  const out: string[] = [];
-  for (let i = glued.length - 1; i >= 0; i--) {
-    const token = glued[i]!;
-    const next = out[0];
-    if (
-      next !== undefined &&
-      NO_LINE_END.includes(token[token.length - 1]!) &&
-      fits(token + next)
-    ) {
-      out[0] = token + next;
-      continue;
-    }
-    out.unshift(token);
-  }
-  return out;
-}
-
-export function wrapText(text: string, fs: number, max_w: number): string[] {
-  const out: string[] = [];
-  for (const para of text.split('\n')) {
-    const raw = para.match(TOKEN_RE) ?? [];
-    const tokens: string[] = [];
-    for (const token of raw) {
-      if (token.trim() !== '' && estimateWidth(token, fs) > max_w) {
-        tokens.push(...breakOversizedToken(token, fs, max_w));
-      } else {
-        tokens.push(token);
-      }
-    }
-    let cur = '';
-    for (const token of applyKinsoku(tokens, fs, max_w)) {
-      if (cur && estimateWidth(cur + token, fs) > max_w) {
-        out.push(cur.trim());
-        cur = token.trim() === '' ? '' : token;
-      } else {
-        cur += token;
-      }
-    }
-    if (cur.trim()) out.push(cur.trim());
-  }
-  return out;
-}
-
-/**
- * 使用者按 Enter 打出的硬行，沒有換行意圖時回 null。
- * 空行不算手動行（wrapText 一向丟掉空段落），濾完不到兩行就沒有換行意圖，
- * 交給自動折行——否則尾端多按一次 Enter 就會壓成一行、字級崩掉。
- */
-function hardLines(text: string): string[] | null {
-  const manual = text
-    .split('\n')
-    .map((l) => l.trim())
-    .filter((l) => l !== '');
-  return manual.length >= 2 ? manual : null;
-}
-
-/**
- * 手動字級下的換行：字級不能動，所以硬行只在每行都放得下時成立；
- * 任一行放不下就整段退回自動折行，用折行保住水平不溢出（01-mvp AC1）。
- */
-export function wrapManualFs(text: string, fs: number, max_w: number): string[] {
-  const hard = hardLines(text);
-  if (hard && hard.every((l) => estimateWidth(l, fs) <= max_w)) return hard;
-  return wrapText(text, fs, max_w);
-}
 
 // 置中補償只認全形括號：它們的墨跡只佔半格（「靠右、」靠左），
 // 置中要補的是那半格空白。!?。，、 的墨跡不偏在半格，整個掛出去反而看起來偏右。
@@ -393,29 +266,25 @@ export function layoutTitle(state: VennState): TitleBlock | null {
   if (text === '') return null;
 
   const box = titleBox(state);
-  // band 頂到上限就不再長高，這時候才輪到「夾字級、截行」那套保底（17 AC4）
-  const capped = titleBandH(state) >= TITLE_BAND_MAX;
 
   /**
    * 手動字級時只換行不縮字，比照文字槽：否則按＋會被自動排版吃掉。
-   * band 已經照著這個字級長高（17 AC1），所以原樣採用——band 還在長的時候再夾一次，
-   * 只會被「band 減留白再除以行高」的浮點誤差啃掉一個 ulp，變成 0.18799999999999997。
-   * 頂到上限才夾：區域文字溢出只是蓋到隔壁，
-   * 標題溢出是直接被畫布上緣切掉（08 AC4 的「不出界」對手動字級一樣成立）。
+   * band 會照著字級長高（17 AC1），所以指定多大就畫多大，直到 band 長到上限為止；
+   * 之後夾到 `maxTitleFs()`——那是「所有行都還放得下」的字級，字變小但一行都不少：
+   * 靜默截掉最後一行等於吃掉使用者打的字，字級變小看得見、也調得回來。
+   *
+   * 夾值是常數上限而不是「band 減留白再除以行高」，後者會被浮點誤差啃掉一個 ulp，
+   * 讓 0.188 畫成 0.18799999999999997。
    */
   const manual_fs =
-    state.title_fs === undefined
-      ? undefined
-      : capped
-        ? Math.min(state.title_fs, box.h / LINE_HEIGHT)
-        : state.title_fs;
+    state.title_fs === undefined ? undefined : Math.min(state.title_fs, maxTitleFs(state));
   const fitted =
     manual_fs === undefined
       ? fitText(text, box, LABEL_START_FS)
       : { fs: manual_fs, lines: wrapManualFs(text, manual_fs, box.w) };
 
-  // band 是照這幾行算出來的，行本來就放得下：再截一次只會被浮點誤差吃掉最後一行
-  if (manual_fs !== undefined && !capped) {
+  // 手動字級的高度已經由 band 或 maxTitleFs() 保證放得下，不必再截行
+  if (manual_fs !== undefined) {
     return { cx: box.cx, cy: box.cy, fs: fitted.fs, lines: fitted.lines };
   }
 

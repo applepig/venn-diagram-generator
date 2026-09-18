@@ -1,15 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import {
   centerShift,
-  estimateWidth,
   fitText,
   layout,
   maskAt,
   regionBox,
   slotAtPoint,
   slotMasks,
-  wrapText,
 } from '../engine/layout';
+import { estimateWidth, wrapText } from '../engine/text-wrap';
 import {
   INTERSECTION_ASPECT,
   INTERSECTION_START_FS,

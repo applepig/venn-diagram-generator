@@ -7,10 +7,9 @@ import {
   transformCircle,
   type DiagramTransform,
 } from './fit';
-// layout.ts 也 import 這個檔：兩邊都只在函式內互相呼叫、頂層不求值，這個環是安全的
-import { wrapManualFs } from './layout';
 import { circlesForState } from './shapes/index';
 import { strokeOf } from './stroke';
+import { wrapManualFs } from './text-wrap';
 import type { Circle, RegionBox, VennState } from './types';
 
 /**
@@ -53,6 +52,36 @@ export function titleBandH(state: VennState): number {
   const lines = wrapManualFs(text, fs, titleBoxW()).length;
   const needed = lines * fs * LINE_HEIGHT + 2 * TITLE_PAD_Y;
   return Math.min(Math.max(TITLE_BAND_H, needed), TITLE_BAND_MAX);
+}
+
+// 「放得下」的比較容許量：band 上限與行高都是除出來的，恰好等高的情形不該被一個 ulp 判出局
+const FITS_EPS = 1e-12;
+
+/**
+ * 這段標題到得了的最大字級（17 AC4／AC6）：band 長到上限後，還放得下**所有行**的最大字級。
+ * 面板的字級上限與 `layoutTitle()` 的夾值都用它——兩邊同一個數，按＋才會一路有反應到真的到頂，
+ * 到頂之後也不會忽然掉回更小的字級。
+ *
+ * 字級愈大、折出來的行愈多，所以「放得下」是一個下集合（單調），二分找得到那個邊界。
+ * 找字級而不是截行，是因為靜默截掉最後一行等於吃掉使用者打的字。
+ */
+export function maxTitleFs(state: VennState): number {
+  const box_h = TITLE_BAND_MAX - 2 * TITLE_PAD_Y;
+  const text = titleTextOf(state);
+  const fits = (fs: number) =>
+    wrapManualFs(text, fs, titleBoxW()).length * fs * LINE_HEIGHT <= box_h * (1 + FITS_EPS);
+
+  // 單行就佔滿 band 的字級是天花板：再高一行都放不下
+  let hi = box_h / LINE_HEIGHT;
+  if (text === '' || fits(hi)) return hi;
+
+  let lo = 0;
+  for (let i = 0; i < 40; i++) {
+    const mid = (lo + hi) / 2;
+    if (fits(mid)) lo = mid;
+    else hi = mid;
+  }
+  return lo;
 }
 
 /** 標題在 band 內可用的文字框 */
