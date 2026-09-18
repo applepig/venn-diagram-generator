@@ -2,6 +2,8 @@ import { Resvg } from '@resvg/resvg-js';
 import { describe, expect, it } from 'vitest';
 import { mixColors, regionColor, relativeLuminance, renderSvg } from '../engine/render-svg';
 import { layout, maskAt } from '../engine/layout';
+import { regionPaths } from '../engine/region-geometry';
+import { circlesForRender } from '../engine/title';
 import { circlesFor, circlesForState } from '../engine/shapes/index';
 import { nextStateForShape } from '../content/next-state';
 import { PALETTE } from '../content/palette';
@@ -467,21 +469,29 @@ describe('regionColor：AC2 該區在目前樣式下的實際顏色', () => {
     );
   });
 
-  it('單圈列在任何樣式下都是該圈的顏色', () => {
-    for (const style of STYLES) {
+  it('flat 與 outline 的單圈區是該圈的顏色', () => {
+    for (const style of ['flat', 'outline'] as const) {
       expect(regionColor({ ...base, style }, 1)).toBe(PALETTE[0]);
       expect(regionColor({ ...base, style }, 2)).toBe(PALETTE[1]);
     }
+  });
+
+  /** 18：translucent 的單圈區畫出來是壓過 opacity 的色，regionColor 跟著回同一個值 */
+  it('translucent 的單圈區是圈色壓在背景上的結果', () => {
+    const state = { ...base, style: 'translucent' as const, opacity: 0.5, bg: '#000000' };
+
+    expect(regionColor({ ...state, colors: ['#ffffff', '#ffffff'] }, 1)).toBe('#808080');
+    expect(regionColor({ ...state, opacity: 1 }, 1)).toBe(PALETTE[0]);
   });
 
   it('outline 沒有填色，交集區取背景色', () => {
     expect(regionColor({ ...base, style: 'outline', bg: '#101010' }, 3)).toBe('#101010');
   });
 
-  it('translucent 不透明時交集區等於最上層那圈的顏色（依圈序 source-over）', () => {
+  it('translucent 不透明時交集區等於成員色的顏料混色（不再是最上層那圈）', () => {
     const state = { ...base, style: 'translucent' as const, opacity: 1 };
 
-    expect(regionColor(state, 3)).toBe(PALETTE[1]);
+    expect(regionColor(state, 3)).toBe(mixColors([PALETTE[0]!, PALETTE[1]!]));
   });
 
   it('translucent 全透明時交集區等於背景色', () => {
@@ -490,44 +500,127 @@ describe('regionColor：AC2 該區在目前樣式下的實際顏色', () => {
     expect(regionColor(state, 3)).toBe('#101010');
   });
 
-  it('translucent 半透明時是背景與成員色依序合成的結果', () => {
+  it('translucent 半透明時是顏料混色壓在背景上的結果', () => {
     const state = {
       ...base,
       style: 'translucent' as const,
       opacity: 0.5,
       bg: '#000000',
-      colors: ['#ffffff', '#000000'],
+      colors: ['#ff0000', '#ff0000'],
     };
 
-    // 0.5*255 + 0.5*0 = 127.5 → 再疊一層黑：0.5*0 + 0.5*127.5 = 63.75 → #404040
-    expect(regionColor(state, 3)).toBe('#404040');
+    // 混色：平均仍是 #ff0000 → hsl(0, 1, 0.5) → 拉飽和後 l*0.8 = 0.4 → #cc0000；
+    // 再以 0.5 壓在黑底上：204*0.5 = 102 → #660000
+    expect(regionColor(state, 3)).toBe('#660000');
+  });
+});
+
+/**
+ * 18：translucent 改用顏料混色。交集色改由 `mixColors()` 決定再整體壓一次 opacity，
+ * 所以與圈序無關，而單圈區的顏色與改版前相同（`mixColors([c]) === c`）。
+ */
+describe('renderSvg：18 translucent 顏料混色', () => {
+  /** 前景以 alpha 壓在背景上的結果（`fill-opacity` 的定義，也是改版前單圈區的畫法） */
+  function over(fg: string, alpha: number, bg: string): [number, number, number] {
+    const channels = (hex: string) =>
+      [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16)) as [number, number, number];
+    const [fr, fg_, fb] = channels(fg);
+    const [br, bg_, bb] = channels(bg);
+    return [alpha * fr + (1 - alpha) * br, alpha * fg_ + (1 - alpha) * bg_, alpha * fb + (1 - alpha) * bb];
+  }
+
+  function translucentState(extra: Partial<VennState> = {}): VennState {
+    return { ...defaultState(3), style: 'translucent', opacity: 0.5, bg: '#102030', ...extra };
+  }
+
+  /** SVG 裡實際畫在該區上的填色：用 `regionPaths()` 的 `d` 反查對應的 `<path>` */
+  function fillOf(state: VennState, mask: number): string {
+    const d = regionPaths(circlesForRender(state), state.size).get(mask)!;
+    const pattern = new RegExp(
+      `<path d="${d.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}"[^>]*fill="(#[0-9a-f]{6})"`,
+    );
+    return pattern.exec(renderSvg(state))![1]!;
+  }
+
+  it('交換圈的顏色後，同一組成員的交集色不變', () => {
+    const state = translucentState({ colors: ['#ff0000', '#0000ff', '#00ff00'] });
+    const swapped = { ...state, colors: ['#0000ff', '#ff0000', '#00ff00'] };
+
+    expect(regionColor(swapped, 3)).toBe(regionColor(state, 3));
+    expect(fillOf(swapped, 3)).toBe(fillOf(state, 3));
+    expect(regionColor(swapped, 7)).toBe(regionColor(state, 7));
+  });
+
+  it('每個區域畫出來的顏色都等於 regionColor()（面板色塊與畫布同一個值）', () => {
+    const state = translucentState({ colors: ['#ff0000', '#0000ff', '#00ff00'] });
+
+    for (const mask of regionPaths(circlesForRender(state), state.size).keys()) {
+      expect(fillOf(state, mask), `mask ${mask}`).toBe(regionColor(state, mask));
+    }
+  });
+
+  it('單圈區的顏色與改版前相同：圈色以 opacity 壓在背景上', () => {
+    const size = 400;
+    const state = translucentState({ size, colors: ['#ff0000', '#0000ff', '#00ff00'] });
+    const circles = circlesForRender(state);
+    const png = decodePng(Buffer.from(renderPng(renderSvg(state))));
+
+    circles.forEach((c, i) => {
+      // 只屬於第 i 圈的取樣點：從圓心往外推到 0.8r，方向挑離其他圓最遠的那一側
+      const away = Math.atan2(c.y - 0.5, c.x - 0.5);
+      const x = Math.round((c.x + 0.8 * c.r * Math.cos(away)) * size);
+      const y = Math.round((c.y + 0.8 * c.r * Math.sin(away)) * size);
+      expect(maskAt(circles, (x + 0.5) / size, (y + 0.5) / size), `取樣點只該落在第 ${i} 圈`).toBe(
+        1 << i,
+      );
+
+      const expected = over(state.colors[i]!, state.opacity, state.bg);
+      const [r, g, b] = pngPixel(png, x, y);
+      expect([r, g, b].map(Math.round), `第 ${i} 圈`).toEqual(expected.map(Math.round));
+    });
+  });
+
+  it('opacity 越低，交集色越靠近背景色', () => {
+    const bg = '#102030';
+    const at = (opacity: number) => regionColor(translucentState({ opacity, bg }), 3);
+
+    expect(at(0)).toBe(bg);
+    expect(at(1)).toBe(mixColors([PALETTE[0]!, PALETTE[1]!]));
+    expect(at(0.5)).not.toBe(at(1));
   });
 });
 
 describe('renderSvg：style 差異', () => {
-  it('translucent 用 fill-opacity 疊圓，outline 用黑框無填色', () => {
-    const translucent = renderSvg({ ...defaultState(2), style: 'translucent', opacity: 0.6 });
+  it('translucent 逐區塗色，outline 用黑框無填色', () => {
+    const state = { ...defaultState(2), style: 'translucent' as const, opacity: 0.6 };
     const outline = renderSvg({ ...defaultState(2), style: 'outline' });
 
-    expect(translucent).toContain('fill-opacity="0.6"');
+    expect(renderSvg(state)).toContain(`fill="${regionColor(state, 3)}"`);
     expect(outline).toContain('fill="none"');
-    expect(outline).not.toContain('fill-opacity="0.6"');
+    expect(outline).not.toContain('<path');
   });
 
   it('opacity 改變會反映在輸出上', () => {
-    const a = renderSvg({ ...defaultState(2), style: 'translucent', opacity: 0.3 });
+    const at = (opacity: number) => {
+      const state = { ...defaultState(2), style: 'translucent' as const, opacity };
+      const color = regionColor(state, 3);
+      expect(renderSvg(state)).toContain(`fill="${color}"`);
+      return color;
+    };
 
-    expect(a).toContain('fill-opacity="0.3"');
+    expect(at(0.3)).not.toBe(at(0.6));
   });
 
   it('背景色沿用 state.bg', () => {
     expect(renderSvg({ ...defaultState(2), bg: '#123456' })).toContain('#123456');
   });
 
-  it('每圈顏色沿用 state.colors', () => {
-    const svg = renderSvg({ ...defaultState(3), colors: ['#111111', '#222222', '#333333'] });
+  it('每圈顏色沿用 state.colors：單圈區畫的就是該圈的色（壓過 opacity）', () => {
+    const state = { ...defaultState(3), colors: ['#111111', '#222222', '#333333'] };
+    const svg = renderSvg(state);
 
-    for (const c of ['#111111', '#222222', '#333333']) expect(svg).toContain(c);
+    for (const mask of [1, 2, 4]) expect(svg).toContain(`fill="${regionColor(state, mask)}"`);
+    expect(new Set([1, 2, 4].map((mask) => regionColor(state, mask))).size).toBe(3);
   });
 });
 

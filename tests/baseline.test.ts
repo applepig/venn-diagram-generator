@@ -7,6 +7,10 @@
  * 15 sprint 就是那一種情況，且只動 `full-flat` 一個 case：flat「有 `fill` override 就自動加一圈黑框」
  * 的隱藏行為由使用者決定移除（spec 15 AC4），這張圖因此少一圈黑框，svg／png／og 三個雜湊跟著重凍。
  * 其餘七個 case 逐位元不變——框線 0 的圖仍留既有的 0.003 fit 內縮，正是為了不動到 `overlap-max`。
+ *
+ * 18 sprint 同樣是那一種情況：translucent 的交集色改用顏料混色（spec 18 AC1，使用者看過四種樣張後
+ * 選定，並同意舊連結的畫面跟著變），重凍範圍是四個 translucent case——`tpl-3`、`full-translucent`、
+ * `overlap-min`、`overlap-max`。flat 與 outline 不在這次的行為變更裡，四個 case 逐位元不變。
  */
 import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';

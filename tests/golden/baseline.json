@@ -1,5 +1,5 @@
 {
-  "note": "AC1 golden：以 07 sprint 重構前的程式產出，任何 milestone 都不得修改。測試紅了是實作錯，不是 golden 錯。唯一能重產的情況是行為已由使用者確認要變，重產理由逐案記在各 case 的 refrozen。最近一次重產：10 sprint 移除文字位移 dx/dy（使用者決定：編輯器沒有任何控制項能產生位移，欄位不該留在資料結構裡）。該次重產中，五個帶位移的 case（full-translucent／full-flat／full-outline／overlap-min／overlap-max）雜湊改變，三個模板 case（tpl-2／tpl-3／tpl-4）的 s 與三個雜湊未變。重產時腳本會逐 case 比對舊雜湊，有變動而 REFROZEN 沒有新增理由就中止。",
+  "note": "AC1 golden：以 07 sprint 重構前的程式產出，任何 milestone 都不得修改。測試紅了是實作錯，不是 golden 錯。唯一能重產的情況是行為已由使用者確認要變，重產理由逐案記在各 case 的 refrozen。最近一次重產：18 sprint 把 translucent 的交集色改用顏料混色（使用者看過四種樣張後選定，並同意舊連結的畫面跟著變），四個 translucent case（tpl-3／full-translucent／overlap-min／overlap-max）雜湊改變，flat 與 outline 的四個（tpl-2／tpl-4／full-flat／full-outline）與全部八個 case 的 s 一個位元都沒動。前一次是 15 sprint 移除 flat「有 fill override 就自動加一圈黑框」的隱藏行為，只有 full-flat 改變。重產時腳本會逐 case 比對舊雜湊，有變動而 REFROZEN 沒有新增理由就中止。",
   "slot_masks_4": [
     1,
     2,
@@ -38,9 +38,12 @@
       "ac": "a",
       "label": "3 圈 zh template 預設連結",
       "s": "TYrNasJAFIXf5WR7kcwYU3NfpbgY09sSCIlkRvGHLETsrvQFuiq0G8GCuOjG-jKm2LeQEVLkwuF837kLTMCKUIC7BOtmuYDhKlPYfJxK4UAoRybN3AwcdmJCOZEqNyOw6qgeoTIP2dj6TSeEtMzLyoLvEWhJhhKDEEhsEi3XFkb9qI8BYfgERvBo_IFgs7mAlQ5DgpOps-AFlA8Hxvlz2Rw3qAn6Vn0cvOr-q93ec3Tzcvo5Nts3b3ut_Xu-ctzy7_rd813Lp--X5vXrvDqgrusL",
-      "svg_sha256": "4b839af33a6a45e1f4fe01730e7a68293530d3c7e47aa5b1dd6eefe01e56ba3f",
-      "png_sha256": "a1c6f7fc97a206e9bb830270084a59c16089116f1241566038c8ae3ae682c78f",
-      "og_png_sha256": "5881717efc7640e4de713d66d40826cfb7b2525bb95bfc880e9b547840aec7a1"
+      "refrozen": [
+        "18 translucent 改用顏料混色：交集色改由 flat 那支 mixColors() 決定、再整體壓一次 opacity（spec 18 AC1，使用者看過四種樣張後選定並同意舊連結的畫面改變），逐圓 source-over 疊色因此退場。單圈區的顏色不變（mixColors([c]) === c），變的是交集區。tpl-2（flat）、tpl-4 與 full-outline（outline）、full-flat 四個 case 一個位元都沒動。"
+      ],
+      "svg_sha256": "b22c239080997c42d88308c1a7f721b7a15fd5fabc30a8074e76a0e04ad8bbd7",
+      "png_sha256": "c5dcfe433adf29e28988aa605f70169beedbdf9c877ed052e1f7cc1c111d7c8f",
+      "og_png_sha256": "3528be6222ba840c060b5a4754732099cc2069e422af03402bc70cfd387ff6ef"
     },
     {
       "id": "tpl-4",
@@ -57,11 +60,12 @@
       "label": "4 圈 13 槽全填，translucent ＋ 深色背景 ＋ 自訂透明度",
       "s": "XVBLTsMwEL3Ly3aE7PwwvkrFwk1tFMlKqsStKJUXFeIGbHqDrlmV-4AQt0AOTePUI1nzxvPem_EeW0hOaCBzQu92VkPCdarp7abSjQOhXauqdjtIdpcXhHarO6vWAQpCp1b1pg8gywhVa9uuh1wg4WmWFyUIiVpWK21CxpgxQoTMGMbKEo-E5RMkEq64SjUIff2iIXnKGMHpZ9dD7sHD5SDx8_4BT0hH_PV5BMEM_uzBE7Ko8_JYWxsczHACO7-yz8eAi5hzjgQLT7ifC14oYpI4BMxZNFGoTb6chRia-K3WYfLKQkMaTTYqZ_PpxnI-M7zxFKKq_nfl1-W-306_r6fJMI-_RgjG4L3_Aw",
       "refrozen": [
-        "10 移除文字位移 dx/dy：本 case 的 texts 帶過位移，重產後雜湊改變。三個 tpl-* 不帶位移，s 與三個雜湊一字未變。"
+        "10 移除文字位移 dx/dy：本 case 的 texts 帶過位移，重產後雜湊改變。三個 tpl-* 不帶位移，s 與三個雜湊一字未變。",
+        "18 translucent 改用顏料混色：交集色改由 flat 那支 mixColors() 決定、再整體壓一次 opacity（spec 18 AC1，使用者看過四種樣張後選定並同意舊連結的畫面改變），逐圓 source-over 疊色因此退場。單圈區的顏色不變（mixColors([c]) === c），變的是交集區。tpl-2（flat）、tpl-4 與 full-outline（outline）、full-flat 四個 case 一個位元都沒動。"
       ],
-      "svg_sha256": "27e638f0bfca2ae4bf1c9c14ba01254f3de0019f81de92dce821ddea732a3eb6",
-      "png_sha256": "af396548041c63e7ed10b175bdb84fa0ba8bd36ea6f3aa39fe1e51273ea88b0e",
-      "og_png_sha256": "e351955c8e2ce26ba6904bc95a6d7b1d83d70c608ce899a32924f7745ab7e901"
+      "svg_sha256": "ec202b1b3bf0dd7a9e075edf69ca92a6f86a65e903baf4ec9385431851b888ff",
+      "png_sha256": "28ab1a410759092fd8cd4c97bd46103fdef507167b56b3df7a9c74182f3883b4",
+      "og_png_sha256": "98f5720aadec0e2cba0f22fe9deb324fcdbba4ce1e80ee5784dcdec7e4ade2e6"
     },
     {
       "id": "full-flat",
@@ -94,11 +98,12 @@
       "label": "4 圈 overlap 0.6（下限）",
       "s": "XVBBTsMwEPzL5LpCdpwE469UHFI3RpGspErcilL5UCF-wKU_6JlT-Q8I8QvkkDRuvZK1s96Z2fUeWyhOaKAyQu92toKC68qmtxtdNQ6Edl3q2u2g2F1BaLdVZ8v1iLpyVW_6AIQg6Na2XQ-1QMJTkeUFCEm51KvKhIwxY6QMmTGMFQUeCcsnKCSmDAFCX79UUDxljOCqZ9dD7cHD5aDw8_4BT0gn_PV5BMEM_uzBE0TUOT7W1g4Owwns7MI-HwPOY845Esw94f5acKTIWeIQMGfRRKE2-3IWYmjit1qH2UuEhjSabFIW19NN5ezK8MZTSq3_d-WX5b7fTr-vp9kwi79GSsbgvf8D",
       "refrozen": [
-        "10 移除文字位移 dx/dy：本 case 的 texts 帶過位移，重產後雜湊改變。三個 tpl-* 不帶位移，s 與三個雜湊一字未變。"
+        "10 移除文字位移 dx/dy：本 case 的 texts 帶過位移，重產後雜湊改變。三個 tpl-* 不帶位移，s 與三個雜湊一字未變。",
+        "18 translucent 改用顏料混色：交集色改由 flat 那支 mixColors() 決定、再整體壓一次 opacity（spec 18 AC1，使用者看過四種樣張後選定並同意舊連結的畫面改變），逐圓 source-over 疊色因此退場。單圈區的顏色不變（mixColors([c]) === c），變的是交集區。tpl-2（flat）、tpl-4 與 full-outline（outline）、full-flat 四個 case 一個位元都沒動。"
       ],
-      "svg_sha256": "e967761b2783fd1d8b091f417b0483c5440b9473ac15fbfa20659d1e13fe3fc9",
-      "png_sha256": "9c44d50a2d17c5c0218b54db5fca4d443014952bc69b2c2d989aaa4820cc4df9",
-      "og_png_sha256": "8741f306f04c0523a533cd6e1ab34636f77660c0111f0e29a32a3854c3e95669"
+      "svg_sha256": "8f7cf3e3836b5c6667035bdb8df16c3b7be079ce75bb3555bfc59fbdfafa9b15",
+      "png_sha256": "e8bdc1bcc422d1e995b9ba4b381a01a100ba5da0844ff372ea5be613ef53af88",
+      "og_png_sha256": "d073e388a75961650309db422153cd594ebe61d7dc0ce115904bd4d299960539"
     },
     {
       "id": "overlap-max",
@@ -107,11 +112,12 @@
       "s": "XVBBTsMwEPzL5LpCdpwE469UHFw3RpGipErcilL5UCF-wKU_6JlT-Q8I8Qvk0DROvZK1s7szs_YeWyhOaKAyQu92dQkF1-mmrzembBwI7Vqbyu2g2F1BaLdlV-s1FA-o06tq04eWEATT1m3XQy2Q8FRkeQFCopdmVdqQMWatlCGzlrGiwCNh-QSFxOoQIPTVSwnFU8YIrnx2PdQePFwOCj_vH_CEdMRfn0cQ7ODPHjxBRJOXZlXXg8NwAju7ss_HgPOYc44Ec0-4nwteKHKSOATMWbRRqE2-nIUYhvit1mHyEmEgjTYblcV8u7GczQxvPKU05v-t_Pq477fT7-tpMszir5GSMXjv_wA",
       "refrozen": [
         "09 fit：這張圖的四個角本來被畫布切掉，正是該 sprint 要修的行為（spec 09 AC2 的唯一例外）。fit 參數 scale=0.8367、tx=ty=0.08165；其餘 7 個 case 一個位元都沒動。",
-        "10 移除文字位移 dx/dy：本 case 的 texts 帶過位移，重產後雜湊改變。三個 tpl-* 不帶位移，s 與三個雜湊一字未變。"
+        "10 移除文字位移 dx/dy：本 case 的 texts 帶過位移，重產後雜湊改變。三個 tpl-* 不帶位移，s 與三個雜湊一字未變。",
+        "18 translucent 改用顏料混色：交集色改由 flat 那支 mixColors() 決定、再整體壓一次 opacity（spec 18 AC1，使用者看過四種樣張後選定並同意舊連結的畫面改變），逐圓 source-over 疊色因此退場。單圈區的顏色不變（mixColors([c]) === c），變的是交集區。tpl-2（flat）、tpl-4 與 full-outline（outline）、full-flat 四個 case 一個位元都沒動。"
       ],
-      "svg_sha256": "7bb0ac5166b214f47abac1ab796d7d9c0d3274816b1b24f7197fc5119c23a53a",
-      "png_sha256": "cea05c79c4b5b43dbeb781f7e3c4f020e274ac0c9e858afa0f15fb58b24b29f0",
-      "og_png_sha256": "a1f4aa22cc8514383d54fbf323d7aab680d0c804045a14c55560719bfa8e8698"
+      "svg_sha256": "6bc7cf58209484a66d82c8ae6b5f78ed061b3194edea5ddcc09b5c499e182f7a",
+      "png_sha256": "6432d1fa76cceac5471500d2d1f3e0dabb6c86542189e18938d440206ee17dad",
+      "og_png_sha256": "12541e09fc6cd11f18c1cf954cbd9bf09dd62f3c1534854503e49d2115e35d87"
     }
   ]
 }

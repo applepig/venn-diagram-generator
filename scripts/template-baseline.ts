@@ -131,6 +131,13 @@ REFROZEN['full-flat'] = [
   '15 框線改成幾何選項：flat「有 fill override 就自動加一圈黑框」的隱藏行為移除（spec 15 AC4，使用者明確要的變更），本 case 因此少一圈黑框。框線改由 stroke_width／stroke 自己開，其餘 7 個 case 一個位元都沒動。',
 ];
 
+/** 18 translucent 改用顏料混色：四個 translucent case 會變，flat 與 outline 的不動 */
+const REFROZEN_18 =
+  '18 translucent 改用顏料混色：交集色改由 flat 那支 mixColors() 決定、再整體壓一次 opacity（spec 18 AC1，使用者看過四種樣張後選定並同意舊連結的畫面改變），逐圓 source-over 疊色因此退場。單圈區的顏色不變（mixColors([c]) === c），變的是交集區。tpl-2（flat）、tpl-4 與 full-outline（outline）、full-flat 四個 case 一個位元都沒動。';
+for (const id of ['tpl-3', 'full-translucent', 'overlap-min', 'overlap-max']) {
+  REFROZEN[id] = [...(REFROZEN[id] ?? []), REFROZEN_18];
+}
+
 /**
  * 對不到任何 case 的 REFROZEN 條目是壞掉的稽核軌跡：case 改名之後，
  * 理由會留在這裡卻永遠寫不進輸出，而改名的人不會收到任何提示。
@@ -224,9 +231,10 @@ const golden = {
   note:
     'AC1 golden：以 07 sprint 重構前的程式產出，任何 milestone 都不得修改。測試紅了是實作錯，不是 golden 錯。' +
     '唯一能重產的情況是行為已由使用者確認要變，重產理由逐案記在各 case 的 refrozen。' +
-    '最近一次重產：10 sprint 移除文字位移 dx/dy（使用者決定：編輯器沒有任何控制項能產生位移，欄位不該留在資料結構裡）。' +
-    '該次重產中，五個帶位移的 case（full-translucent／full-flat／full-outline／overlap-min／overlap-max）雜湊改變，' +
-    '三個模板 case（tpl-2／tpl-3／tpl-4）的 s 與三個雜湊未變。' +
+    '最近一次重產：18 sprint 把 translucent 的交集色改用顏料混色（使用者看過四種樣張後選定，並同意舊連結的畫面跟著變），' +
+    '四個 translucent case（tpl-3／full-translucent／overlap-min／overlap-max）雜湊改變，' +
+    'flat 與 outline 的四個（tpl-2／tpl-4／full-flat／full-outline）與全部八個 case 的 s 一個位元都沒動。' +
+    '前一次是 15 sprint 移除 flat「有 fill override 就自動加一圈黑框」的隱藏行為，只有 full-flat 改變。' +
     '重產時腳本會逐 case 比對舊雜湊，有變動而 REFROZEN 沒有新增理由就中止。',
   slot_masks_4: [...slotMasks('ring', 4)],
   palette: PALETTE,
