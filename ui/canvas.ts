@@ -1,4 +1,5 @@
 import { placeholderTexts } from '../content/state-presets';
+import { slotAtPoint } from '../engine/layout';
 import { renderSvg } from '../engine/render-svg';
 import { arrOf } from '../engine/shapes/index';
 import type { VennState } from '../engine/types';
@@ -17,7 +18,7 @@ export interface CanvasElements {
 
 export interface CanvasHandlers {
   getState: () => VennState;
-  /** 點到圖上的文字群組；編輯一律在屬性面板進行 */
+  /** 點到圖上的區域；編輯一律在屬性面板進行 */
   onRegionPicked: (mask: number) => void;
 }
 
@@ -28,6 +29,27 @@ export interface CanvasController {
 function maskOf(target: EventTarget | null): number | null {
   const group = (target as Element | null)?.closest('[data-region]');
   return group ? Number(group.getAttribute('data-region')) : null;
+}
+
+/**
+ * 點擊落在哪一個文字槽（14 AC2）：先認文字群組，沒點到字才用幾何命中測試。
+ * 空的區域沒有 `[data-region]` 可認，而 outline 樣式的圓是 `fill="none"`、
+ * 連有字以外的地方都只會命中背景 rect，所以幾何測試是空槽唯一的入口。
+ *
+ * 螢幕座標用 `getScreenCTM()` 換算：SVG 自己的變換與可能的留白都算在裡面，
+ * 再除以 viewBox 邊長就是 engine 用的 0..1 單位空間。
+ */
+function pickedMask(canvas_el: HTMLElement, state: VennState, event: MouseEvent): number | null {
+  const tagged = maskOf(event.target);
+  if (tagged !== null) return tagged;
+
+  const svg = canvas_el.querySelector('svg');
+  const ctm = svg?.getScreenCTM();
+  if (!svg || !ctm) return null;
+
+  const p = new DOMPoint(event.clientX, event.clientY).matrixTransform(ctm.inverse());
+  const size = svg.viewBox.baseVal.width;
+  return slotAtPoint(state, p.x / size, p.y / size);
 }
 
 /** 預覽只負責畫，不接受任何直接編輯（04 AC5） */
@@ -53,7 +75,7 @@ export function createCanvas(els: CanvasElements, handlers: CanvasHandlers): Can
   ).observe(stage);
 
   els.main.addEventListener('click', (event) => {
-    const mask = maskOf(event.target);
+    const mask = pickedMask(els.main, handlers.getState(), event);
     if (mask !== null) handlers.onRegionPicked(mask);
   });
 
@@ -65,8 +87,8 @@ export function createCanvas(els: CanvasElements, handlers: CanvasHandlers): Can
       return;
     }
     if ((event.target as Element).closest('.canvas-wrap')) {
-      const mask = maskOf(event.target);
-      // 點到圖的空白處不收起，只有點到文字才跳去那一列
+      const mask = pickedMask(els.mini, handlers.getState(), event);
+      // 點到圓外的空白處不收起，只有點到區域才跳去那一列（14 AC3、AC6）
       if (mask === null) return;
       // 先收起 overlay：它蓋住面板，而且鎖住捲動會讓 scrollIntoView 失效
       setOpen(false);
