@@ -464,3 +464,47 @@ describe('AC8 字級 px 換算吃得到 fit 的縮放', () => {
     expect(next.fs * size).toBeCloseTo(shown_px + 10, 0);
   });
 });
+
+/**
+ * 15 AC5：fit 的內縮量跟著實際框線寬度走，粗框線在 radius 上限時才不會被畫布邊緣切掉。
+ *
+ * 下限刻意留在 `STROKE_INSET`（見 `strokeInset()`）：沒有框線的圖因此維持既有落點，
+ * 舊連結（`tests/golden/baseline.json` 的 overlap-max）的輸出一個位元都不動。
+ */
+describe('15 框線寬度決定 fit 的內縮量', () => {
+  const overflowing = (extra: Partial<VennState>): VennState => ({
+    ...stateOf('ring', 6, { radius: 0.35, overlap: 1.6 }),
+    ...extra,
+  });
+
+  /** 圓的包圍盒離畫布四邊最近的距離 */
+  function marginOf(state: VennState): number {
+    const box = boundsOf(circlesForRender(state));
+    return Math.min(box.left, box.top, 1 - box.right, 1 - box.bottom);
+  }
+
+  it('粗框線時圖區多縮一點，框線外緣不會被切掉', () => {
+    const thick = overflowing({ stroke_w: 0.03 });
+
+    expect(marginOf(thick)).toBeGreaterThanOrEqual(0.015 - EPS);
+    expect(diagramTransform(thick).scale).toBeLessThan(diagramTransform(overflowing({})).scale);
+  });
+
+  it('outline 的預設框線（0.006）半寬剛好是既有的內縮量，落點不變', () => {
+    expect(diagramTransform(overflowing({ style: 'outline' }))).toEqual(
+      diagramTransform(overflowing({})),
+    );
+  });
+
+  it('沒有框線時內縮量維持 STROKE_INSET', () => {
+    expect(marginOf(overflowing({ stroke_w: 0 }))).toBeCloseTo(STROKE_INSET, 12);
+  });
+
+  it('有標題時粗框線的補償照樣生效：底緣的框線外緣仍在畫布內', () => {
+    const titled = overflowing({ stroke_w: 0.03, title: '我的文氏圖' });
+    const box = boundsOf(circlesForRender(titled));
+
+    expect(box.bottom + 0.015).toBeLessThanOrEqual(1 + EPS);
+    expect(box.top).toBeGreaterThanOrEqual(TITLE_BAND_H - EPS);
+  });
+});

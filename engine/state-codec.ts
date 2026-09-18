@@ -7,6 +7,7 @@ import {
   isShape,
   radiusRange,
 } from './shapes/index';
+import { DEFAULT_STROKE_COLOR, STROKE_W_MAX, defaultStrokeW } from './stroke';
 import type { Arrangement, TextSlot, VennState, VennStyle } from './types';
 
 /**
@@ -188,6 +189,19 @@ export function validateState(input: unknown): VennState {
     // 留著只會讓同一張圖有兩種編碼
     if (title_fill !== undefined) state.title_fill = title_fill;
     if (title_fs !== undefined) state.title_fs = title_fs;
+  }
+
+  // 框線（15 AC1／AC2）：等於該樣式預設的值不寫進編碼，沒帶這兩個欄位的舊連結因此逐位元不變
+  const style_default_w = defaultStrokeW(state.style);
+  const stroke_w =
+    input.stroke_w === undefined
+      ? undefined
+      : requireNumber(input.stroke_w, 'stroke_w', 0, STROKE_W_MAX);
+  const stroke = input.stroke === undefined ? undefined : requireHex(input.stroke, 'stroke');
+  if (stroke_w !== undefined && stroke_w !== style_default_w) state.stroke_w = stroke_w;
+  // 顏色只跟著框線走：寬度 0 時沒有東西可以上色，留著只會讓同一張圖有兩種編碼（與 title_fill 同一手法）
+  if ((stroke_w ?? style_default_w) > 0 && stroke !== undefined && stroke !== DEFAULT_STROKE_COLOR) {
+    state.stroke = stroke;
   }
   return state;
 }

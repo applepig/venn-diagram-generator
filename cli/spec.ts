@@ -49,6 +49,10 @@ export interface VennSpec {
   size?: number;
   titleFill?: string;
   titleFs?: number;
+  /** 圓框線寬度，畫布寬比例；缺席＝依樣式取預設 */
+  strokeWidth?: number;
+  /** 圓框線顏色 */
+  stroke?: string;
 }
 
 /**
@@ -69,6 +73,8 @@ const SPEC_FIELD_SET: Record<keyof VennSpec, true> = {
   size: true,
   titleFill: true,
   titleFs: true,
+  strokeWidth: true,
+  stroke: true,
 };
 
 /** 友善 spec 認得的 top-level 欄位；拼錯時的錯誤訊息與 skill 文件都取這裡 */
@@ -208,6 +214,9 @@ export function specToState(spec: VennSpec): VennState {
     texts,
   };
   if (arr !== 'ring') state.arr = arr;
+  // 框線：等於樣式預設或寬度 0 時的收斂都在 validateState，這裡照傳即可
+  if (spec.strokeWidth !== undefined) state.stroke_w = spec.strokeWidth;
+  if (spec.stroke !== undefined) state.stroke = spec.stroke;
   if (spec.title !== undefined && spec.title !== '') {
     state.title = spec.title;
     if (spec.titleFill !== undefined) state.title_fill = spec.titleFill;
@@ -247,5 +256,7 @@ export function stateToSpec(state: VennState): VennSpec {
   spec.size = state.size;
   if (state.title_fill !== undefined) spec.titleFill = state.title_fill;
   if (state.title_fs !== undefined) spec.titleFs = state.title_fs;
+  if (state.stroke_w !== undefined) spec.strokeWidth = state.stroke_w;
+  if (state.stroke !== undefined) spec.stroke = state.stroke;
   return spec;
 }

@@ -31,6 +31,8 @@ export const STRINGS = {
   'field.opacity': '透明度',
   'field.radius': '大きさ',
   'field.overlap': '重なり',
+  'field.stroke': '枠線',
+  'field.strokeColor': '枠線の色',
   'field.size': 'サイズ',
   'field.fs': '文字サイズ',
   'field.color': '色',

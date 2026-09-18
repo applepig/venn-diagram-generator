@@ -207,6 +207,11 @@ export function applyFlags(base: VennSpec, flags: Flags): VennSpec {
   if (title_fill !== undefined) spec.titleFill = title_fill;
   const title_fs = str(flags, 'title-fs');
   if (title_fs !== undefined) spec.titleFs = toNumber('title-fs', title_fs);
+  // 框線寬度與顏色；值域與「等於預設就不寫」的收斂都在 validateState
+  const stroke_width = str(flags, 'stroke-width');
+  if (stroke_width !== undefined) spec.strokeWidth = toNumber('stroke-width', stroke_width);
+  const stroke = str(flags, 'stroke');
+  if (stroke !== undefined) spec.stroke = stroke;
   const colors = str(flags, 'colors');
   if (colors !== undefined) spec.colors = colors.split(',').map((c) => c.trim());
   for (const name of ['size', 'opacity', 'overlap', 'radius'] as const) {

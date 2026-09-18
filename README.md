@@ -35,6 +35,10 @@ Circle positions are always derived from `arr` / `n` / `overlap` / `radius` — 
   "title_fill": "#e04848",    // title text colour; omitted means automatic black or white.
                               // Never encoded when there is no title
   "style": "flat",            // translucent | flat | outline
+  "stroke_w": 0.01,           // circle outline width as a fraction of canvas width, 0–0.03;
+                              // omitted means the style default (0.006 for outline, 0 otherwise)
+  "stroke": "#ff0000",        // outline colour; omitted means #000000.
+                              // Never encoded when the resolved width is 0
   "opacity": 0.6,             // 0–1, only used by translucent
   "overlap": 1.2,             // centre distance / r, 0.6–1.6
   "radius": 0.3,              // circle radius as a fraction of canvas width
@@ -54,7 +58,7 @@ Circle positions are always derived from `arr` / `n` / `overlap` / `radius` — 
 
 With a `title`, the top 18% of the canvas becomes a title band and the diagram (circles and every region text) is scaled down by the same factor, centred horizontally and pushed to the bottom edge — so the output stays square and nothing overflows. Without a title the layout is untouched, byte for byte. The title font size is fitted automatically, manual `\n` and automatic wrapping both work, and the colour flips between black and white with the background's luminance unless `title_fill` pins it. On a share page the title also becomes the `og:title` and `<title>`.
 
-A large `radius` combined with a large `overlap` can push the circles past the canvas edge — most easily on `ring(5)` / `ring(6)` and the rows. When that happens the whole diagram (circles, every region text, and the title transform already applied) is scaled down about the canvas centre and nudged back inside, leaving a margin of 0.3% of the canvas width so the stroke is not clipped either. It only ever shrinks, never enlarges: geometry that already fits comes out byte for byte identical. Layout still runs on the untransformed geometry, so which slots exist and where their text sits are unaffected — the fit is applied at the very end, on top of the title transform.
+A large `radius` combined with a large `overlap` can push the circles past the canvas edge — most easily on `ring(5)` / `ring(6)` and the rows. When that happens the whole diagram (circles, every region text, and the title transform already applied) is scaled down about the canvas centre and nudged back inside, leaving a margin of half the outline width — and never less than 0.3% of the canvas width — so the stroke is not clipped either. It only ever shrinks, never enlarges: geometry that already fits comes out byte for byte identical. Layout still runs on the untransformed geometry, so which slots exist and where their text sits are unaffected — the fit is applied at the very end, on top of the title transform.
 
 Which slots a shape offers is derived from its default geometry (a region gets a slot when it has a non-null inscribed box): 3 slots for 2 circles, 7 for 3, 13 for the 2×2 four-circle petal arrangement (4 singles + 4 adjacent pairs + 4 triples + 1 centre; the diagonal pairs have no region at the default overlap). Rings of 5–6 and all rows only ship single-circle labels by default. The shape dropdown lists row(3), row(4), ring(5) and ring(6); row(5) and row(6) stay decodable so older links keep working, and the menu adds the current one as a temporary entry when you open such a link.
 
@@ -115,7 +119,7 @@ cat <<'EOF' | npx -y venn-diagram-generator@1 png --json - -o life.png
 EOF
 ```
 
-Every state field has a flag, so nothing is JSON-only. `--arr`, `--style`, `--title`, `--title-fill`, `--title-fs`, `--size`, `--bg`, `--opacity`, `--overlap`, `--radius` and `--colors '#aabbcc,#ddeeff'` map to the fields documented above, and the per-slot ones take the same letter keys: `--fs AB=0.09` and `--fill AB=#ffffff`. All of them override whatever `--json` supplied, and `--set` / `--text` replace only the text, leaving that slot's existing size and fill alone — `--text AB=` clears the words without discarding the region's colour.
+Every state field has a flag, so nothing is JSON-only. `--arr`, `--style`, `--title`, `--title-fill`, `--title-fs`, `--size`, `--bg`, `--opacity`, `--overlap`, `--radius`, `--stroke-width`, `--stroke` and `--colors '#aabbcc,#ddeeff'` map to the fields documented above, and the per-slot ones take the same letter keys: `--fs AB=0.09` and `--fill AB=#ffffff`. All of them override whatever `--json` supplied, and `--set` / `--text` replace only the text, leaving that slot's existing size and fill alone — `--text AB=` clears the words without discarding the region's colour.
 
 The share link's host comes from `--base-url`, then `VENN_BASE_URL`, then `https://venn.applepig.net`. Exit codes: `0` success, `1` bad arguments or an invalid spec, `2` rasterization failed.
 

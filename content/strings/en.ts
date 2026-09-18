@@ -32,6 +32,8 @@ export const STRINGS = {
   'field.opacity': 'Opacity',
   'field.radius': 'Circle size',
   'field.overlap': 'Overlap',
+  'field.stroke': 'Outline',
+  'field.strokeColor': 'Outline color',
   'field.size': 'Export size',
   'field.fs': 'Font size',
   'field.color': 'Color',

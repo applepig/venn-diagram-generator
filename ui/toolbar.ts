@@ -1,5 +1,6 @@
 import { OVERLAP_MAX, OVERLAP_MIN, SIZE_CHOICES } from '../engine/defaults';
-import { BG_SWATCHES } from '../content/palette';
+import { STROKE_W_MAX, strokeColorOf, strokeOf } from '../engine/stroke';
+import { BG_SWATCHES, SWATCH_COLORS } from '../content/palette';
 import { layout, regionExists, slotMasks } from '../engine/layout';
 import { arrOf, radiusRange } from '../engine/shapes/index';
 import { LOCALES, LOCALE_NAMES, type Locale } from '../content/locale';
@@ -196,6 +197,17 @@ export function createToolbar(root: HTMLElement, handlers: ToolbarHandlers): Too
   const overlap = sliderField(ts('field.overlap'), OVERLAP_MIN, OVERLAP_MAX, 0.01, (o) =>
     handlers.onPatch({ overlap: o }),
   );
+  // 框線：三種樣式都給得出來，0 ＝不畫框線（15 AC6）
+  const stroke = sliderField(ts('field.stroke'), 0, STROKE_W_MAX, 0.001, (w) =>
+    handlers.onPatch({ stroke_w: w }),
+  );
+  const stroke_color = createColorControl({
+    swatches: SWATCH_COLORS,
+    onPick: (color) => {
+      if (color) handlers.onPatch({ stroke: color });
+    },
+  });
+  const stroke_color_row = labeledRow(ts('field.strokeColor'), stroke_color.root);
 
   const slots_el = document.createElement('div');
   slots_el.className = 'slots';
@@ -269,6 +281,8 @@ export function createToolbar(root: HTMLElement, handlers: ToolbarHandlers): Too
     opacity.root,
     radius.root,
     overlap.root,
+    stroke.root,
+    stroke_color_row,
     divider(),
     slots_el,
     divider(),
@@ -337,6 +351,14 @@ export function createToolbar(root: HTMLElement, handlers: ToolbarHandlers): Too
 
       overlap.value_el.textContent = state.overlap.toFixed(2);
       syncValue(overlap.input, String(state.overlap));
+
+      // 缺席的框線寬度由 engine 依樣式解析，滑桿顯示的就是實際畫出來的值
+      const stroke_w = strokeOf(state);
+      stroke.value_el.textContent = stroke_w.toFixed(3);
+      syncValue(stroke.input, String(stroke_w));
+      // 沒有框線就沒有顏色可調（codec 這時也不收 stroke），整列收起來
+      stroke_color_row.hidden = stroke_w === 0;
+      stroke_color.setValue(strokeColorOf(state));
 
       syncRows(state);
       syncValue(size_select, String(state.size));

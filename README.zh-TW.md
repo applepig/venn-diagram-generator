@@ -35,6 +35,10 @@ deploy/   Dockerfile、compose.yml、compose.dev.yml、deploy.sh
   "title_fill": "#e04848",    // 標題字色；缺席＝依背景亮度自動取黑或白。
                               // 沒有 title 時一律不寫進編碼
   "style": "flat",            // translucent | flat | outline
+  "stroke_w": 0.01,           // 圓框線寬度，畫布寬比例 0–0.03；
+                              // 缺席＝依樣式取預設（outline 0.006，其餘 0）
+  "stroke": "#ff0000",        // 框線顏色；缺席＝#000000。
+                              // 解析出的寬度是 0 時一律不寫進編碼
   "opacity": 0.6,             // 0–1，只有 translucent 用得到
   "overlap": 1.2,             // 圓心距 / r，0.6–1.6
   "radius": 0.3,              // 圓半徑，畫布寬比例（ring 0.2–0.35、row 0.1–0.35）
@@ -53,7 +57,7 @@ deploy/   Dockerfile、compose.yml、compose.dev.yml、deploy.sh
 
 有 `title` 時，畫布頂端 18% 變成 title band，圖區（圓與所有區域文字）等比縮小、水平置中並貼齊底緣，所以輸出仍是正方形、也不會出界；沒有標題的版面一個位元都不動。標題字級自動 fit，支援手動 `\n` 與自動折行；字色預設依背景亮度取黑或白，也可以用 `title_fill` 指定。分享頁有標題時，`og:title` 與 `<title>` 也改用它。
 
-`radius` 配上大的 `overlap` 會讓圓超出畫布，`ring(5)`／`ring(6)` 與 row 最容易遇到。超界時整個圖區（圓、所有區域文字，以及已經套過的標題變換）以畫布中心為錨點等比縮小並平移回畫布內，還留 0.3% 畫布寬的邊距讓描邊不被切。它只縮不放：本來就在畫布內的幾何輸出一個位元都不變。排版仍在未變換的幾何上算，所以有哪些槽、文字落在哪都不受影響——內縮是最後才疊在標題變換之上的。
+`radius` 配上大的 `overlap` 會讓圓超出畫布，`ring(5)`／`ring(6)` 與 row 最容易遇到。超界時整個圖區（圓、所有區域文字，以及已經套過的標題變換）以畫布中心為錨點等比縮小並平移回畫布內，還留一個框線半寬（且不少於 0.3% 畫布寬）的邊距讓描邊不被切。它只縮不放：本來就在畫布內的幾何輸出一個位元都不變。排版仍在未變換的幾何上算，所以有哪些槽、文字落在哪都不受影響——內縮是最後才疊在標題變換之上的。
 
 每個形狀有哪些文字槽，是從它的預設幾何推出來的（區域有內接框才給槽）：2 圈 3 個、3 圈 7 個、4 圈的 2×2 花瓣 13 個（4 單圈＋4 相鄰雙圈＋4 三重＋中央四重；對角雙圈在預設重疊度下沒有區域，不給槽）。5／6 圈與 row 預設只給單圈標籤。形狀下拉選單只列 row(3)、row(4)、ring(5)、ring(6)；row(5)／row(6) 仍然解得開，舊連結照樣能用，載入到它們時選單會臨時多出目前這一項。
 
@@ -114,7 +118,7 @@ cat <<'EOF' | npx -y venn-diagram-generator@1 png --json - -o life.png
 EOF
 ```
 
-每個 state 欄位都有對應旗標，沒有哪個欄位只能走 JSON。`--arr`、`--style`、`--title`、`--title-fill`、`--title-fs`、`--size`、`--bg`、`--opacity`、`--overlap`、`--radius` 與 `--colors '#aabbcc,#ddeeff'` 對應上面那份 state 的欄位；per-slot 的兩個用同一套字母 key：`--fs AB=0.09`、`--fill AB=#ffffff`。這些旗標一律覆蓋 `--json` 給的底稿；`--set`／`--text` 只換文字，該格既有的字級與填色原樣留著——`--text AB=` 是清掉字，不是連那一區的填色一起丟掉。
+每個 state 欄位都有對應旗標，沒有哪個欄位只能走 JSON。`--arr`、`--style`、`--title`、`--title-fill`、`--title-fs`、`--size`、`--bg`、`--opacity`、`--overlap`、`--radius`、`--stroke-width`、`--stroke` 與 `--colors '#aabbcc,#ddeeff'` 對應上面那份 state 的欄位；per-slot 的兩個用同一套字母 key：`--fs AB=0.09`、`--fill AB=#ffffff`。這些旗標一律覆蓋 `--json` 給的底稿；`--set`／`--text` 只換文字，該格既有的字級與填色原樣留著——`--text AB=` 是清掉字，不是連那一區的填色一起丟掉。
 
 分享連結的主機依序取 `--base-url`、`VENN_BASE_URL`、`https://venn.applepig.net`。退出碼：`0` 成功、`1` 參數或 spec 有誤、`2` 點陣化失敗。
 
