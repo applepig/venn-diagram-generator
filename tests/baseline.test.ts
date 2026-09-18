@@ -3,6 +3,10 @@
  *
  * golden（`tests/golden/baseline.json`）在 M0 用重構前的程式產出，之後任何 milestone 都不得修改：
  * 這裡紅了就是實作把輸出改掉了，改 golden 等於假造完成。要重產只有「行為已由使用者確認要變」一種情況。
+ *
+ * 15 sprint 就是那一種情況，且只動 `full-flat` 一個 case：flat「有 `fill` override 就自動加一圈黑框」
+ * 的隱藏行為由使用者決定移除（spec 15 AC4），這張圖因此少一圈黑框，svg／png／og 三個雜湊跟著重凍。
+ * 其餘七個 case 逐位元不變——框線 0 的圖仍留既有的 0.003 fit 內縮，正是為了不動到 `overlap-max`。
  */
 import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';

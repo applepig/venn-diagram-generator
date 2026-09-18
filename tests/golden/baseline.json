@@ -1,5 +1,5 @@
 {
-  "note": "AC1 golden：以 07 sprint 重構前的程式產出，任何 milestone 都不得修改。測試紅了是實作錯，不是 golden 錯。唯一能重產的情況是行為已由使用者確認要變，重產理由逐案記在各 case 的 refrozen。最近一次重產：10 sprint 移除文字位移 dx/dy（使用者決定：編輯器沒有任何控制項能產生位移，欄位不該留在資料結構裡）。五個帶位移的 case（full-translucent／full-flat／full-outline／overlap-min／overlap-max）雜湊改變；三個模板 case（tpl-2／tpl-3／tpl-4）的 s 與 svg／png／og 三個雜湊一個字元都沒變，已逐項 diff 核對。",
+  "note": "AC1 golden：以 07 sprint 重構前的程式產出，任何 milestone 都不得修改。測試紅了是實作錯，不是 golden 錯。唯一能重產的情況是行為已由使用者確認要變，重產理由逐案記在各 case 的 refrozen。最近一次重產：10 sprint 移除文字位移 dx/dy（使用者決定：編輯器沒有任何控制項能產生位移，欄位不該留在資料結構裡）。該次重產中，五個帶位移的 case（full-translucent／full-flat／full-outline／overlap-min／overlap-max）雜湊改變，三個模板 case（tpl-2／tpl-3／tpl-4）的 s 與三個雜湊未變。重產時腳本會逐 case 比對舊雜湊，有變動而 REFROZEN 沒有新增理由就中止。",
   "slot_masks_4": [
     1,
     2,
@@ -69,11 +69,12 @@
       "label": "4 圈 13 槽全填，flat ＋ fill override ＋ size 800",
       "s": "XVBLTsMwEL3Ly3aE7Pwwvgpi4aYximSRKnErSuVFhbgBm96ga1blPiDELdCEpnHqkax543nvzXiHDbQkPEHnhN5vXQ0N64wHoV2ZqvFbaHFTEtpN3TmzYqQInVk2655BlhGq1rVdD32PRKZZXpQgJGZRLWvLmRDWKsWZtUKUJR4Ii0doJNZwgNA3LzW0EoLg62ffQ-8g-fLQ-Hn_QCCkI_76PIBgB3txFwhZ1Hl-bJwbDIbD7PzCPh0YFzHnFAkWgXA7FzxT1CSxZyxFNBHXJl8pOIYmea21n7wybkijyUblbD7dWM5nhleeSlXV_67ystz32_H39TgZ5vHXKCUEQgh_",
       "refrozen": [
-        "10 移除文字位移 dx/dy：本 case 的 texts 帶過位移，重產後雜湊改變。三個 tpl-* 不帶位移，s 與三個雜湊一字未變。"
+        "10 移除文字位移 dx/dy：本 case 的 texts 帶過位移，重產後雜湊改變。三個 tpl-* 不帶位移，s 與三個雜湊一字未變。",
+        "15 框線改成幾何選項：flat「有 fill override 就自動加一圈黑框」的隱藏行為移除（spec 15 AC4，使用者明確要的變更），本 case 因此少一圈黑框。框線改由 stroke_width／stroke 自己開，其餘 7 個 case 一個位元都沒動。"
       ],
-      "svg_sha256": "33b5f360b17dadcae4cebde8f9ead234f5059988bf2e149a6bb2b3994f615425",
-      "png_sha256": "fb51ae51c996e738e823bc39878678ca25dc6efc80ef6d462569529cf8a36666",
-      "og_png_sha256": "2d3a841b3eb8e9d49f2ce97c289c58c695b508d79c9ceef57e7e44dd5dfbc641"
+      "svg_sha256": "9bdd1c4aacb5e233b4245d84e7bbd326d7a7eeac8325bae09e6217fa62524b79",
+      "png_sha256": "3fdac0c43eacf744624b84638e8598a57a1cec7037faa0e1d1c3d5cd87c828bb",
+      "og_png_sha256": "33559eddb10a499486fdfa31043d846018208f1fbb0f249cd9de68ce3bfb0bba"
     },
     {
       "id": "full-outline",
