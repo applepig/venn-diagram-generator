@@ -70,6 +70,12 @@ body {
 .app {
   display: grid;
   grid-template-columns: 320px minmax(0, 1fr);
+  /*
+   * 三列：面板與大圖、動作列、頁尾。多出來的高度全給頁尾那一列（1fr）吸收，
+   * 頁尾才留在視窗底部——不指定的話 min-height 的餘裕會平均撐開每一列，
+   * 圖和它下面的動作列就被拉開。
+   */
+  grid-template-rows: auto auto 1fr;
   gap: 20px;
   padding: 20px;
   min-height: 100vh;
@@ -596,8 +602,16 @@ select {
   margin-left: auto;
 }
 
-/* 動作列排在畫布下方，跟著畫布的寬度式走才會左右對齊 */
-.stage-actions {
+/*
+ * 動作列排在畫布下方，跟著畫布的寬度式走才會左右對齊。
+ * 它是 .app 的直接子元素而不是 .stage 的內容：窄版面要靠 order 把它移到面板之後，
+ * 跨父層搬不動。寬版面用 grid 放回右欄第二列，看起來還是接在圖下面。
+ */
+.actions-bar {
+  grid-column: 2;
+  justify-self: center;
+  /* .app 的 20px 間距比圖與動作列該有的距離遠，補回原本的 10px */
+  margin-top: -10px;
   width: min(100%, 78vh);
   display: flex;
   flex-direction: column;
@@ -695,6 +709,8 @@ select {
 /* grid 的兩欄都跨過去，才會落在 panel 與畫布下方而不是擠進某一欄 */
 .site-footer {
   grid-column: 1 / -1;
+  /* 頁尾那一列吃掉所有餘裕，自己貼在列底＝視窗底部 */
+  align-self: end;
   display: flex;
   justify-content: center;
   gap: 8px;
@@ -780,9 +796,20 @@ select {
     padding: 14px 12px 20px;
   }
 
-  /* 面板在窄版面排最後，頁尾要跟在它後面；.app 的 padding 在這裡是 0，自己補 */
-  .site-footer {
+  /* 使用者要的順序：大圖 → 控制面板 → 匯出動作（AC6a），同一個節點只換位置 */
+  .actions-bar {
     order: 4;
+    margin-top: 0;
+    width: auto;
+    border-top: 1px solid var(--line);
+    padding: 16px 12px;
+  }
+
+  /* 面板與動作列在窄版面排最後，頁尾要跟在它們後面；.app 的 padding 在這裡是 0，自己補 */
+  .site-footer {
+    order: 5;
+    /* flex column 下 align-self 管的是水平方向，end 會把頁尾推到右邊 */
+    align-self: auto;
     border-top: 1px solid var(--line);
     padding: 16px 12px;
   }
@@ -790,6 +817,15 @@ select {
   .peek .canvas-wrap {
     width: 56px;
     flex: none;
+  }
+
+  /* 第二份動作只在 overlay 展開時出現：收合的小圖條只有一格高，塞不下也不該塞（AC6b） */
+  .peek .actions-bar {
+    display: none;
+    order: 0;
+    margin-top: 0;
+    border-top: 0;
+    padding: 0;
   }
 
   .peek-hint {
@@ -817,6 +853,11 @@ select {
   }
 
   body[data-preview='open'] .peek .canvas-wrap {
+    width: min(92vw, 68vh);
+  }
+
+  body[data-preview='open'] .peek .actions-bar {
+    display: flex;
     width: min(92vw, 68vh);
   }
 

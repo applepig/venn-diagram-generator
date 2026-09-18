@@ -15,14 +15,16 @@
         <div class="canvas-wrap">
           <div class="canvas" id="canvas"></div>
         </div>
-        <!-- 匯出動作排在圖下方；內容由 ui/actions.ts 建立 -->
-        <div class="stage-actions" id="actions"></div>
       </main>
+      <!-- 匯出動作：寬版面在圖下方，窄版面排到整頁最下方（同一個節點，靠 order 換位置） -->
+      <div class="actions-bar" id="actions"></div>
       <!-- 窄版面才出現：捲過大圖之後黏在頂端，點一下放大成 overlay -->
       <div class="peek">
         <div class="canvas-wrap">
           <div class="canvas" id="canvas-mini"></div>
         </div>
+        <!-- overlay 展開時圖下的第二份動作；收合成小圖條時不顯示 -->
+        <div class="actions-bar" id="peek-actions"></div>
         <!-- data-i18n 的文字由 server 依語言換掉（content/strings/），這裡的中文是 zh-TW 版本 -->
         <p class="peek-hint" data-i18n="peek.hint">預覽 · 點一下放大</p>
         <button type="button" class="preview-close" data-i18n="peek.close">關閉預覽</button>

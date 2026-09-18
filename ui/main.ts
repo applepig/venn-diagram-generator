@@ -17,6 +17,7 @@ import { watermarkText } from './watermark';
 
 const panel_el = document.getElementById('panel')!;
 const actions_el = document.getElementById('actions')!;
+const peek_actions_el = document.getElementById('peek-actions')!;
 const canvas_el = document.getElementById('canvas')!;
 const canvas_mini_el = document.getElementById('canvas-mini')!;
 
@@ -41,13 +42,23 @@ const toolbar = createToolbar(panel_el, {
   onLocale: (next) => void changeLocale(next),
 });
 
-// 匯出動作在畫布下方，不在面板裡（16 AC2）
-const actions = createActions(actions_el, {
-  onCopyImage: () => void copyImage(),
-  onShareImage: () => void shareImage(),
-  onCopyLink: () => void copyLink(),
-  onDownloadSvg: () => downloadSvg(),
-});
+/**
+ * 匯出動作在畫布下方，不在面板裡（16 AC2）。
+ * 兩份：主動作列（窄版面排到整頁最下方），以及預覽 overlay 展開時圖下的那份（AC6）。
+ * 兩份共用同一組 handler，狀態更新一起走。
+ */
+const actions = [actions_el, peek_actions_el].map((el) =>
+  createActions(el, {
+    onCopyImage: () => void copyImage(),
+    onShareImage: () => void shareImage(),
+    onCopyLink: () => void copyLink(),
+    onDownloadSvg: () => downloadSvg(),
+  }),
+);
+
+function updateActions(png_url: string): void {
+  for (const bar of actions) bar.update(png_url);
+}
 
 const canvas = createCanvas(
   { main: canvas_el, mini: canvas_mini_el },
@@ -156,7 +167,7 @@ async function changeLocale(next: Locale): Promise<void> {
 function render(): void {
   canvas.render();
   toolbar.update(state);
-  actions.update(pngUrl());
+  updateActions(pngUrl());
   pending_sync = syncUrl();
   pending_sync.catch(console.error);
 }
@@ -169,9 +180,10 @@ async function syncUrl(): Promise<void> {
   // 只改 s：lang 這類參數留著，不然按一下滑桿就把使用者選的語言從網址上抹掉
   history.replaceState(null, '', searchWithState(location.search, encoded));
   // 超過 server 收得下的長度時，分享連結與 /api/png 都會被擋成 400：先說明再停用（AC15）
-  actions.setTooLong(encoded.length > MAX_STATE_PARAM_LEN);
+  const too_long = encoded.length > MAX_STATE_PARAM_LEN;
+  for (const bar of actions) bar.setTooLong(too_long);
   // 編碼完成後才知道正確的下載連結與 og 分享網址，補一次動作列
-  actions.update(pngUrl());
+  updateActions(pngUrl());
 }
 
 async function boot(): Promise<void> {

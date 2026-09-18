@@ -72,14 +72,13 @@ export function createCanvas(els: CanvasElements, handlers: CanvasHandlers): Can
   // 小圖條是 fixed 的，不佔文件空間：大圖還看得到時就藏起來，免得畫面上同時有兩個預覽。
   // 用 fixed 而不是 sticky＋display:none，是因為切換 sticky 元素的顯示會改變文件高度，面板會跳。
   document.body.dataset.peek = 'hidden';
-  // 觀察大圖本身而不是整個 .stage：動作列也在 stage 裡，看 stage 會等到動作列也捲出去才滑進來
-  const wrap = els.main.closest('.canvas-wrap')!;
+  const stage = els.main.closest('.stage')!;
   new IntersectionObserver(
     ([entry]) => {
       document.body.dataset.peek = entry?.isIntersecting ? 'hidden' : 'stuck';
     },
     { threshold: 0 },
-  ).observe(wrap);
+  ).observe(stage);
 
   els.main.addEventListener('click', (event) => {
     const mask = pickedMask(els.main, handlers.getState(), event);
@@ -93,6 +92,8 @@ export function createCanvas(els: CanvasElements, handlers: CanvasHandlers): Can
       setOpen(true);
       return;
     }
+    // overlay 裡的匯出鈕按下去要留在原畫面：下載或複製完還看得到圖，不然按一下就被關掉
+    if ((event.target as Element).closest('.actions-bar')) return;
     if ((event.target as Element).closest('.canvas-wrap')) {
       const mask = pickedMask(els.mini, handlers.getState(), event);
       // 點到圓外的空白處不收起，只有點到區域才跳去那一列（14 AC3、AC6）
