@@ -9,7 +9,14 @@ import {
 } from './defaults';
 import { transformBlock } from './fit';
 import { arrOf, circlesFor, circlesForState, shapeDefaults } from './shapes/index';
-import { circlesForRender, diagramTransform, titleBox, titleTextOf } from './title';
+import {
+  TITLE_BAND_MAX,
+  circlesForRender,
+  diagramTransform,
+  titleBandH,
+  titleBox,
+  titleTextOf,
+} from './title';
 import type {
   Arrangement,
   Circle,
@@ -385,20 +392,35 @@ export function layoutTitle(state: VennState): TitleBlock | null {
   const text = titleTextOf(state);
   if (text === '') return null;
 
-  const box = titleBox();
+  const box = titleBox(state);
+  // band 頂到上限就不再長高，這時候才輪到「夾字級、截行」那套保底（17 AC4）
+  const capped = titleBandH(state) >= TITLE_BAND_MAX;
+
   /**
    * 手動字級時只換行不縮字，比照文字槽：否則按＋會被自動排版吃掉。
-   * 但字級再大也不能超過 band 裝得下一行的高度——區域文字溢出只是蓋到隔壁，
-   * 標題溢出是直接被畫布上緣切掉（AC4 的「不出界」對手動字級一樣成立）。
+   * band 已經照著這個字級長高（17 AC1），所以原樣採用——band 還在長的時候再夾一次，
+   * 只會被「band 減留白再除以行高」的浮點誤差啃掉一個 ulp，變成 0.18799999999999997。
+   * 頂到上限才夾：區域文字溢出只是蓋到隔壁，
+   * 標題溢出是直接被畫布上緣切掉（08 AC4 的「不出界」對手動字級一樣成立）。
    */
   const manual_fs =
-    state.title_fs === undefined ? undefined : Math.min(state.title_fs, box.h / LINE_HEIGHT);
+    state.title_fs === undefined
+      ? undefined
+      : capped
+        ? Math.min(state.title_fs, box.h / LINE_HEIGHT)
+        : state.title_fs;
   const fitted =
     manual_fs === undefined
       ? fitText(text, box, LABEL_START_FS)
       : { fs: manual_fs, lines: wrapManualFs(text, manual_fs, box.w) };
+
+  // band 是照這幾行算出來的，行本來就放得下：再截一次只會被浮點誤差吃掉最後一行
+  if (manual_fs !== undefined && !capped) {
+    return { cx: box.cx, cy: box.cy, fs: fitted.fs, lines: fitted.lines };
+  }
+
   // fitText 縮到字級下限仍放不下時不再檢查高度，行數多的標題會衝出 band 被畫布上緣切掉、
-  // 還蓋到圖區。band 是固定高度：截到放得下的行數，寧可少幾行也不出界（AC4）。
+  // 還蓋到圖區。band 這時已經是固定高度：截到放得下的行數，寧可少幾行也不出界（08 AC4）。
   const max_lines = Math.max(1, Math.floor(box.h / (fitted.fs * LINE_HEIGHT)));
   return { cx: box.cx, cy: box.cy, fs: fitted.fs, lines: fitted.lines.slice(0, max_lines) };
 }
