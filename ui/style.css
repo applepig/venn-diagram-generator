@@ -835,6 +835,15 @@ select {
     padding: 0;
   }
 
+  /*
+   * 超長警告在 overlay 這份不給：它可能好幾行，而 --overlay-chrome 是固定預算，
+   * 算進去等於所有中等高度視窗的預覽圖都永久縮一截。這裡的按鈕超長時本來就是
+   * disabled，看得出不能按，理由到頁面最下方那份看得到。
+   */
+  .peek .actions-bar .note.warn {
+    display: none;
+  }
+
   .peek-hint {
     display: block;
     margin: 0;
