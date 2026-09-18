@@ -92,13 +92,15 @@ export function createTitleRow(handlers: TitleRowHandlers): TitleRow {
       if (block) {
         // 顯示 block.fs 而不是 state.title_fs：band 裝不下時 layoutTitle 會夾字級，
         // 面板要說的是「畫出來多大」，不是「你填了多大」
+        const min_px = fsToPx(FS_MIN, size, 1);
         fs_field.update({
           px: fsToPx(block.fs, size, 1),
           manual: state.title_fs !== undefined,
-          min_px: fsToPx(FS_MIN, size, 1),
+          min_px,
           // 上限問 engine：band 長到頭之後標題就不會再變大，欄位上限寫死 FS_MAX
-          // 會留一段按了不動的行程，那正是這次要修掉的「按＋沒反應」
-          max_px: fsToPx(maxTitleFs(state), size, 1),
+          // 會留一段按了不動的行程，那正是這次要修掉的「按＋沒反應」。
+          // 再保一次底：上下限倒置的話 clampPx 會夾成上限、排版又夾回來，死行程就長回來了
+          max_px: Math.max(min_px, fsToPx(maxTitleFs(state), size, 1)),
         });
       }
 

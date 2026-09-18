@@ -1,4 +1,4 @@
-import { LINE_HEIGHT } from './defaults';
+import { LINE_HEIGHT, MIN_FS } from './defaults';
 import {
   IDENTITY_TRANSFORM,
   composeTransform,
@@ -64,6 +64,10 @@ const FITS_EPS = 1e-12;
  *
  * 字級愈大、折出來的行愈多，所以「放得下」是一個下集合（單調），二分找得到那個邊界。
  * 找字級而不是截行，是因為靜默截掉最後一行等於吃掉使用者打的字。
+ *
+ * 下限是 MIN_FS：行數多到連下限都塞不下時（1200px 畫布約 17 行起），不再往下縮成看不見的字，
+ * 改由 `layoutTitle()` 截到放得下的行數。否則上限會掉到面板下限以下、上下限倒置，
+ * 面板夾一次、排版再夾一次，又變成「按了沒反應」。
  */
 export function maxTitleFs(state: VennState): number {
   const box_h = TITLE_BAND_MAX - 2 * TITLE_PAD_Y;
@@ -81,7 +85,7 @@ export function maxTitleFs(state: VennState): number {
     if (fits(mid)) lo = mid;
     else hi = mid;
   }
-  return lo;
+  return Math.max(MIN_FS, lo);
 }
 
 /** 標題在 band 內可用的文字框 */
