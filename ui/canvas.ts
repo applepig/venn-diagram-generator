@@ -1,7 +1,6 @@
-import { placeholderTexts } from '../content/state-presets';
+import { ghostTexts } from '../content/state-presets';
 import { slotAtPoint } from '../engine/layout';
 import { renderSvg } from '../engine/render-svg';
-import { arrOf } from '../engine/shapes/index';
 import type { VennState } from '../engine/types';
 import { uiLocale } from './i18n';
 import { watermarkText } from './watermark';
@@ -119,10 +118,11 @@ export function createCanvas(els: CanvasElements, handlers: CanvasHandlers): Can
   return {
     render() {
       const state = handlers.getState();
-      // 幽靈字只在這裡給：下載 SVG／PNG 與 og 都走沒有 ghosts 的同一支 renderSvg
+      // 幽靈字只在這裡給，而且只在使用者還沒寫過字時（`ghostTexts`）：
+      // 下載 SVG／PNG 與 og 都走沒有 ghosts 的同一支 renderSvg
       const svg = renderSvg(state, {
         watermark: watermarkText(),
-        ghosts: placeholderTexts(arrOf(state), state.n, uiLocale()),
+        ghosts: ghostTexts(state, uiLocale()),
       });
       els.main.innerHTML = svg;
       // 同一份 SVG 出現兩次會有兩個 id="glow"，小圖換掉自己那組再插入
