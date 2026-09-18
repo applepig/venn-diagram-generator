@@ -17,10 +17,12 @@ import {
 } from '../content/locale';
 import { sampleState } from '../content/state-presets';
 import { MAX_STATE_PARAM_LEN } from '../engine/defaults';
+import { slotMasks } from '../engine/layout';
 import { escapeXml, renderSvg } from '../engine/render-svg';
+import { ARRANGEMENTS, circleCountRange } from '../engine/shapes/index';
 import { StateError, validateState } from '../engine/state-codec';
 import { MAX_INFLATED_BYTES, decodeState, encodeState } from '../engine/state-codec-node';
-import type { VennState } from '../engine/types';
+import type { CircleCount, VennState } from '../engine/types';
 import { OG_HEIGHT, OG_WIDTH, renderOgPng } from './render-og';
 
 export interface AppOptions {
@@ -221,6 +223,21 @@ function jsonLd(origin: string, locale: Locale): string {
 }
 
 /**
+ * llms.txt 的合法文字槽表。逐 (arr, n) 問 `slotMasks()` 現算，不手抄：
+ * 抄一份就會漂——row(3) 沒有 5 與 7（兩端的圓不相鄰），手寫版第一次就寫錯了。
+ */
+function slotTable(): string {
+  const rows: string[] = [];
+  for (const arr of ARRANGEMENTS) {
+    const [min_n, max_n] = circleCountRange(arr);
+    for (let n = min_n; n <= max_n; n++) {
+      rows.push(`${`${arr}(${n})`.padEnd(8)}${slotMasks(arr, n as CircleCount).join(' ')}`);
+    }
+  }
+  return rows.join('\n');
+}
+
+/**
  * llms.txt（llmstxt.org）：給會讀網頁的 agent 看的操作說明，不是給人看的行銷頁。
  * 只寫「怎麼呼叫 API」需要的事實，來源是 README 的 API 與 URL state 兩節——
  * 契約變動時兩邊一起改，這裡不自成第二份規格。英文寫，理由同 API 錯誤訊息：機器介面。
@@ -257,7 +274,13 @@ There is no partial form: the body is a complete state, and **\`v\`, \`n\`, \`st
 - \`size\`: output pixels, an integer 400-2000. Output is always square.
 - Optional: \`title\` (drawn in a band above the diagram) with \`title_fill\` and \`title_fs\`; \`stroke_width\` 0-0.03 and \`stroke\` \`#rrggbb\`.
 
-Not every overlap exists, and addressing one that does not is an error rather than a silent omission. Four circles in a ring means the first and fourth never touch, so \`"9"\` gets you \`400 {"error":"text slot 9 does not exist in ring(4)"}\`. Two circles have slots 1, 2, 3; three circles have 1-7; a four-circle ring has the four singles, the four adjacent pairs, the four triples and the centre.
+Not every overlap exists, and addressing one that does not is an error rather than a silent omission: four circles in a ring means the first and fourth never touch, so \`"9"\` gets you \`400 {"error":"text slot 9 does not exist in ring(4)"}\`. Which keys are legal depends on the arrangement *and* the circle count — take them from this table:
+
+\`\`\`
+${slotTable()}
+\`\`\`
+
+Only \`ring(2)\` and \`ring(3)\` carry every combination; everywhere else, circles that are not neighbours share no region. If the idea needs a pair that is missing, reorder the circles so those two sit next to each other, or use fewer circles.
 
 ## Fetching one that already exists
 
