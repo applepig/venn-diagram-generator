@@ -33,6 +33,32 @@ function fillAllSlots(n: CircleCount, text: string): VennState {
   return stateWith(n, Object.fromEntries(slotMasks('ring', n).map((m) => [String(m), text])));
 }
 
+/**
+ * 字寬估算只認 CJK 三段（U+2E80–9FFF、U+F900–FAFF、U+FF00–FFEF）：全形算一格、逐字可斷，
+ * 其餘文字算 0.62 格、整段不可拆。邊界寫錯一個碼位，韓文／彝文／私用區就會被當成漢字，
+ * 折行與 fit 後的字級跟著走樣，而 golden 裡沒有這些字元、測試會照樣全綠。
+ */
+describe('CJK 判定的邊界', () => {
+  const fs = 0.05;
+
+  it('韓文不是 CJK：一格算 0.62，整個詞不逐字拆', () => {
+    expect(estimateWidth('가나다', fs)).toBeCloseTo(3 * 0.62 * fs, 12);
+    // 放得下就是一行，不會被拆成一個字一行
+    expect(wrapText('가나다', fs, 3 * 0.62 * fs + 1e-9)).toEqual(['가나다']);
+  });
+
+  it('彝文與私用區也不是 CJK', () => {
+    expect(estimateWidth('ꀀ', fs)).toBeCloseTo(0.62 * fs, 12);
+    expect(estimateWidth('', fs)).toBeCloseTo(0.62 * fs, 12);
+  });
+
+  it('相容漢字與一般漢字都算 CJK：一格一整格', () => {
+    for (const ch of ['豈', '﫿', '豈', '⺀', '鿿', '＀', '￯']) {
+      expect(estimateWidth(ch, fs), `U+${ch.codePointAt(0)!.toString(16)}`).toBeCloseTo(fs, 12);
+    }
+  });
+});
+
 describe('wrapText', () => {
   it('把長 CJK 字串斷成多行，每行估寬不超過上限', () => {
     const fs = 0.05;

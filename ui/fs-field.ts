@@ -1,7 +1,7 @@
 import { ts } from './i18n';
 
 /** 每按一次 ± 的字級倍率，與 01 的畫布工具列一致 */
-const FS_STEP = 1.12;
+export const FS_STEP = 1.12;
 /** 手動字級的上下限（畫布寬比例）；codec 放到 0.001..1，但那個範圍在 UI 上沒有意義 */
 export const FS_MIN = 0.012;
 export const FS_MAX = 0.5;
@@ -13,6 +13,15 @@ export const FS_MAX = 0.5;
  */
 export function fsToPx(unit_fs: number, size: number, scale: number): number {
   return Math.round(unit_fs * scale * size);
+}
+
+/**
+ * 夾在這一格當下的 px 上下限內（標題那列的上限隨文字而變，見 `maxTitleFs()`）。
+ * ± 與手打的值都要先過這一關再寫回 state：超過上限的值排版會夾回同一個字級，
+ * 使用者看到的是「按了沒反應」，網址卻一直在變。
+ */
+export function clampPx(px: number, min_px: number, max_px: number): number {
+  return Math.min(max_px, Math.max(min_px, px));
 }
 
 /** 面板上的 px → state 的 fs，夾在 UI 有意義的上下限內 */
@@ -74,18 +83,22 @@ export function createFsField(handlers: FsFieldHandlers): FsField {
   unit.textContent = 'px';
 
   let shown_px = 0;
+  // 上下限由呼叫端每次 update 給：標題那列的上限隨標題文字變（engine 的 maxTitleFs）
+  let min_px = 0;
+  let max_px = Number.POSITIVE_INFINITY;
+  const pick = (px: number) => handlers.onPick(clampPx(px, min_px, max_px));
 
   const step_down = document.createElement('button');
   step_down.type = 'button';
   step_down.textContent = '−';
   step_down.title = ts('fs.stepDown');
-  step_down.addEventListener('click', () => handlers.onPick(Math.round(shown_px / FS_STEP)));
+  step_down.addEventListener('click', () => pick(Math.round(shown_px / FS_STEP)));
 
   const step_up = document.createElement('button');
   step_up.type = 'button';
   step_up.textContent = '+';
   step_up.title = ts('fs.stepUp');
-  step_up.addEventListener('click', () => handlers.onPick(Math.round(shown_px * FS_STEP)));
+  step_up.addEventListener('click', () => pick(Math.round(shown_px * FS_STEP)));
 
   // change 而不是 input：邊打邊套用會讓「1」「12」這種中途值先跑一次重繪
   num.addEventListener('change', () => {
@@ -95,7 +108,7 @@ export function createFsField(handlers: FsFieldHandlers): FsField {
       num.value = String(shown_px);
       return;
     }
-    handlers.onPick(px);
+    pick(px);
   });
 
   steps.append(step_down, num, unit, step_up);
@@ -104,8 +117,11 @@ export function createFsField(handlers: FsFieldHandlers): FsField {
 
   return {
     root,
-    update({ px, manual, min_px, max_px }) {
+    update(view) {
+      const { px, manual } = view;
       shown_px = px;
+      min_px = view.min_px;
+      max_px = view.max_px;
       box.dataset.mode = manual ? 'manual' : 'auto';
       num.min = String(min_px);
       num.max = String(max_px);

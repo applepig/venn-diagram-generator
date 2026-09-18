@@ -8,7 +8,14 @@
  * 字寬不量 DOM，用字元分類估：前端與 server 才會排出同一份版面。
  */
 
-const CJK_RANGES = '⺀-鿿豈-﫿＀-￯';
+/**
+ * CJK 三段：部首補充～統一漢字、相容漢字、全形與半形。
+ *
+ * 寫成 escape 不是為了可攜——是因為兩段的端點是未指派碼位（U+9FFF／U+FAFF／U+FF00／U+FFEF），
+ * 而 U+F900 的字形與一般漢字 U+8C48 長得一模一樣：直接貼字元改過一次，起點就從 U+F900
+ * 掉成 U+8C48，範圍多吃了 U+A000–U+F8FF（韓文、彝文、私用區全被當成漢字），測試還全綠。
+ */
+const CJK_RANGES = '⺀-鿿豈-﫿＀-￯';
 const CJK_RE = new RegExp(`[${CJK_RANGES}]`);
 // token：CJK 逐字可斷、Latin／數字連續段不可拆、空白當分隔
 const TOKEN_RE = new RegExp(`[${CJK_RANGES}]|[^\\s${CJK_RANGES}]+|\\s+`, 'g');
