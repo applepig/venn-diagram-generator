@@ -1,4 +1,11 @@
-import { MAX_TEXT_LEN, OVERLAP_MAX, OVERLAP_MIN, SIZE_MAX, SIZE_MIN } from './defaults';
+import {
+  FS_CODEC_MIN,
+  MAX_TEXT_LEN,
+  OVERLAP_MAX,
+  OVERLAP_MIN,
+  SIZE_MAX,
+  SIZE_MIN,
+} from './defaults';
 import { slotMasks } from './layout';
 import {
   circleCountRange,
@@ -102,7 +109,7 @@ function parseSlot(key: string, raw: unknown): TextSlot {
   }
 
   const slot: TextSlot = { t: raw.t };
-  if (raw.fs !== undefined) slot.fs = requireNumber(raw.fs, `text slot ${key} fs`, 0.001, 1);
+  if (raw.fs !== undefined) slot.fs = requireNumber(raw.fs, `text slot ${key} fs`, FS_CODEC_MIN, 1);
   if (raw.fill !== undefined) slot.fill = requireHex(raw.fill, `text slot ${key} fill`);
   return slot;
 }
@@ -182,7 +189,9 @@ export function validateState(input: unknown): VennState {
   const title_fill =
     input.title_fill === undefined ? undefined : requireHex(input.title_fill, 'title_fill');
   const title_fs =
-    input.title_fs === undefined ? undefined : requireNumber(input.title_fs, 'title_fs', 0.001, 1);
+    input.title_fs === undefined
+      ? undefined
+      : requireNumber(input.title_fs, 'title_fs', FS_CODEC_MIN, 1);
   if (title !== '') {
     state.title = title;
     // 字色與字級只跟著標題走：沒有標題就沒有東西可以上色或縮放，

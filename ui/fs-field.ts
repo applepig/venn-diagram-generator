@@ -24,6 +24,20 @@ export function clampPx(px: number, min_px: number, max_px: number): number {
   return Math.min(max_px, Math.max(min_px, px));
 }
 
+/**
+ * 這一格的 px 上下限（上限由呼叫端決定，標題那列問 engine 的 `maxTitleFs()`）。
+ * 上限比預設下限還低時（行數多到 band 塞不下），下限跟著往下走：
+ * 上下限倒置的話 `clampPx` 會把每一次 ± 都夾成同一個值，又變成按了沒反應。
+ */
+export function fsBoundsPx(
+  max_fs: number,
+  size: number,
+  scale: number,
+): { min_px: number; max_px: number } {
+  const max_px = fsToPx(max_fs, size, scale);
+  return { min_px: Math.min(fsToPx(FS_MIN, size, scale), max_px), max_px };
+}
+
 /** 面板上的 px → state 的 fs，夾在 UI 有意義的上下限內 */
 export function pxToFs(px: number, size: number, scale: number): number {
   return Math.min(FS_MAX, Math.max(FS_MIN, px / (scale * size)));

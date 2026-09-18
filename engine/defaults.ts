@@ -7,6 +7,8 @@ export const DEFAULT_SIZE = 1200;
 export const LABEL_START_FS = 0.14;
 export const INTERSECTION_START_FS = 0.11;
 export const MIN_FS = 0.025;
+/** codec 收得下的字級下界：排版真的塞不下時字級可以低於 MIN_FS，但不能低到編不進網址 */
+export const FS_CODEC_MIN = 0.001;
 export const LINE_HEIGHT = 1.12;
 
 /** 文字框長寬比：單圈標籤比交集區寬扁一些 */

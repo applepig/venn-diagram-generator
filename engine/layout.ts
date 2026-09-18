@@ -283,17 +283,9 @@ export function layoutTitle(state: VennState): TitleBlock | null {
       ? fitText(text, box, LABEL_START_FS)
       : { fs: manual_fs, lines: wrapManualFs(text, manual_fs, box.w) };
 
+  // 手動字級的高度由 band 與 maxTitleFs() 一起保證放得下，一行都不必截
   if (manual_fs !== undefined) {
-    // band 或 maxTitleFs() 通常已經保證放得下，這時一行都不能少——用高度判斷而不是
-    // 「box.h ÷ 行高」取整，後者在 band 恰好等於文字高時會被浮點誤差吃掉最後一行。
-    const text_h = fitted.lines.length * fitted.fs * LINE_HEIGHT;
-    if (text_h <= box.h * (1 + 1e-9)) {
-      return { cx: box.cx, cy: box.cy, fs: fitted.fs, lines: fitted.lines };
-    }
-    // 走到這裡代表字級已經頂到下限、行數仍太多（1200px 畫布約 17 行起）：
-    // 截到放得下為止，寧可少幾行也不出界（08 AC4）
-    const fit_lines = Math.max(1, Math.floor(box.h / (fitted.fs * LINE_HEIGHT)));
-    return { cx: box.cx, cy: box.cy, fs: fitted.fs, lines: fitted.lines.slice(0, fit_lines) };
+    return { cx: box.cx, cy: box.cy, fs: fitted.fs, lines: fitted.lines };
   }
 
   // fitText 縮到字級下限仍放不下時不再檢查高度，行數多的標題會衝出 band 被畫布上緣切掉、
