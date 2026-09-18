@@ -9,7 +9,7 @@
 - 產品內容（template、色票、介面字串）在 `content/`，engine 零產品內容。
 - 字型檔隨 repo 走（`assets/fonts/`），不依賴系統字型；Docker image 內亦不安裝字型套件。
 - 前端 Vite + vanilla TS，server Hono；部署走 Docker + 反向代理（`deploy/compose.yml`），主機、hostname 與路徑全部由 env 提供，不寫進 repo。
-- 單一入口：dev 用 Vite middlewareMode 掛進 Hono，`/`、`/api/png`、`/robots.txt` 全走 server 既有邏輯，SEO／og meta 不得出現第二套注入。開發站（`deploy/compose.dev.yml`）掛原始碼熱更新、不 build image，且刻意不給 `VENN_GTM_ID`，數據才不會混進正式站。
+- 單一入口：dev 用 Vite middlewareMode 掛進 Hono，`/`、`/api/png`、`/robots.txt`、`/llms.txt` 全走 server 既有邏輯，SEO／og meta 不得出現第二套注入。`/llms.txt` 是給 agent 的 API 說明，以 README 的 API 節為來源，合法文字槽表一律從 `slotMasks()` 現算——手抄的版本會漂（row 只有相鄰的圓相交，槽數與 ring 不同）。開發站（`deploy/compose.dev.yml`）掛原始碼熱更新、不 build image，且刻意不給 `VENN_GTM_ID`，數據才不會混進正式站。
 
 ## Git
 - repo 已公開在 GitHub，`main` 不直接 commit：每個需求開 branch（`feat/`、`fix/`、`chore/` 前綴），推上去發 PR 才進 main。
