@@ -1,10 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { MIN_FS, popCount } from '../engine/defaults';
 import { LOCALES, type Locale } from '../content/locale';
-import { nextStateForLocale, nextStateForShape } from '../content/next-state';
+import { nextStateForShape } from '../content/next-state';
 import { PALETTE } from '../content/palette';
 import {
   defaultState,
+  initialState,
   isPristine,
   sampleState,
   templateFor,
@@ -78,44 +79,59 @@ describe('sampleState', () => {
   });
 });
 
-describe('isPristine', () => {
-  it('template 原樣是 pristine', () => {
-    for (const n of [2, 3, 4] as CircleCount[]) expect(isPristine(sampleState(n))).toBe(true);
+describe('initialState', () => {
+  it('編輯器起手式一格字都不填，只帶該圈數 template 的樣式', () => {
+    expect(initialState().texts).toEqual({});
+    expect(initialState().n).toBe(2);
+    expect(initialState().style).toBe('flat');
+    expect(initialState(3).style).toBe('translucent');
+    expect(initialState(4).style).toBe('outline');
   });
 
-  it('改過任一格文字就不是 pristine', () => {
-    const s = sampleState(2);
+  it('各語言的起始狀態都是空的（template 只當 placeholder）', () => {
+    for (const locale of LOCALES) {
+      for (const n of [2, 3, 4] as CircleCount[]) {
+        expect(initialState(n, locale).texts, `${locale} ring(${n})`).toEqual({});
+      }
+    }
+  });
+});
+
+describe('isPristine', () => {
+  it('空白狀態是 pristine', () => {
+    for (const n of [2, 3, 4] as CircleCount[]) expect(isPristine(initialState(n))).toBe(true);
+  });
+
+  it('寫過任一格文字就不是 pristine', () => {
+    const s = initialState(2);
     s.texts['3'] = { t: '拖到下週' };
 
     expect(isPristine(s)).toBe(false);
   });
 
-  it('文字沒變但調過字級就不是 pristine', () => {
-    const s = sampleState(2);
-    s.texts['3'] = { t: '明天\n再說', fs: 0.08 };
+  it('只有空白字的幽靈槽仍算 pristine', () => {
+    const s = initialState(2);
+    s.texts['3'] = { t: '' };
+
+    expect(isPristine(s)).toBe(true);
+  });
+
+  it('沒有文字但調過字級就不是 pristine', () => {
+    const s = initialState(2);
+    s.texts['3'] = { t: '', fs: 0.08 };
 
     expect(isPristine(s)).toBe(false);
   });
 
-  it('AC10 文字沒變但指定過區域填色就不是 pristine', () => {
-    const s = sampleState(2);
-    s.texts['3'] = { t: '明天\n再說', fill: '#ffffff' };
+  it('AC10 沒有文字但指定過區域填色就不是 pristine', () => {
+    const s = initialState(2);
+    s.texts['3'] = { t: '', fill: '#ffffff' };
 
     expect(isPristine(s)).toBe(false);
-  });
-
-  it('少一格或多一格都不是 pristine', () => {
-    const fewer = sampleState(2);
-    delete fewer.texts['3'];
-    expect(isPristine(fewer)).toBe(false);
-
-    const more = sampleState(4);
-    more.texts['7'] = { t: '甲乙' };
-    expect(isPristine(more)).toBe(false);
   });
 
   it('只改顏色、樣式、size 或幾何仍是 pristine', () => {
-    const s = sampleState(2);
+    const s = initialState(2);
 
     expect(
       isPristine({
@@ -133,19 +149,19 @@ describe('isPristine', () => {
 });
 
 describe('nextStateForShape', () => {
-  it('pristine 時 2→3 換成 3 圈 template 與其樣式', () => {
-    const next = nextStateForShape(sampleState(2), 'ring', 3);
+  it('pristine 時 2→3 換成 3 圈的樣式，文字仍全空', () => {
+    const next = nextStateForShape(initialState(2), 'ring', 3);
 
     expect(next.n).toBe(3);
     expect(next.style).toBe('translucent');
-    expect(next.texts).toEqual(TEXTS_3);
+    expect(next.texts).toEqual({});
   });
 
-  it('pristine 時 2→4 換成 4 圈 template 與 outline 樣式', () => {
-    const next = nextStateForShape(sampleState(2), 'ring', 4);
+  it('pristine 時 2→4 換成 outline 樣式，不塞任何 template 文字', () => {
+    const next = nextStateForShape(initialState(2), 'ring', 4);
 
     expect(next.style).toBe('outline');
-    expect(next.texts).toEqual(TEXTS_4);
+    expect(next.texts).toEqual({});
   });
 
   it('切形狀回到目標組合的預設幾何與對應數量的顏色', () => {
@@ -221,10 +237,11 @@ describe('nextStateForShape', () => {
     expect(TEMPLATES.ring[4]!.texts['15']).toEqual({ t: '把手\n舉起來!!' });
   });
 
-  it('AC4 切到 row(3) 時套用該組合的單圈標籤 template', () => {
-    const next = nextStateForShape(sampleState(2), 'row', 3);
+  it('AC4 切到 row(3) 時仍不塞文字，單圈標籤留給 placeholder', () => {
+    const next = nextStateForShape(initialState(2), 'row', 3);
 
-    expect(next.texts).toEqual({ '1': { t: '甲' }, '2': { t: '乙' }, '4': { t: '丙' } });
+    expect(next.texts).toEqual({});
+    expect(templateTexts('row', 3)).toEqual({ '1': { t: '甲' }, '2': { t: '乙' }, '4': { t: '丙' } });
   });
 
   it('AC4 切到 6 圈時顏色補滿六色，沒有灰色補位', () => {
@@ -275,11 +292,12 @@ describe('AC4 單圈標籤 template', () => {
     }
   }, 30_000);
 
-  it('單圈標籤的組合原樣是 pristine，切圈數時才會整組換掉', () => {
+  it('空白狀態切到這些組合仍是 pristine，樣式跟著 template 換', () => {
     for (const [arr, n] of LABEL_ONLY) {
-      const state = nextStateForShape(sampleState(2), arr, n);
+      const state = nextStateForShape(initialState(2), arr, n);
 
       expect(isPristine(state), `${arr}(${n})`).toBe(true);
+      expect(state.style, `${arr}(${n})`).toBe(templateFor(arr, n)!.style);
     }
   });
 });
@@ -458,93 +476,18 @@ describe('AC6 en template', () => {
   });
 });
 
-describe('AC6 isPristine 跨語言', () => {
-  it('任一語言的 template 原樣都算 pristine', () => {
-    for (const locale of LOCALES) {
-      for (const n of [2, 3, 4] as CircleCount[]) {
-        expect(isPristine(sampleState(n, locale)), `${locale} ring(${n})`).toBe(true);
-      }
-    }
+describe('AC6 切語言後的 placeholder', () => {
+  it('同一個槽在不同語言拿到不同的示範字（UI 的 placeholder 來源）', () => {
+    expect(flatten(templateTexts('ring', 2, 'en'))['3']).toBe('Tomorrow');
+    expect(templateTexts('ring', 2, 'zh-TW')['3']).toEqual({ t: '明天\n再說' });
   });
 
-  it('改過英文 template 的任一格就不是 pristine', () => {
-    const state = sampleState(2, 'en');
-    state.texts['3'] = { t: 'Next week' };
+  it('切形狀時樣式跟著 template 換，但不因語言而異', () => {
+    const en = nextStateForShape(initialState(2, 'en'), 'ring', 3, 'en');
+    const zh = nextStateForShape(initialState(2), 'ring', 3);
 
-    expect(isPristine(state)).toBe(false);
-  });
-});
-
-describe('AC6 nextStateForLocale', () => {
-  it('pristine 時整組換成目標語言的 template', () => {
-    const next = nextStateForLocale(sampleState(2, 'zh-TW'), 'en');
-
-    expect(flatten(next.texts)).toEqual(flattenExpected(EN_TEXTS_2));
-  });
-
-  it('換回來也成立（en → zh 拿回中文 template）', () => {
-    const next = nextStateForLocale(sampleState(3, 'en'), 'zh-TW');
-
-    expect(next.texts).toEqual(TEMPLATES.ring[3]!.texts);
-  });
-
-  it('非 pristine 的 texts 切語言後一個字都不變', () => {
-    const dirty = sampleState(2, 'zh-TW');
-    dirty.texts = { '1': { t: '貓' }, '2': { t: '狗' }, '3': { t: '毛' } };
-
-    expect(nextStateForLocale(dirty, 'en').texts).toEqual(dirty.texts);
-  });
-
-  it('改過字級但文字沒變也算編輯過，切語言不動它', () => {
-    const state = sampleState(2, 'zh-TW');
-    state.texts['3'] = { t: '明天\n再說', fs: 0.08 };
-
-    expect(nextStateForLocale(state, 'en').texts['3']).toEqual({ t: '明天\n再說', fs: 0.08 });
-  });
-
-  it('不改動傳入的 state，也不動樣式與幾何', () => {
-    const before = sampleState(4, 'zh-TW');
-    const next = nextStateForLocale(before, 'en');
-
-    expect(before.texts).toEqual(TEMPLATES.ring[4]!.texts);
-    expect(next.style).toBe(before.style);
-    expect(next.radius).toBe(before.radius);
-    expect(next.overlap).toBe(before.overlap);
-  });
-
-  it('回傳的 texts 是新物件，改動不會污染 TEMPLATES', () => {
-    const next = nextStateForLocale(sampleState(2, 'zh-TW'), 'en');
-    next.texts['3'] = { t: 'mutated' };
-
-    expect(flatten(nextStateForLocale(sampleState(2, 'zh-TW'), 'en').texts)['3']).toBe('Tomorrow');
-  });
-
-  it('row／5／6 圈的單圈標籤也跟著語言換', () => {
-    const row = nextStateForShape(sampleState(2), 'row', 3, 'zh-TW');
-
-    expect(nextStateForLocale(row, 'en').texts).toEqual({
-      '1': { t: 'A' },
-      '2': { t: 'B' },
-      '4': { t: 'C' },
-    });
-  });
-});
-
-describe('AC6 nextStateForShape 用呼叫端的語言取 template', () => {
-  it('英文介面切圈數拿到的是英文 template', () => {
-    const next = nextStateForShape(sampleState(2, 'en'), 'ring', 3, 'en');
-
-    expect(flatten(next.texts)).toEqual(flattenExpected(EN_TEXTS_3));
-  });
-
-  it('省略語言時仍是 zh-TW（既有呼叫端行為不變）', () => {
-    expect(nextStateForShape(sampleState(2), 'ring', 3).texts).toEqual(TEMPLATES.ring[3]!.texts);
-  });
-
-  it('英文的 pristine 判定同樣成立：中文 template 切圈數後也能拿到英文文案', () => {
-    const next = nextStateForShape(sampleState(2, 'zh-TW'), 'ring', 4, 'en');
-
-    expect(flatten(next.texts)).toEqual(flattenExpected(EN_TEXTS_4));
+    expect(en.texts).toEqual({});
+    expect(en.style).toBe(zh.style);
   });
 });
 
@@ -634,21 +577,12 @@ describe('AC13 ja template', () => {
     }
   });
 
-  it('sampleState 帶 ja 時套用日文 template，pristine 判定跨語言成立', () => {
+  it('sampleState 帶 ja 時套用日文 template（og:image 用的那張）', () => {
     for (const n of [2, 3, 4] as CircleCount[]) {
       const state = sampleState(n, 'ja');
 
       expect(strip(state.texts), `ring(${n})`).toEqual(cases.find(([c]) => c === n)![1]);
-      expect(isPristine(state), `ring(${n})`).toBe(true);
     }
-  });
-
-  it('pristine 的中文 template 切到 ja 整組換掉，改過的字不動', () => {
-    expect(strip(nextStateForLocale(sampleState(3, 'zh-TW'), 'ja').texts)).toEqual(JA_TEXTS_3);
-
-    const dirty = sampleState(2, 'zh-TW');
-    dirty.texts = { '1': { t: '貓' }, '2': { t: '狗' }, '3': { t: '毛' } };
-    expect(nextStateForLocale(dirty, 'ja').texts).toEqual(dirty.texts);
   });
 });
 

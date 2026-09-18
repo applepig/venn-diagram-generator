@@ -5,7 +5,7 @@ import { layout, maskAt } from '../engine/layout';
 import { circlesFor, circlesForState } from '../engine/shapes/index';
 import { nextStateForShape } from '../content/next-state';
 import { PALETTE } from '../content/palette';
-import { defaultState, sampleState } from '../content/state-presets';
+import { defaultState, initialState, sampleState, templateTexts } from '../content/state-presets';
 import type { Arrangement, CircleCount, VennStyle } from '../engine/types';
 import { FONT_FILE } from './helpers/font';
 import { decodePng, pngPixel, pngSize } from './helpers/png';
@@ -553,7 +553,9 @@ describe('AC4 新組合（ring 5／6、row 3～6）渲染得出來且尺寸正�
 
   for (const [arr, n] of COMBOS) {
     it(`${arr}(${n}) 的預設 state 經 resvg 渲染不拋錯，輸出 800×800 且每個標籤都畫出來`, () => {
-      const state = { ...nextStateForShape(sampleState(2), arr, n), size: 800 };
+      // 每個槽都填上該組合的 template 文字（編輯器只把它當 placeholder，這裡要的是「有字」）
+      const base = nextStateForShape(initialState(2), arr, n);
+      const state = { ...base, texts: templateTexts(arr, n), size: 800 };
 
       expect(state.n).toBe(n);
       const svg = renderSvg(state, { watermark: WATERMARK });

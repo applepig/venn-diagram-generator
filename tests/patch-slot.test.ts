@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { MAX_TEXT_LEN } from '../engine/defaults';
-import { isPristine, sampleState } from '../content/state-presets';
+import { initialState, isPristine, sampleState } from '../content/state-presets';
 import { patchSlotTexts } from '../ui/patch-slot';
 
 /** 4 圈 template 沒有給 7、11、13、14 這幾個三重槽，是天然的空槽 */
@@ -8,7 +8,7 @@ const EMPTY_MASK = '7';
 
 describe('patchSlotTexts：空槽不留幽靈', () => {
   it('對空槽按「自動」字級不會寫進 texts，state 仍算沒編輯過', () => {
-    const state = sampleState(4);
+    const state = initialState(4);
 
     const texts = patchSlotTexts(state.texts, EMPTY_MASK, { fs: undefined });
 
@@ -17,7 +17,7 @@ describe('patchSlotTexts：空槽不留幽靈', () => {
   });
 
   it('對空槽按「自動混色」不會寫進 texts，state 仍算沒編輯過', () => {
-    const state = sampleState(4);
+    const state = initialState(4);
 
     const texts = patchSlotTexts(state.texts, EMPTY_MASK, { fill: undefined });
 

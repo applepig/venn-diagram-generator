@@ -1,7 +1,7 @@
 import { DEFAULT_BG, DEFAULT_OPACITY, DEFAULT_SIZE } from '../engine/defaults';
-import { arrOf, shapeDefaults } from '../engine/shapes/index';
+import { shapeDefaults } from '../engine/shapes/index';
 import type { Arrangement, CircleCount, TextSlot, VennState } from '../engine/types';
-import { DEFAULT_LOCALE, LOCALES, type Locale } from './locale';
+import { DEFAULT_LOCALE, type Locale } from './locale';
 import { PALETTE } from './palette';
 import { TEMPLATES as TEMPLATES_EN } from './templates/en';
 import { TEMPLATES as TEMPLATES_JA } from './templates/ja';
@@ -39,29 +39,14 @@ export function templateTexts(
 }
 
 /**
- * 「使用者沒編輯過」：texts 深等於目前組合在**任一**支援語言的 template，每格只有 `t`。
- * 語言不進 state，所以切語言前得認得另一個語言的 template 也是「原樣」，
- * 否則從英文介面切回中文時會把 template 當成使用者的字留著。
+ * 「使用者還沒寫過字」：每一格都沒有文字，也沒有指定過字級或填色。
+ * template 現在只當輸入框的 placeholder，不進 state，所以判定只看 state 自己有沒有內容。
  * 顏色、樣式、size、幾何不算編輯，所以不參與判定。
  */
 export function isPristine(state: VennState): boolean {
-  return LOCALES.some((locale) => matchesTemplate(state, locale));
-}
-
-function matchesTemplate(state: VennState, locale: Locale): boolean {
-  const template = templateFor(arrOf(state), state.n, locale)?.texts ?? {};
-  const keys = Object.keys(state.texts);
-  if (keys.length !== Object.keys(template).length) return false;
-
-  for (const key of keys) {
-    const slot = state.texts[key]!;
-    const expected = template[key];
-    if (!expected || slot.t !== expected.t) return false;
-    // 調過字級或指定過填色就算編輯過，即使文字沒變
-    if (slot.fs !== undefined) return false;
-    if (slot.fill !== undefined) return false;
-  }
-  return true;
+  return Object.values(state.texts).every(
+    (slot) => slot.t.trim() === '' && slot.fs === undefined && slot.fill === undefined,
+  );
 }
 
 /** 環狀排列的空白狀態（沒有任何文字）；row 的起始狀態由 `nextStateForShape` 產生 */
@@ -81,7 +66,16 @@ export function defaultState(n: CircleCount = 2): VennState {
   };
 }
 
-/** 該圈數的預設 meme；首頁與 og:image 在沒有 `s` 參數時用 2 圈那組 */
+/**
+ * 編輯器的起始狀態：一格字都不填，template 只當輸入框的 placeholder。
+ * 樣式仍取 template 的（版型的一部分），使用者一進來就看得到三種樣式之一。
+ */
+export function initialState(n: CircleCount = 2, locale: Locale = DEFAULT_LOCALE): VennState {
+  const base = defaultState(n);
+  return { ...base, style: templateFor('ring', n, locale)?.style ?? base.style };
+}
+
+/** 該圈數的預設 meme；og:image 在沒有 `s` 參數時用 2 圈那組 */
 export function sampleState(n: CircleCount = 2, locale: Locale = DEFAULT_LOCALE): VennState {
   const base = defaultState(n);
   return {

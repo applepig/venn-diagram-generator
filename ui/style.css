@@ -455,6 +455,11 @@ input[type='range'] {
   min-width: 46px;
 }
 
+/* 還沒寫字的那一列顯示 template 的示範字：要比自己寫的字更淡，不然會被當成圖上的內容 */
+.txt.ghost {
+  opacity: 0.55;
+}
+
 .txt {
   color: var(--muted);
   font-weight: 400;
