@@ -589,3 +589,54 @@ describe('AC4 新組合（ring 5／6、row 3～6）渲染得出來且尺寸正�
     }
   });
 });
+
+/**
+ * 13：空槽的示範文字只畫在編輯器預覽上。判準是「輸出路徑一個位元都不變」
+ * ＋「幽靈字與真的寫進去的字排在同一個位置」，不是 SVG 字串長怎樣。
+ */
+describe('13 ghosts：空槽的示範文字', () => {
+  const GHOSTS = { '1': '該做\n的事', '2': '想做\n的事', '3': '明天\n再說' };
+
+  it('不傳 ghosts 時輸出與改版前一致（下載、/api/png、og 走的就是這條）', () => {
+    const state = initialState(2);
+
+    expect(renderSvg(state, { watermark: WATERMARK })).not.toContain('data-ghost');
+    expect(renderSvg({ ...state, texts: { '1': { t: '貓' } } }, { ghosts: {} })).toBe(
+      renderSvg({ ...state, texts: { '1': { t: '貓' } } }),
+    );
+  });
+
+  it('空槽畫出淡淡的示範字，並且仍可點選跳到那一列', () => {
+    const svg = renderSvg(initialState(2), { ghosts: GHOSTS });
+
+    expect(svg).toContain('data-ghost=""');
+    expect(svg).toContain('>該做<');
+    expect(svg).toContain('>明天<');
+    // 幽靈字群組也帶 data-region，點提示字就是想編那一格
+    expect(svg).toMatch(/<g data-region="3"[^>]*data-ghost=""/);
+  });
+
+  it('已經有自己的字的槽不再畫幽靈字（不會兩層字疊在一起）', () => {
+    const state = { ...initialState(2), texts: { '1': { t: '貓' } } };
+    const svg = renderSvg(state, { ghosts: GHOSTS });
+
+    expect(svg).toContain('>貓<');
+    expect(svg).not.toContain('>該做<');
+    expect(svg).toContain('>想做<');
+  });
+
+  it('幽靈字的位置與字級等同於真的把同一段字寫進 state', () => {
+    const texts = Object.fromEntries(Object.entries(GHOSTS).map(([mask, t]) => [mask, { t }]));
+    const ghosted = renderSvg(initialState(2), { ghosts: GHOSTS });
+    const written = renderSvg({ ...initialState(2), texts });
+
+    const lines = (svg: string) => svg.match(/<text x="[^"]+" y="[^"]+" font-size="[^"]+"/g);
+    expect(lines(ghosted)).toEqual(lines(written));
+  });
+
+  it('只有 t 是空白的槽才吃提示；使用者打了空白鍵不算寫過字', () => {
+    const state = { ...initialState(2), texts: { '1': { t: '  ' } } };
+
+    expect(renderSvg(state, { ghosts: GHOSTS })).toContain('>該做<');
+  });
+});

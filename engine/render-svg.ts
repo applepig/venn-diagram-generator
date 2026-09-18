@@ -2,7 +2,7 @@ import { LINE_HEIGHT } from './defaults';
 import { centerShift, layout, layoutTitle } from './layout';
 import { regionPaths } from './region-geometry';
 import { circlesForRender } from './title';
-import type { Circle, VennState } from './types';
+import type { Circle, TextBlock, TextSlot, VennState } from './types';
 
 const FONT_FAMILY = 'Noto Sans TC';
 
@@ -233,14 +233,56 @@ export interface RenderOptions {
   /** 右下角浮水印的文字；省略或空字串＝不畫 */
   watermark?: string;
   /**
+   * 空槽的示範文字（mask → 文字），只用來畫成淡淡的幽靈字。
+   * 只有編輯器的畫布預覽會傳：它不進 state、不進任何輸出（下載、`/api/png`、og 一律不傳），
+   * 而文案屬於產品內容，所以由呼叫端從 `content/` 取，engine 自己不認識任何文案。
+   */
+  ghosts?: Record<string, string>;
+  /**
    * 標題與浮水印實際壓在什麼顏色上（決定黑字或白字）。預設是 `state.bg`；
    * 關掉背景疊到別人的底圖時要傳底圖的顏色，否則深色 bg 的白字會壓在淺色底圖上等於隱形。
    */
   backdrop?: string;
 }
 
+/** 幽靈字的不透明度：一眼看得出是提示，又讀得出寫在那裡的會是什麼 */
+const GHOST_OPACITY = 0.3;
+
+/**
+ * 示範文字的排版。只收「自己沒有字」的槽，排版與正式那一輪跑在同一組幾何上
+ * （`layout()` 逐槽獨立算，`circlesForState()` 與 fit 都不看 texts），所以位置與字級完全一致。
+ */
+function ghostBlocks(state: VennState, ghosts: Record<string, string>): TextBlock[] {
+  const texts: Record<string, TextSlot> = {};
+  for (const [mask, text] of Object.entries(ghosts)) {
+    if (text.trim() === '' || (state.texts[mask]?.t ?? '').trim() !== '') continue;
+    texts[mask] = { t: text };
+  }
+  if (Object.keys(texts).length === 0) return [];
+  return layout({ ...state, texts });
+}
+
+/**
+ * 一個區域的文字群組。`data-region` 讓畫布點選跳到那一列——幽靈字也給，
+ * 點提示字就是想編那一格。
+ */
+function regionText(state: VennState, block: TextBlock, ghost: boolean): string {
+  const is_outline = state.style === 'outline';
+  // flat 的區域可能被 override 成淺色，白字＋光暈會糊掉，改看該區實際亮度取黑白
+  const on_light =
+    state.style === 'flat' && relativeLuminance(regionColor(state, block.mask)) >= DARK_TEXT_LUMINANCE;
+  const text_fill = is_outline || on_light ? '#000000' : '#ffffff';
+  const glow_attr = is_outline || on_light ? '' : ' filter="url(#glow)"';
+  const ghost_attr = ghost ? ` data-ghost="" fill-opacity="${GHOST_OPACITY}"` : '';
+  return (
+    `<g data-region="${block.mask}" fill="${text_fill}" ` +
+    `font-family="${FONT_FAMILY}" font-weight="700" text-anchor="middle"` +
+    `${glow_attr}${ghost_attr}>${textLines(block, state.size)}</g>`
+  );
+}
+
 export function renderSvg(state: VennState, opts: RenderOptions = {}): string {
-  const { background = true, watermark: watermark_text = '', backdrop = state.bg } = opts;
+  const { background = true, watermark: watermark_text = '', backdrop = state.bg, ghosts } = opts;
   const size = state.size;
   const circles = circlesForRender(state);
   const is_outline = state.style === 'outline';
@@ -286,18 +328,9 @@ export function renderSvg(state: VennState, opts: RenderOptions = {}): string {
       `</filter>`;
   }
 
-  for (const block of layout(state)) {
-    // flat 的區域可能被 override 成淺色，白字＋光暈會糊掉，改看該區實際亮度取黑白
-    const on_light =
-      state.style === 'flat' &&
-      relativeLuminance(regionColor(state, block.mask)) >= DARK_TEXT_LUMINANCE;
-    const text_fill = is_outline || on_light ? '#000000' : '#ffffff';
-    const glow_attr = is_outline || on_light ? '' : ' filter="url(#glow)"';
-    body +=
-      `<g data-region="${block.mask}" fill="${text_fill}" ` +
-      `font-family="${FONT_FAMILY}" font-weight="700" text-anchor="middle"` +
-      `${glow_attr}>${textLines(block, size)}</g>`;
-  }
+  // 幽靈字先畫：使用者自己的字永遠疊在提示之上
+  if (ghosts) for (const block of ghostBlocks(state, ghosts)) body += regionText(state, block, true);
+  for (const block of layout(state)) body += regionText(state, block, false);
 
   return (
     `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">` +

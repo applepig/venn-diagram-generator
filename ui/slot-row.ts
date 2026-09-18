@@ -5,7 +5,7 @@ import {
   popCount,
 } from '../engine/defaults';
 import { SWATCH_COLORS } from '../content/palette';
-import { templateFor } from '../content/state-presets';
+import { placeholderTexts } from '../content/state-presets';
 import { regionColor } from '../engine/render-svg';
 import { arrOf } from '../engine/shapes/index';
 import { diagramTransform } from '../engine/title';
@@ -42,7 +42,7 @@ function firstLine(text: string): string {
  * template 只是提示，不進 state——使用者不必先清掉範例才能寫自己的字。
  */
 function hintFor(state: VennState, mask: number): string {
-  return templateFor(arrOf(state), state.n, uiLocale())?.texts[String(mask)]?.t ?? '';
+  return placeholderTexts(arrOf(state), state.n, uiLocale())[String(mask)] ?? '';
 }
 
 export function createSlotRow(mask: number, handlers: SlotRowHandlers): SlotRow {

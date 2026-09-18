@@ -67,6 +67,20 @@ export function defaultState(n: CircleCount = 2): VennState {
 }
 
 /**
+ * 該組合的示範文字（mask → 文字）。輸入框的 placeholder、收合列的灰字提示
+ * 與畫布上的幽靈字都從這裡取，三處才不會各講一套。
+ */
+export function placeholderTexts(
+  arr: Arrangement,
+  n: CircleCount,
+  locale: Locale = DEFAULT_LOCALE,
+): Record<string, string> {
+  const template = templateFor(arr, n, locale);
+  if (!template) return {};
+  return Object.fromEntries(Object.entries(template.texts).map(([mask, slot]) => [mask, slot.t]));
+}
+
+/**
  * 編輯器的起始狀態：一格字都不填，template 只當輸入框的 placeholder。
  * 樣式仍取 template 的（版型的一部分），使用者一進來就看得到三種樣式之一。
  */
