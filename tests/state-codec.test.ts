@@ -8,6 +8,7 @@ import {
 } from '../engine/state-codec-web';
 import { MAX_STATE_PARAM_LEN, MAX_TEXT_LEN } from '../engine/defaults';
 import { slotMasks } from '../engine/layout';
+import { STROKE_WIDTH_MAX } from '../engine/stroke';
 import { ARRANGEMENTS, circleCountRange, shapeDefaults } from '../engine/shapes/index';
 import { defaultState, sampleState } from '../content/state-presets';
 import type { Arrangement, CircleCount, TextSlot, VennState } from '../engine/types';
@@ -479,6 +480,9 @@ describe('decodeState：解壓輸出上限（AC1）', () => {
         title,
         // 標題帶字色才是真的最壞：它只在有標題時進編碼
         title_fill: '#a1b2c3',
+        // 框線的兩個欄位同理：非預設值才留得住，留得住才佔得到位元組
+        stroke_width: 0.0123,
+        stroke: '#a1b2c4',
       };
     }
 
@@ -556,6 +560,8 @@ describe('07 M5 StateError 的訊息一律英文', () => {
     ['fs 不是數字', { ...sampleState(), texts: { '1': { t: 'x', fs: 'big' } } }],
     ['fs 超界', { ...sampleState(), texts: { '1': { t: 'x', fs: 2 } } }],
     ['fill 不是 hex', { ...sampleState(), texts: { '1': { t: 'x', fill: 'red' } } }],
+    ['stroke_width 超界', { ...sampleState(), stroke_width: 0.5 }],
+    ['stroke 不是 hex', { ...sampleState(), stroke_width: 0.01, stroke: 'black' }],
   ];
 
   for (const [name, input] of schema_cases) {
@@ -582,5 +588,82 @@ describe('07 M5 StateError 的訊息一律英文', () => {
 
   it('瀏覽器版的訊息也是英文', async () => {
     await expect(decodeStateWeb('!!!!')).rejects.toThrow(/^[\x20-\x7e]+$/);
+  });
+});
+
+/**
+ * 15 AC1／AC2：框線寬度與顏色是選用欄位，缺席時依樣式取預設，
+ * 等於預設的值一律不寫進編碼——沒帶這兩個欄位的舊連結編碼字串因此不變
+ * （逐位元的硬證據在 `tests/golden/baseline.json`）。
+ */
+describe('15 框線選項：codec', () => {
+  const translucent: VennState = { ...defaultState(3), style: 'translucent' };
+  const flat: VennState = { ...defaultState(3), style: 'flat' };
+  const outline: VennState = { ...defaultState(3), style: 'outline' };
+
+  it('沒帶框線欄位的 state 解完仍然沒有這兩個欄位', () => {
+    const parsed = validateState(JSON.parse(JSON.stringify(outline)));
+
+    expect(parsed).not.toHaveProperty('stroke_width');
+    expect(parsed).not.toHaveProperty('stroke');
+  });
+
+  it('等於該樣式預設寬度的值不寫進編碼：outline 的 0.006 解完就不見了', () => {
+    expect(validateState({ ...outline, stroke_width: 0.006 })).not.toHaveProperty('stroke_width');
+  });
+
+  it('等於該樣式預設寬度的值不寫進編碼：flat／translucent 的 0', () => {
+    expect(validateState({ ...flat, stroke_width: 0 })).not.toHaveProperty('stroke_width');
+    expect(validateState({ ...translucent, stroke_width: 0 })).not.toHaveProperty('stroke_width');
+  });
+
+  it('預設是依樣式而定：同一個 0.006 在 flat 上是非預設值，留得住', () => {
+    expect(validateState({ ...flat, stroke_width: 0.006 }).stroke_width).toBe(0.006);
+  });
+
+  it('outline 明寫 0（關掉框線）留得住', () => {
+    expect(validateState({ ...outline, stroke_width: 0 }).stroke_width).toBe(0);
+  });
+
+  it('框線顏色在有框線時留得住，等於預設黑時不寫進編碼', () => {
+    expect(validateState({ ...flat, stroke_width: 0.01, stroke: '#ff0000' }).stroke).toBe('#ff0000');
+    expect(validateState({ ...flat, stroke_width: 0.01, stroke: '#000000' })).not.toHaveProperty(
+      'stroke',
+    );
+  });
+
+  /** 沒有框線就沒有東西可以上色，留著只會讓同一張圖有兩種編碼（與 title_fill 同一手法） */
+  it('框線寬度 0 時顏色不寫進編碼', () => {
+    expect(validateState({ ...flat, stroke: '#ff0000' })).not.toHaveProperty('stroke');
+    expect(validateState({ ...outline, stroke_width: 0, stroke: '#ff0000' })).not.toHaveProperty(
+      'stroke',
+    );
+  });
+
+  it('round-trip：帶框線的 state 編碼後解得回一模一樣', () => {
+    const striped: VennState = { ...flat, stroke_width: 0.012, stroke: '#ff0000' };
+
+    expect(decodeState(encodeState(striped))).toEqual(striped);
+  });
+
+  const bad: [string, unknown][] = [
+    ['超過上限', 0.031],
+    ['負數', -0.001],
+    ['不是數字', 'thick'],
+  ];
+  for (const [name, value] of bad) {
+    it(`stroke_width ${name} → StateError`, () => {
+      expect(() => validateState({ ...flat, stroke_width: value })).toThrow(StateError);
+    });
+  }
+
+  it('stroke 不是 #rrggbb → StateError', () => {
+    expect(() => validateState({ ...flat, stroke_width: 0.01, stroke: 'black' })).toThrow(StateError);
+  });
+
+  it('上限值本身是合法的', () => {
+    expect(validateState({ ...flat, stroke_width: STROKE_WIDTH_MAX }).stroke_width).toBe(
+      STROKE_WIDTH_MAX,
+    );
   });
 });

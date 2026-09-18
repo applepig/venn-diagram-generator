@@ -63,6 +63,9 @@ Options:
   --opacity <0..1>        fill opacity
   --overlap <0.6..1.6>    how far the circles reach into each other
   --radius <number>       circle radius as a fraction of the canvas
+  --stroke-width <0..0.03>     circle outline width as a fraction of the canvas;
+                          0 means no outline (default: 0.006 for outline, 0 otherwise)
+  --stroke #rrggbb        circle outline colour (default: #000000)
   --colors '#aabbcc,#ddeeff'   one colour per circle
   --base-url <origin>     host for the share URL (env: VENN_BASE_URL)
       --raw               decode only: print the raw VennState instead of friendly JSON
@@ -149,6 +152,8 @@ async function main(): Promise<number> {
       opacity: { type: 'string' },
       overlap: { type: 'string' },
       radius: { type: 'string' },
+      'stroke-width': { type: 'string' },
+      stroke: { type: 'string' },
       colors: { type: 'string' },
       out: { type: 'string', short: 'o' },
       'base-url': { type: 'string' },

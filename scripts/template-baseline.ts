@@ -125,6 +125,12 @@ for (const id of ['full-translucent', 'full-flat', 'full-outline', 'overlap-min'
   REFROZEN[id] = [...(REFROZEN[id] ?? []), REFROZEN_10];
 }
 
+/** 15 框線改成幾何選項：只有帶 fill override 的 flat case 會變 */
+REFROZEN['full-flat'] = [
+  ...(REFROZEN['full-flat'] ?? []),
+  '15 框線改成幾何選項：flat「有 fill override 就自動加一圈黑框」的隱藏行為移除（spec 15 AC4，使用者明確要的變更），本 case 因此少一圈黑框。框線改由 stroke_width／stroke 自己開，其餘 7 個 case 一個位元都沒動。',
+];
+
 /**
  * 對不到任何 case 的 REFROZEN 條目是壞掉的稽核軌跡：case 改名之後，
  * 理由會留在這裡卻永遠寫不進輸出，而改名的人不會收到任何提示。

@@ -11,10 +11,21 @@ export interface DiagramTransform {
 export const IDENTITY_TRANSFORM: DiagramTransform = { scale: 1, tx: 0, ty: 0 };
 
 /**
- * 描邊半寬（畫布寬比例）：outline 樣式的圓描邊是 `size * 0.006`，一半落在圓外。
+ * 描邊半寬的下限（畫布寬比例）：outline 樣式的預設描邊是 `size * 0.006`，一半落在圓外。
  * 圓心 ± r 剛好貼齊畫布時那半條線會被切掉，所以包圍盒要外擴這個量再判斷有沒有超界。
  */
 export const STROKE_INSET = 0.003;
+
+/**
+ * 實際要外擴的量：框線半寬，但不低於 `STROKE_INSET`（15 AC5）。
+ *
+ * 下限不設成 0 是為了相容：沒有框線的舊連結若改成 0 內縮，超界的圖（例如 overlap 上限）
+ * 會重新算出不同的縮放與平移，畫面因此位移——那是已經發出去的連結，不該動。
+ * 粗框線則靠半寬把餘裕撐開，radius 拉到上限也不會被畫布邊緣切掉。
+ */
+export function strokeInset(stroke_width: number): number {
+  return Math.max(STROKE_INSET, stroke_width / 2);
+}
 
 /** 判定「在畫布內」的容差：浮點合成後 1e-16 級的殘差不該讓預設幾何被判成超界 */
 const EPS = 1e-12;

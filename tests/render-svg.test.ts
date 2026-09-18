@@ -6,7 +6,7 @@ import { circlesFor, circlesForState } from '../engine/shapes/index';
 import { nextStateForShape } from '../content/next-state';
 import { PALETTE } from '../content/palette';
 import { defaultState, initialState, sampleState, templateTexts } from '../content/state-presets';
-import type { Arrangement, CircleCount, VennStyle } from '../engine/types';
+import type { Arrangement, CircleCount, VennState, VennStyle } from '../engine/types';
 import { FONT_FILE } from './helpers/font';
 import { decodePng, pngPixel, pngSize } from './helpers/png';
 
@@ -285,24 +285,101 @@ describe('renderSvg：AC6 區域填色 override', () => {
     expect(renderSvg(twoCircle('outline', '#123456'))).not.toContain('#123456');
   });
 
-  it('AC7 flat 有 override 時每個圓補一圈黑描邊，寬度是畫布的 0.4%', () => {
-    const svg = renderSvg({ ...twoCircle('flat', '#ffffff'), size: 1000 });
-    const rings = [...svg.matchAll(/<circle [^>]*fill="none"[^>]*>/g)].map((m) => m[0]);
-
-    expect(rings).toHaveLength(2);
-    for (const ring of rings) {
-      expect(ring).toContain('stroke="#000000"');
-      expect(ring).toContain('stroke-width="4"');
-    }
-    expect(renderPng(svg).length).toBeGreaterThan(1000); // 補上的輪廓沒有破壞 SVG
+  /**
+   * 15 AC4：原本 flat 一旦有 `fill` override 就自動補一圈黑框（舊 AC7）。
+   * 那個隱藏行為已從 spec 移除——要框線請開 `stroke_width`，所以這兩條斷言跟著反過來。
+   */
+  it('flat 有 override 也不自動描邊', () => {
+    expect(renderSvg(twoCircle('flat', '#ffffff'))).not.toContain('fill="none"');
   });
 
-  it('AC7 沒有 override 的 flat 圖不畫圓輪廓', () => {
+  it('沒有 override 的 flat 圖同樣不畫圓輪廓', () => {
     expect(renderSvg(twoCircle('flat'))).not.toContain('fill="none"');
   });
 
-  it('AC7 translucent 即使帶 fill 也不畫圓輪廓', () => {
+  it('translucent 即使帶 fill 也不畫圓輪廓', () => {
     expect(renderSvg(twoCircle('translucent', '#ffffff'))).not.toContain('fill="none"');
+  });
+});
+
+/**
+ * 15 AC1／AC3：框線是幾何選項，三種樣式共用同一條畫框線的路徑。
+ * 寬度缺席時依樣式取預設（outline 0.006，flat 與 translucent 0）。
+ */
+describe('renderSvg：15 框線選項', () => {
+  const rings = (svg: string) => [...svg.matchAll(/<circle [^>]*fill="none"[^>]*>/g)].map((m) => m[0]);
+
+  function twoCircle(style: VennStyle, stroke: Partial<VennState> = {}): VennState {
+    return { ...defaultState(2), style, texts: { '1': { t: '甲' }, '2': { t: '乙' } }, ...stroke };
+  }
+
+  it('outline 沒帶欄位時仍是 0.6% 的黑框', () => {
+    const drawn = rings(renderSvg({ ...twoCircle('outline'), size: 1000 }));
+
+    expect(drawn).toHaveLength(2);
+    for (const ring of drawn) {
+      expect(ring).toContain('stroke="#000000"');
+      expect(ring).toContain('stroke-width="6"');
+    }
+  });
+
+  for (const style of STYLES) {
+    it(`${style}：開了 stroke_width 就每個圓一圈框線，寬度與顏色照 state`, () => {
+      const svg = renderSvg({
+        ...twoCircle(style, { stroke_width: 0.02, stroke: '#ff0000' }),
+        size: 1000,
+      });
+      const drawn = rings(svg);
+
+      expect(drawn).toHaveLength(2);
+      for (const ring of drawn) {
+        expect(ring).toContain('stroke="#ff0000"');
+        expect(ring).toContain('stroke-width="20"');
+      }
+      expect(renderPng(svg).length).toBeGreaterThan(1000);
+    });
+
+    it(`${style}：stroke_width 0 時完全不畫框線`, () => {
+      expect(renderSvg(twoCircle(style, { stroke_width: 0 }))).not.toContain('fill="none"');
+    });
+  }
+
+  it('框線寬度隨畫布尺寸等比縮放（畫布寬比例）', () => {
+    const at = (size: number) =>
+      rings(renderSvg(twoCircle('flat', { stroke_width: 0.01, size })))[0]!;
+
+    expect(at(800)).toContain('stroke-width="8"');
+    expect(at(1600)).toContain('stroke-width="16"');
+  });
+
+  it('框線畫在填色之上、文字之下', () => {
+    const svg = renderSvg({
+      ...defaultState(2),
+      style: 'flat',
+      stroke_width: 0.01,
+      texts: { '1': { t: '甲' }, '2': { t: '乙' } },
+    });
+
+    expect(svg.indexOf('<path')).toBeLessThan(svg.indexOf('fill="none"'));
+    expect(svg.indexOf('fill="none"')).toBeLessThan(svg.indexOf('<g data-region='));
+  });
+
+  /** flat 的區域路徑各自帶一條同色 1.5px 描邊蓋接縫（抗鋸齒補丁），框線選項不該影響它 */
+  it('flat 的接縫描邊仍在，且不受框線顏色影響', () => {
+    const svg = renderSvg({
+      ...defaultState(2),
+      style: 'flat',
+      stroke_width: 0.01,
+      stroke: '#ff0000',
+      texts: {},
+    });
+    const paths = [...svg.matchAll(/<path [^>]*>/g)].map((m) => m[0]);
+
+    expect(paths.length).toBeGreaterThan(0);
+    for (const path of paths) {
+      expect(path).toContain('stroke-width="1.5"');
+      expect(path).not.toContain('stroke="#ff0000"');
+    }
   });
 });
 

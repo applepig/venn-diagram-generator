@@ -1,12 +1,13 @@
 import {
   IDENTITY_TRANSFORM,
-  STROKE_INSET,
   composeTransform,
   fitTransform,
+  strokeInset,
   transformCircle,
   type DiagramTransform,
 } from './fit';
 import { circlesForState } from './shapes/index';
+import { strokeOf } from './stroke';
 import type { Circle, RegionBox, VennState } from './types';
 
 /**
@@ -56,7 +57,7 @@ export function titleTransform(state: VennState): DiagramTransform {
  */
 export function diagramTransform(state: VennState): DiagramTransform {
   const title = titleTransform(state);
-  const fit = fitTransform(circlesForState(state), STROKE_INSET / title.scale);
+  const fit = fitTransform(circlesForState(state), strokeInset(strokeOf(state)) / title.scale);
   return composeTransform(fit, title);
 }
 

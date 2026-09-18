@@ -1,6 +1,7 @@
 import { LINE_HEIGHT } from './defaults';
 import { centerShift, layout, layoutTitle } from './layout';
 import { regionPaths } from './region-geometry';
+import { strokeColorOf, strokeOf } from './stroke';
 import { circlesForRender } from './title';
 import type { Circle, TextBlock, TextSlot, VennState } from './types';
 
@@ -113,13 +114,13 @@ export function mixColors(hexes: string[]): string {
  */
 function flatRegions(state: VennState, circles: Circle[], size: number): string {
   // 輸出永遠是 1 使用者單位 = 1 像素，所以描邊寬度用固定值（跨 size 一致地蓋掉 1px 級的接縫）
-  const stroke_w = 1.5;
+  const seam_w = 1.5;
   let body = '';
   for (const [mask, d] of regionPaths(circles, size)) {
     const color = regionColor(state, mask);
     body +=
       `<path d="${d}" fill-rule="evenodd" fill="${escapeXml(color)}" ` +
-      `stroke="${escapeXml(color)}" stroke-width="${stroke_w}"/>`;
+      `stroke="${escapeXml(color)}" stroke-width="${seam_w}"/>`;
   }
   return body;
 }
@@ -290,26 +291,10 @@ export function renderSvg(state: VennState, opts: RenderOptions = {}): string {
   let defs = '';
   let body = '';
 
+  // outline 沒有填色層，它的圓就只有下面那圈框線
   if (state.style === 'flat') {
     body += flatRegions(state, circles, size);
-    // 挖白（或任何淺色 override）的區域貼在淺色背景上看不出圓，補一圈輪廓把梗撐住；
-    // 沒有 override 的 flat 圖不加，舊連結的畫面一個像素都不動
-    if (Object.values(state.texts).some((slot) => slot.fill !== undefined)) {
-      body += circles
-        .map(
-          (c) =>
-            `<circle cx="${c.x * size}" cy="${c.y * size}" r="${c.r * size}" fill="none" stroke="#000000" stroke-width="${size * 0.004}"/>`,
-        )
-        .join('');
-    }
-  } else if (is_outline) {
-    body += circles
-      .map(
-        (c) =>
-          `<circle cx="${c.x * size}" cy="${c.y * size}" r="${c.r * size}" fill="none" stroke="#000000" stroke-width="${size * 0.006}"/>`,
-      )
-      .join('');
-  } else {
+  } else if (!is_outline) {
     body +=
       `<g style="isolation:isolate">` +
       circles
@@ -319,6 +304,18 @@ export function renderSvg(state: VennState, opts: RenderOptions = {}): string {
         )
         .join('') +
       `</g>`;
+  }
+
+  // 全樣式共用的框線（15 AC3）：畫在填色之上、文字之下；寬度缺席時依樣式取預設
+  const stroke_width = strokeOf(state);
+  if (stroke_width > 0) {
+    const stroke_color = escapeXml(strokeColorOf(state));
+    body += circles
+      .map(
+        (c) =>
+          `<circle cx="${c.x * size}" cy="${c.y * size}" r="${c.r * size}" fill="none" stroke="${stroke_color}" stroke-width="${size * stroke_width}"/>`,
+      )
+      .join('');
   }
 
   if (!is_outline) {

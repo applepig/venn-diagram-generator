@@ -50,6 +50,7 @@ Fields, all optional except `sets`:
 | `bg`, `colors` | `#rrggbb` background, and one `#rrggbb` per circle. |
 | `opacity`, `overlap`, `radius` | Fill opacity 0-1, how far circles reach into each other 0.6-1.6, circle radius as a fraction of the canvas. |
 | `titleFill`, `titleFs` | Title colour, and title size as a fraction of canvas width. |
+| `strokeWidth`, `stroke` | Circle outline width as a fraction of canvas width (0-0.03, 0 means none) and its `#rrggbb` colour. Defaults: 0.006 black for `outline`, no outline otherwise. |
 
 A slot value may also be an object, `{"t": "text", "fs": 0.08, "fill": "#ffffff"}`, pinning
 a manual font size or recolouring that one region. Write the plain string form yourself.
