@@ -43,6 +43,12 @@ function pickedMask(canvas_el: HTMLElement, state: VennState, event: MouseEvent)
   const tagged = maskOf(event.target);
   if (tagged !== null) return tagged;
 
+  /**
+   * 走到這裡表示點的不是文字槽，而浮水印與標題也是 `<text>`（兩者都刻意不帶 `data-region`）。
+   * 它們不是可編輯的槽，壓在圓上時也不該讓幾何測試穿透過去開那一列。
+   */
+  if ((event.target as Element | null)?.closest('text')) return null;
+
   const svg = canvas_el.querySelector('svg');
   const ctm = svg?.getScreenCTM();
   if (!svg || !ctm) return null;

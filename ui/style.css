@@ -666,8 +666,16 @@ select {
   border-radius: 12px;
 }
 
-.canvas [data-region] {
+/* 整個區域都點得下去（14），所以圓與 flat 的區域路徑也要有 affordance，不只文字 */
+.canvas [data-region],
+.canvas circle,
+.canvas path {
   cursor: pointer;
+}
+
+/* outline 樣式的圓是 fill="none"，預設只有描邊接得到指標：圓內要吃得到上面那個 cursor */
+.canvas circle {
+  pointer-events: all;
 }
 
 /* ---- 頁尾 ---- */
