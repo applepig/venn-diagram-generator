@@ -4,7 +4,9 @@ import {
   estimateWidth,
   fitText,
   layout,
+  maskAt,
   regionBox,
+  slotAtPoint,
   slotMasks,
   wrapText,
 } from '../engine/layout';
@@ -15,7 +17,7 @@ import {
   LINE_HEIGHT,
   MIN_FS,
 } from '../engine/defaults';
-import { circlesFor, shapeDefaults } from '../engine/shapes/index';
+import { circlesFor, circlesForState, shapeDefaults } from '../engine/shapes/index';
 import { defaultState, sampleState } from '../content/state-presets';
 import type { CircleCount, VennState } from '../engine/types';
 
@@ -525,5 +527,67 @@ describe('layout：AC1 字級與槽的存在性', () => {
     expect(small.map((b) => [b.mask, b.fs, b.lines])).toEqual(
       large.map((b) => [b.mask, b.fs, b.lines]),
     );
+  });
+});
+
+/**
+ * 14 點畫布區域 → 聚焦對應面板列：命中測試的預期值都從幾何推導，
+ * 圓心座標見 engine/shapes/ring.ts（環半徑 R = overlap·r / (2·sin(π/n))）。
+ */
+describe('slotAtPoint', () => {
+  // ring(3) 預設：r = 0.29、overlap = 1.15，圓心 A (0.5, 0.3556)、B (0.3333, 0.6444)、C (0.6667, 0.6444)
+  const ring3 = defaultState(3);
+  const circles3 = circlesFor('ring', 3, ring3.radius, ring3.overlap);
+
+  it('點在只屬於 A 的位置回 A 的 mask', () => {
+    // A 的圓心離 B、C 圓心各 0.3333 > r，所以只落在 A 裡
+    const a = circles3[0]!;
+
+    expect(slotAtPoint(ring3, a.x, a.y)).toBe(1);
+  });
+
+  it('點在三圈交集回三重槽的 mask', () => {
+    // 三個圓心的形心到每個圓心都是 0.1925 < r，三圈對稱下必定落在三重區
+    const cx = (circles3[0]!.x + circles3[1]!.x + circles3[2]!.x) / 3;
+    const cy = (circles3[0]!.y + circles3[1]!.y + circles3[2]!.y) / 3;
+
+    expect(slotAtPoint(ring3, cx, cy)).toBe(7);
+  });
+
+  it('AC3 點在所有圓之外回 null', () => {
+    expect(maskAt(circles3, 0.02, 0.02)).toBe(0);
+    expect(slotAtPoint(ring3, 0.02, 0.02)).toBeNull();
+  });
+
+  it('AC4 幾何上存在但不在槽表裡的區域回 null', () => {
+    // ring(6) 把 overlap 收到下限時六個圓一起蓋住畫布中心（R = 0.138 < r = 0.23），
+    // 但槽表是從預設幾何（overlap = 1.0）推出來的，面板上沒有「六重」這一列
+    const packed = { ...defaultState(6), overlap: 0.6 };
+    const all_six = (1 << 6) - 1;
+
+    expect(maskAt(circlesForState(packed), 0.5, 0.5)).toBe(all_six);
+    expect(slotMasks('ring', 6)).not.toContain(all_six);
+    expect(slotAtPoint(packed, 0.5, 0.5)).toBeNull();
+  });
+
+  it('AC1 幾何超出畫布時，命中測試用的是 fit 縮回畫布後的圓', () => {
+    // ring(2) r = 0.35、overlap = 1.6：圓心 (0.22, 0.5)／(0.78, 0.5)，左緣 −0.13 出界，
+    // fit 後縮成 r = 0.2761、圓心 (0.2791, 0.5)
+    const overflow = { ...defaultState(2), radius: 0.35, overlap: 1.6 };
+
+    // 這一點離原始圓心 0.30 < 0.35（原始幾何屬於 A），離縮回後的圓心 0.3058 > 0.2761
+    expect(maskAt(circlesForState(overflow), 0.22, 0.2)).toBe(1);
+    expect(slotAtPoint(overflow, 0.22, 0.2)).toBeNull();
+    expect(slotAtPoint(overflow, 0.28, 0.5)).toBe(1);
+  });
+
+  it('AC1 有標題時圖區下移，命中點跟著移', () => {
+    // 標題把圖區縮成 0.82 倍並下移到 band 之下：ring(2) 的交集區從 y = 0.5 移到 y = 0.59
+    const plain = defaultState(2);
+    const titled = { ...plain, title: '標題' };
+
+    expect(slotAtPoint(plain, 0.5, 0.3)).toBe(3);
+    expect(slotAtPoint(titled, 0.5, 0.3)).toBeNull();
+    expect(slotAtPoint(titled, 0.5, 0.59)).toBe(3);
   });
 });

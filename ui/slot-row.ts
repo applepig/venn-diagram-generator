@@ -23,6 +23,8 @@ export interface SlotRow {
   root: HTMLDetailsElement;
   mask: number;
   update: (state: VennState, block: TextBlock | undefined, region_exists: boolean) => void;
+  /** 把游標放進這一列的文字框（點畫布區域時用） */
+  focusText: () => void;
 }
 
 /** mask 的成員圓標籤：1 → `A`、3 → `A+B`、7 → `A+B+C` */
@@ -108,6 +110,14 @@ export function createSlotRow(mask: number, handlers: SlotRowHandlers): SlotRow 
   return {
     root,
     mask,
+
+    focusText() {
+      // 區域不存在時整列是停用狀態，focus 一個 disabled 的框只會把游標丟掉（14 AC5）
+      if (text_input.disabled) return;
+      // 捲動歸 openSlot 的 scrollIntoView 管：focus 自己捲會把那一列送到 peek 條底下
+      text_input.focus({ preventScroll: true });
+    },
+
     update(state, block, region_exists) {
       size = state.size;
       scale = diagramTransform(state).scale;

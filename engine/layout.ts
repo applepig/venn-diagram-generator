@@ -9,7 +9,7 @@ import {
 } from './defaults';
 import { transformBlock } from './fit';
 import { arrOf, circlesFor, circlesForState, shapeDefaults } from './shapes/index';
-import { diagramTransform, titleBox, titleTextOf } from './title';
+import { circlesForRender, diagramTransform, titleBox, titleTextOf } from './title';
 import type {
   Arrangement,
   Circle,
@@ -322,6 +322,19 @@ function computeRegionBox(circles: Circle[], mask: number, aspect: number): Regi
  */
 export function regionExists(state: VennState, mask: number): boolean {
   return regionBox(circlesForState(state), mask, aspectFor(kindOf(mask))) !== null;
+}
+
+/**
+ * 畫布座標（0..1 單位空間）落在哪一個文字槽（14 AC1）。
+ *
+ * 圓取 `circlesForRender()`：使用者點的是畫出來的圖，fit 與標題變換都得算進去。
+ * 回 null 的兩種情況——所有圓之外（AC3），或命中的 mask 不在 `slotMasks()` 裡（AC4，
+ * 幾何上生得出來但面板沒有那一列）；呼叫端一律當「什麼都沒點到」處理。
+ */
+export function slotAtPoint(state: VennState, x: number, y: number): number | null {
+  const mask = maskAt(circlesForRender(state), x, y);
+  if (mask === 0) return null;
+  return slotMasks(arrOf(state), state.n).includes(mask) ? mask : null;
 }
 
 function startFsFor(kind: 'label' | 'intersection'): number {

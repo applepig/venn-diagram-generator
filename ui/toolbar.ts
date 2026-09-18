@@ -53,7 +53,7 @@ export interface ToolbarController {
    * 分享連結與 `/api/png` 這時都會被 server 以 400 擋掉，讓按鈕維持可按只會換來壞掉的結果。
    */
   setTooLong: (too_long: boolean) => void;
-  /** 展開某一列並捲到看得見（點預覽上的文字時用） */
+  /** 展開某一列、捲到看得見並把游標放進文字框（點預覽上的區域時用） */
   openSlot: (mask: number) => void;
 }
 
@@ -363,6 +363,8 @@ export function createToolbar(root: HTMLElement, handlers: ToolbarHandlers): Too
       for (const other of rows) if (other !== row) other.root.open = false;
       row.root.open = true;
       row.root.scrollIntoView({ block: 'nearest' });
+      // 展開之後游標就落在文字框裡，點完畫布可以直接打字（14 AC5）
+      row.focusText();
     },
   };
 }
