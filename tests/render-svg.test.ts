@@ -287,7 +287,7 @@ describe('renderSvg：AC6 區域填色 override', () => {
 
   /**
    * 15 AC4：原本 flat 一旦有 `fill` override 就自動補一圈黑框（舊 AC7）。
-   * 那個隱藏行為已從 spec 移除——要框線請開 `stroke_w`，所以這兩條斷言跟著反過來。
+   * 那個隱藏行為已從 spec 移除——要框線請開 `stroke_width`，所以這兩條斷言跟著反過來。
    */
   it('flat 有 override 也不自動描邊', () => {
     expect(renderSvg(twoCircle('flat', '#ffffff'))).not.toContain('fill="none"');
@@ -324,9 +324,9 @@ describe('renderSvg：15 框線選項', () => {
   });
 
   for (const style of STYLES) {
-    it(`${style}：開了 stroke_w 就每個圓一圈框線，寬度與顏色照 state`, () => {
+    it(`${style}：開了 stroke_width 就每個圓一圈框線，寬度與顏色照 state`, () => {
       const svg = renderSvg({
-        ...twoCircle(style, { stroke_w: 0.02, stroke: '#ff0000' }),
+        ...twoCircle(style, { stroke_width: 0.02, stroke: '#ff0000' }),
         size: 1000,
       });
       const drawn = rings(svg);
@@ -339,14 +339,14 @@ describe('renderSvg：15 框線選項', () => {
       expect(renderPng(svg).length).toBeGreaterThan(1000);
     });
 
-    it(`${style}：stroke_w 0 時完全不畫框線`, () => {
-      expect(renderSvg(twoCircle(style, { stroke_w: 0 }))).not.toContain('fill="none"');
+    it(`${style}：stroke_width 0 時完全不畫框線`, () => {
+      expect(renderSvg(twoCircle(style, { stroke_width: 0 }))).not.toContain('fill="none"');
     });
   }
 
   it('框線寬度隨畫布尺寸等比縮放（畫布寬比例）', () => {
     const at = (size: number) =>
-      rings(renderSvg(twoCircle('flat', { stroke_w: 0.01, size })))[0]!;
+      rings(renderSvg(twoCircle('flat', { stroke_width: 0.01, size })))[0]!;
 
     expect(at(800)).toContain('stroke-width="8"');
     expect(at(1600)).toContain('stroke-width="16"');
@@ -356,7 +356,7 @@ describe('renderSvg：15 框線選項', () => {
     const svg = renderSvg({
       ...defaultState(2),
       style: 'flat',
-      stroke_w: 0.01,
+      stroke_width: 0.01,
       texts: { '1': { t: '甲' }, '2': { t: '乙' } },
     });
 
@@ -369,7 +369,7 @@ describe('renderSvg：15 框線選項', () => {
     const svg = renderSvg({
       ...defaultState(2),
       style: 'flat',
-      stroke_w: 0.01,
+      stroke_width: 0.01,
       stroke: '#ff0000',
       texts: {},
     });

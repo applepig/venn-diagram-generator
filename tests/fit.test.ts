@@ -484,7 +484,7 @@ describe('15 框線寬度決定 fit 的內縮量', () => {
   }
 
   it('粗框線時圖區多縮一點，框線外緣不會被切掉', () => {
-    const thick = overflowing({ stroke_w: 0.03 });
+    const thick = overflowing({ stroke_width: 0.03 });
 
     expect(marginOf(thick)).toBeGreaterThanOrEqual(0.015 - EPS);
     expect(diagramTransform(thick).scale).toBeLessThan(diagramTransform(overflowing({})).scale);
@@ -497,11 +497,11 @@ describe('15 框線寬度決定 fit 的內縮量', () => {
   });
 
   it('沒有框線時內縮量維持 STROKE_INSET', () => {
-    expect(marginOf(overflowing({ stroke_w: 0 }))).toBeCloseTo(STROKE_INSET, 12);
+    expect(marginOf(overflowing({ stroke_width: 0 }))).toBeCloseTo(STROKE_INSET, 12);
   });
 
   it('有標題時粗框線的補償照樣生效：底緣的框線外緣仍在畫布內', () => {
-    const titled = overflowing({ stroke_w: 0.03, title: '我的文氏圖' });
+    const titled = overflowing({ stroke_width: 0.03, title: '我的文氏圖' });
     const box = boundsOf(circlesForRender(titled));
 
     expect(box.bottom + 0.015).toBeLessThanOrEqual(1 + EPS);

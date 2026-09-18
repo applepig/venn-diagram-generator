@@ -23,8 +23,8 @@ export const STROKE_INSET = 0.003;
  * 會重新算出不同的縮放與平移，畫面因此位移——那是已經發出去的連結，不該動。
  * 粗框線則靠半寬把餘裕撐開，radius 拉到上限也不會被畫布邊緣切掉。
  */
-export function strokeInset(stroke_w: number): number {
-  return Math.max(STROKE_INSET, stroke_w / 2);
+export function strokeInset(stroke_width: number): number {
+  return Math.max(STROKE_INSET, stroke_width / 2);
 }
 
 /** 判定「在畫布內」的容差：浮點合成後 1e-16 級的殘差不該讓預設幾何被判成超界 */

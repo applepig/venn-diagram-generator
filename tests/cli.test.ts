@@ -111,7 +111,7 @@ describe('state ↔ 友善 spec 的 round-trip', () => {
     '自訂框線': {
       ...defaultState(3),
       style: 'flat',
-      stroke_w: 0.012,
+      stroke_width: 0.012,
       stroke: '#ff0000',
       texts: { '1': { t: '甲' } },
     },
@@ -273,26 +273,26 @@ describe('框線的寬度與顏色旗標（15 AC7）', () => {
       stroke: '#ff0000',
     });
 
-    expect(state.stroke_w).toBe(0.012);
+    expect(state.stroke_width).toBe(0.012);
     expect(state.stroke).toBe('#ff0000');
   });
 
   it('沒給時維持該樣式的預設，兩個欄位都不進編碼', () => {
     const state = stateFromFlags({ set: ['A=甲', 'B=乙'], style: 'outline' });
 
-    expect(state).not.toHaveProperty('stroke_w');
+    expect(state).not.toHaveProperty('stroke_width');
     expect(state).not.toHaveProperty('stroke');
   });
 
   it('--stroke-width 0 關得掉 outline 的框線', () => {
     const state = stateFromFlags({ set: ['A=甲', 'B=乙'], style: 'outline', 'stroke-width': '0' });
 
-    expect(state.stroke_w).toBe(0);
+    expect(state.stroke_width).toBe(0);
   });
 
   it('超出範圍的寬度走 validateState 的同一句話', () => {
     expect(() => stateFromFlags({ set: ['A=甲', 'B=乙'], 'stroke-width': '0.5' })).toThrow(
-      /stroke_w must be between/,
+      /stroke_width must be between/,
     );
   });
 });

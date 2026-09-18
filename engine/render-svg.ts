@@ -307,13 +307,13 @@ export function renderSvg(state: VennState, opts: RenderOptions = {}): string {
   }
 
   // 全樣式共用的框線（15 AC3）：畫在填色之上、文字之下；寬度缺席時依樣式取預設
-  const stroke_w = strokeOf(state);
-  if (stroke_w > 0) {
+  const stroke_width = strokeOf(state);
+  if (stroke_width > 0) {
     const stroke_color = escapeXml(strokeColorOf(state));
     body += circles
       .map(
         (c) =>
-          `<circle cx="${c.x * size}" cy="${c.y * size}" r="${c.r * size}" fill="none" stroke="${stroke_color}" stroke-width="${size * stroke_w}"/>`,
+          `<circle cx="${c.x * size}" cy="${c.y * size}" r="${c.r * size}" fill="none" stroke="${stroke_color}" stroke-width="${size * stroke_width}"/>`,
       )
       .join('');
   }

@@ -35,7 +35,7 @@ Circle positions are always derived from `arr` / `n` / `overlap` / `radius` — 
   "title_fill": "#e04848",    // title text colour; omitted means automatic black or white.
                               // Never encoded when there is no title
   "style": "flat",            // translucent | flat | outline
-  "stroke_w": 0.01,           // circle outline width as a fraction of canvas width, 0–0.03;
+  "stroke_width": 0.01,       // circle outline width as a fraction of canvas width, 0–0.03;
                               // omitted means the style default (0.006 for outline, 0 otherwise)
   "stroke": "#ff0000",        // outline colour; omitted means #000000.
                               // Never encoded when the resolved width is 0

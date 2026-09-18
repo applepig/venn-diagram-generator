@@ -35,7 +35,7 @@ deploy/   Dockerfile、compose.yml、compose.dev.yml、deploy.sh
   "title_fill": "#e04848",    // 標題字色；缺席＝依背景亮度自動取黑或白。
                               // 沒有 title 時一律不寫進編碼
   "style": "flat",            // translucent | flat | outline
-  "stroke_w": 0.01,           // 圓框線寬度，畫布寬比例 0–0.03；
+  "stroke_width": 0.01,       // 圓框線寬度，畫布寬比例 0–0.03；
                               // 缺席＝依樣式取預設（outline 0.006，其餘 0）
   "stroke": "#ff0000",        // 框線顏色；缺席＝#000000。
                               // 解析出的寬度是 0 時一律不寫進編碼

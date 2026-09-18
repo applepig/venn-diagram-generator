@@ -215,7 +215,7 @@ export function specToState(spec: VennSpec): VennState {
   };
   if (arr !== 'ring') state.arr = arr;
   // 框線：等於樣式預設或寬度 0 時的收斂都在 validateState，這裡照傳即可
-  if (spec.strokeWidth !== undefined) state.stroke_w = spec.strokeWidth;
+  if (spec.strokeWidth !== undefined) state.stroke_width = spec.strokeWidth;
   if (spec.stroke !== undefined) state.stroke = spec.stroke;
   if (spec.title !== undefined && spec.title !== '') {
     state.title = spec.title;
@@ -256,7 +256,7 @@ export function stateToSpec(state: VennState): VennSpec {
   spec.size = state.size;
   if (state.title_fill !== undefined) spec.titleFill = state.title_fill;
   if (state.title_fs !== undefined) spec.titleFs = state.title_fs;
-  if (state.stroke_w !== undefined) spec.strokeWidth = state.stroke_w;
+  if (state.stroke_width !== undefined) spec.strokeWidth = state.stroke_width;
   if (state.stroke !== undefined) spec.stroke = state.stroke;
   return spec;
 }

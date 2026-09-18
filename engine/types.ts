@@ -37,10 +37,10 @@ export interface VennState {
   title_fs?: number;
   style: VennStyle;
   /**
-   * 圓框線寬度，畫布寬比例（0..`STROKE_W_MAX`）；缺席＝依樣式取預設（見 engine/stroke.ts）。
+   * 圓框線寬度，畫布寬比例（0..`STROKE_WIDTH_MAX`）；缺席＝依樣式取預設（見 engine/stroke.ts）。
    * 等於該樣式預設值時一律不寫進編碼，所以沒帶這個欄位的舊連結編碼字串不變。
    */
-  stroke_w?: number;
+  stroke_width?: number;
   /** 框線顏色（`#rrggbb`）；缺席＝`DEFAULT_STROKE_COLOR`。框線寬度 0 時不寫進編碼。 */
   stroke?: string;
   opacity: number;

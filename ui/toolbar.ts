@@ -1,5 +1,5 @@
 import { OVERLAP_MAX, OVERLAP_MIN, SIZE_CHOICES } from '../engine/defaults';
-import { STROKE_W_MAX, strokeColorOf, strokeOf } from '../engine/stroke';
+import { STROKE_WIDTH_MAX, strokeColorOf, strokeOf } from '../engine/stroke';
 import { BG_SWATCHES, SWATCH_COLORS } from '../content/palette';
 import { layout, regionExists, slotMasks } from '../engine/layout';
 import { arrOf, radiusRange } from '../engine/shapes/index';
@@ -198,8 +198,8 @@ export function createToolbar(root: HTMLElement, handlers: ToolbarHandlers): Too
     handlers.onPatch({ overlap: o }),
   );
   // 框線：三種樣式都給得出來，0 ＝不畫框線（15 AC6）
-  const stroke = sliderField(ts('field.stroke'), 0, STROKE_W_MAX, 0.001, (w) =>
-    handlers.onPatch({ stroke_w: w }),
+  const stroke = sliderField(ts('field.stroke'), 0, STROKE_WIDTH_MAX, 0.001, (w) =>
+    handlers.onPatch({ stroke_width: w }),
   );
   const stroke_color = createColorControl({
     swatches: SWATCH_COLORS,
@@ -353,11 +353,11 @@ export function createToolbar(root: HTMLElement, handlers: ToolbarHandlers): Too
       syncValue(overlap.input, String(state.overlap));
 
       // 缺席的框線寬度由 engine 依樣式解析，滑桿顯示的就是實際畫出來的值
-      const stroke_w = strokeOf(state);
-      stroke.value_el.textContent = stroke_w.toFixed(3);
-      syncValue(stroke.input, String(stroke_w));
+      const stroke_width = strokeOf(state);
+      stroke.value_el.textContent = stroke_width.toFixed(3);
+      syncValue(stroke.input, String(stroke_width));
       // 沒有框線就沒有顏色可調（codec 這時也不收 stroke），整列收起來
-      stroke_color_row.hidden = stroke_w === 0;
+      stroke_color_row.hidden = stroke_width === 0;
       stroke_color.setValue(strokeColorOf(state));
 
       syncRows(state);
