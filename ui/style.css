@@ -861,6 +861,16 @@ select {
     width: min(92vw, 68vh);
   }
 
+  /*
+   * 橫向手機：overlay 連圖加關閉鈕都快滿了，再加一列按鈕會把內容擠出視窗（AC6c）。
+   * 整頁最下方那份仍在，這裡只是不重複給。
+   */
+  @media (max-height: 520px) {
+    body[data-preview='open'] .peek .actions-bar {
+      display: none;
+    }
+  }
+
   body[data-preview='open'] .peek-hint {
     display: none;
   }
