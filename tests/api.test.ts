@@ -25,7 +25,7 @@ const ORIGIN = 'https://venn.applepig.net';
  * server 組出來的 og:image URL（HTML 屬性裡的 `&` 已 escape）。
  * 07 M5：固定 URL 配一年期快取，語言不進 key 就會被第一個爬蟲的語言污染，所以一律帶 lang。
  */
-const OG_URL = `${ORIGIN}/api/og.png?v=5&amp;lang=zh-TW`;
+const OG_URL = `${ORIGIN}/api/og.png?v=6&amp;lang=zh-TW`;
 
 function get(path: string, headers: Record<string, string> = {}) {
   return app.request(`${ORIGIN}${path}`, { headers });
@@ -74,7 +74,7 @@ describe('GET /api/png：AC3 正常出圖', () => {
 
 describe('GET /api/og.png：固定橫式 OG 合成', () => {
   it('缺少 s 時回預設內容的 1200×630 PNG 與長期快取標頭', async () => {
-    const res = await get('/api/og.png?v=5');
+    const res = await get('/api/og.png?v=6');
 
     expect(res.status).toBe(200);
     expect(res.headers.get('content-type')).toBe('image/png');
@@ -86,24 +86,24 @@ describe('GET /api/og.png：固定橫式 OG 合成', () => {
   // CPU 飽和時會超過預設的 5 秒（合併前的 main 上就會紅）。放寬的是時間預算，不是斷言。
   it('缺少 s 與明確傳入 sampleState 會產生相同內容', async () => {
     const [implicit, explicit] = await Promise.all([
-      get('/api/og.png?v=5'),
-      get(`/api/og.png?v=5&s=${encodeState(sampleState())}`),
+      get('/api/og.png?v=6'),
+      get(`/api/og.png?v=6&s=${encodeState(sampleState())}`),
     ]);
 
     expect(Buffer.from(await implicit.arrayBuffer())).toEqual(Buffer.from(await explicit.arrayBuffer()));
   }, 20000);
 
   it('兩個內容不同的合法 state 會產生不同 OG PNG', async () => {
-    const first = await get(`/api/og.png?v=5&s=${encodeState(sampleState())}`);
+    const first = await get(`/api/og.png?v=6&s=${encodeState(sampleState())}`);
     const second = await get(
-      `/api/og.png?v=5&s=${encodeState({ ...sampleState(), texts: { '3': { t: '今天就做' } } })}`,
+      `/api/og.png?v=6&s=${encodeState({ ...sampleState(), texts: { '3': { t: '今天就做' } } })}`,
     );
 
     expect(Buffer.from(await first.arrayBuffer())).not.toEqual(Buffer.from(await second.arrayBuffer()));
   });
 
   it('3 圈 translucent 合成後仍保留左側品牌底圖', async () => {
-    const res = await get(`/api/og.png?v=5&s=${encodeState(sampleState(3))}`);
+    const res = await get(`/api/og.png?v=6&s=${encodeState(sampleState(3))}`);
     const output = decodePng(Buffer.from(await res.arrayBuffer()));
     const base = decodePng(readFileSync(OG_BASE_FILE));
 
@@ -119,7 +119,7 @@ describe('GET /api/og.png：固定橫式 OG 合成', () => {
 
   it('state.bg 不會在右側畫出有硬邊的正方形背景', async () => {
     const state = { ...sampleState(3), bg: '#ff00ff' };
-    const res = await get(`/api/og.png?v=5&s=${encodeState(state)}`);
+    const res = await get(`/api/og.png?v=6&s=${encodeState(state)}`);
     const output = decodePng(Buffer.from(await res.arrayBuffer()));
     const base = decodePng(readFileSync(OG_BASE_FILE));
 
@@ -133,9 +133,9 @@ describe('GET /api/og.png：固定橫式 OG 合成', () => {
   });
 
   for (const [name, path] of [
-    ['s 是空字串', '/api/og.png?v=5&s='],
-    ['s 解不開', '/api/og.png?v=5&s=!!!!'],
-    ['s 過長', `/api/og.png?v=5&s=${'a'.repeat(MAX_STATE_PARAM_LEN + 1)}`],
+    ['s 是空字串', '/api/og.png?v=6&s='],
+    ['s 解不開', '/api/og.png?v=6&s=!!!!'],
+    ['s 過長', `/api/og.png?v=6&s=${'a'.repeat(MAX_STATE_PARAM_LEN + 1)}`],
   ] as const) {
     it(`${name} → 400 JSON 且不快取`, async () => {
       const res = await get(path);
@@ -151,7 +151,7 @@ describe('GET /api/og.png：固定橫式 OG 合成', () => {
     const isolated = createApp({ fontFiles: FONT_FILES, ogBaseFile: OG_BASE_FILE });
     const s = encodeState({ ...defaultState(4), style: 'flat', size: 1600 });
     const paths = Array.from({ length: 6 }, (_, i) =>
-      i % 2 === 0 ? `/api/png?s=${s}` : `/api/og.png?v=5&s=${s}`,
+      i % 2 === 0 ? `/api/png?s=${s}` : `/api/og.png?v=6&s=${s}`,
     );
     const responses = await Promise.all(paths.map((path) => isolated.request(`${ORIGIN}${path}`)));
 
@@ -353,7 +353,7 @@ describe('GET /：AC4 og meta', () => {
       await get('/', { 'x-forwarded-proto': 'https', 'x-forwarded-host': 'venn.example.com' })
     ).text();
 
-    expect(html).toContain('content="https://venn.example.com/api/og.png?v=5&amp;lang=zh-TW"');
+    expect(html).toContain('content="https://venn.example.com/api/og.png?v=6&amp;lang=zh-TW"');
   });
 
   it('og:image 指向的 URL 真的出得了圖', async () => {
@@ -643,9 +643,9 @@ describe('AC3 og origin 由 publicOrigin 決定', () => {
     ).text();
 
     expect(html).not.toContain('evil.example.com');
-    expect(html).toContain(`<meta property="og:image" content="${ORIGIN}/api/og.png?v=5`);
+    expect(html).toContain(`<meta property="og:image" content="${ORIGIN}/api/og.png?v=6`);
     expect(html).toContain(`<meta property="og:url" content="${ORIGIN}/?s=`);
-    expect(html).toContain(`<meta name="twitter:image" content="${ORIGIN}/api/og.png?v=5`);
+    expect(html).toContain(`<meta name="twitter:image" content="${ORIGIN}/api/og.png?v=6`);
   });
 });
 
@@ -682,7 +682,7 @@ describe('GET /：06 AC3/AC5 首頁 og:image 優先用 build 烤好的靜態檔'
     expect(html).not.toContain(baked_name);
   });
 
-  it('dist 存在但沒烤好的檔案時 fallback 回 /api/og.png?v=5，不指向 404 路徑', async () => {
+  it('dist 存在但沒烤好的檔案時 fallback 回 /api/og.png?v=6，不指向 404 路徑', async () => {
     const baked = appWithDist(['og-base.png', 'favicon.svg']);
     const html = await (await baked.request(`${ORIGIN}/`)).text();
 
@@ -842,7 +842,7 @@ describe('07 M5 i18n：首頁每個語言面都跟著換（AC6）', () => {
     const html = await (await home(`?s=${s}&lang=en`)).text();
 
     expect(html).toContain(
-      '<meta property="og:title" content="Things I should do × Things I want to do | Venn Diagram Maker">',
+      '<meta property="og:title" content="My duty × My passion | Venn Diagram Maker">',
     );
     expect(html).toContain('<html lang="en"');
   });
@@ -851,9 +851,9 @@ describe('07 M5 i18n：首頁每個語言面都跟著換（AC6）', () => {
     const zh = await (await home()).text();
     const en = await (await home('?lang=en')).text();
 
-    expect(zh).toContain(`<meta property="og:image" content="${ORIGIN}/api/og.png?v=5&amp;lang=zh-TW">`);
-    expect(en).toContain(`<meta property="og:image" content="${ORIGIN}/api/og.png?v=5&amp;lang=en">`);
-    expect(en).toContain(`<meta name="twitter:image" content="${ORIGIN}/api/og.png?v=5&amp;lang=en">`);
+    expect(zh).toContain(`<meta property="og:image" content="${ORIGIN}/api/og.png?v=6&amp;lang=zh-TW">`);
+    expect(en).toContain(`<meta property="og:image" content="${ORIGIN}/api/og.png?v=6&amp;lang=en">`);
+    expect(en).toContain(`<meta name="twitter:image" content="${ORIGIN}/api/og.png?v=6&amp;lang=en">`);
   });
 
   it('分享連結的 og:url 與 canonical 不夾帶 lang（收件人用自己的語言看介面）', async () => {
@@ -952,7 +952,7 @@ describe('07 M7 i18n：ja 首頁每個語言面都跟著換（AC12）', () => {
     const html = await (await home('?lang=ja')).text();
 
     expect(html).toContain(
-      `<meta property="og:image" content="${ORIGIN}/api/og.png?v=5&amp;lang=ja">`,
+      `<meta property="og:image" content="${ORIGIN}/api/og.png?v=6&amp;lang=ja">`,
     );
   });
 
@@ -1091,7 +1091,7 @@ describe('AC14 語言記憶走 cookie venn.lang', () => {
 
   it('/api/og.png 帶 cookie 不帶 lang 仍是 zh-TW（cookie 進不了 CDN 的 cache key）', async () => {
     async function hash(headers: Record<string, string> = {}): Promise<string> {
-      const res = await get('/api/og.png?v=5', headers);
+      const res = await get('/api/og.png?v=6', headers);
       expect(res.status).toBe(200);
       return createHash('sha256').update(new Uint8Array(await res.arrayBuffer())).digest('hex');
     }
@@ -1123,8 +1123,8 @@ describe('07 M5 產圖端點的語言只從 query lang 讀（AC6）', () => {
 
   it('缺 s 時 lang=en 渲染英文 template，與明確傳入英文 sampleState 相同', async () => {
     const [implicit, explicit] = await Promise.all([
-      pngHash('/api/og.png?v=5&lang=en'),
-      pngHash(`/api/og.png?v=5&s=${encodeState(sampleState(2, 'en'))}`),
+      pngHash('/api/og.png?v=6&lang=en'),
+      pngHash(`/api/og.png?v=6&s=${encodeState(sampleState(2, 'en'))}`),
     ]);
 
     expect(implicit).toBe(explicit);
@@ -1132,8 +1132,8 @@ describe('07 M5 產圖端點的語言只從 query lang 讀（AC6）', () => {
 
   it('缺 s 時 lang=en 與 lang=zh-TW 出來的圖不同（文案真的換了）', async () => {
     const [zh, en] = await Promise.all([
-      pngHash('/api/og.png?v=5&lang=zh-TW'),
-      pngHash('/api/og.png?v=5&lang=en'),
+      pngHash('/api/og.png?v=6&lang=zh-TW'),
+      pngHash('/api/og.png?v=6&lang=en'),
     ]);
 
     expect(zh).not.toBe(en);
@@ -1141,8 +1141,8 @@ describe('07 M5 產圖端點的語言只從 query lang 讀（AC6）', () => {
 
   it('缺 s 時不看 Accept-Language（固定 URL 配長期快取，不能被第一個爬蟲的語言污染）', async () => {
     const [neutral, english_header] = await Promise.all([
-      pngHash('/api/og.png?v=5'),
-      pngHash('/api/og.png?v=5', { 'accept-language': 'en-US,en;q=0.9' }),
+      pngHash('/api/og.png?v=6'),
+      pngHash('/api/og.png?v=6', { 'accept-language': 'en-US,en;q=0.9' }),
     ]);
 
     expect(neutral).toBe(english_header);
@@ -1150,8 +1150,8 @@ describe('07 M5 產圖端點的語言只從 query lang 讀（AC6）', () => {
 
   it('不認得的 lang 退回 zh-TW，不是 400', async () => {
     const [fallback, zh] = await Promise.all([
-      pngHash('/api/og.png?v=5&lang=fr'),
-      pngHash('/api/og.png?v=5&lang=zh-TW'),
+      pngHash('/api/og.png?v=6&lang=fr'),
+      pngHash('/api/og.png?v=6&lang=zh-TW'),
     ]);
 
     expect(fallback).toBe(zh);
@@ -1159,9 +1159,9 @@ describe('07 M5 產圖端點的語言只從 query lang 讀（AC6）', () => {
 
   it('AC13 缺 s 時 lang=ja 渲染日文 template，與 zh 的圖不同', async () => {
     const [ja, zh, explicit] = await Promise.all([
-      pngHash('/api/og.png?v=5&lang=ja'),
-      pngHash('/api/og.png?v=5&lang=zh-TW'),
-      pngHash(`/api/og.png?v=5&s=${encodeState(sampleState(2, 'ja'))}`),
+      pngHash('/api/og.png?v=6&lang=ja'),
+      pngHash('/api/og.png?v=6&lang=zh-TW'),
+      pngHash(`/api/og.png?v=6&s=${encodeState(sampleState(2, 'ja'))}`),
     ]);
 
     expect(ja).toBe(explicit);
@@ -1171,8 +1171,8 @@ describe('07 M5 產圖端點的語言只從 query lang 讀（AC6）', () => {
   it('帶 s 時 lang 不影響輸出（文字已經在 s 裡）', async () => {
     const s = encodeState(sampleState(3));
     const [with_en, without] = await Promise.all([
-      pngHash(`/api/og.png?v=5&lang=en&s=${s}`),
-      pngHash(`/api/og.png?v=5&s=${s}`),
+      pngHash(`/api/og.png?v=6&lang=en&s=${s}`),
+      pngHash(`/api/og.png?v=6&s=${s}`),
     ]);
 
     expect(with_en).toBe(without);
