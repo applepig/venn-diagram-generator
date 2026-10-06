@@ -24,9 +24,9 @@ export const TEMPLATES: Record<Arrangement, Partial<Record<CircleCount, Template
     2: {
       style: 'flat',
       texts: {
-        '1': { t: 'Things I\nshould do' },
-        '2': { t: 'Things I\nwant to do' },
-        '3': { t: 'Tomorrow' },
+        '1': { t: 'My duty' },
+        '2': { t: 'My passion' },
+        '3': { t: 'Do it\nlater' },
       },
     },
     3: {

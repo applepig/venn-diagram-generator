@@ -102,7 +102,7 @@ import { sampleState } from './content/state-presets';
 process.stdout.write(encodeState(sampleState()));")
 
 curl -o venn.png "http://localhost:3000/api/png?s=$S"
-curl -o og.png   "http://localhost:3000/api/og.png?v=5&s=$S&lang=zh-TW"
+curl -o og.png   "http://localhost:3000/api/og.png?v=6&s=$S&lang=zh-TW"
 
 # 或者跳過編碼這一步，直接 POST state 本身
 curl -sD headers.txt -o venn.png -H 'content-type: application/json' \

@@ -361,9 +361,9 @@ describe('AC4 三組 template 在預設幾何下都不觸字級下限', () => {
  * 收掉換行後的文案內容；換行位置由 AC7 的字級測試把關。
  */
 const EN_TEXTS_2 = {
-  '1': { t: 'Things I should do' },
-  '2': { t: 'Things I want to do' },
-  '3': { t: 'Tomorrow' },
+  '1': { t: 'My duty' },
+  '2': { t: 'My passion' },
+  '3': { t: 'Do it later' },
 };
 
 const EN_TEXTS_3 = {
@@ -478,7 +478,7 @@ describe('AC6 en template', () => {
 
 describe('AC6 切語言後的 placeholder', () => {
   it('同一個槽在不同語言拿到不同的示範字（UI 的 placeholder 來源）', () => {
-    expect(flatten(templateTexts('ring', 2, 'en'))['3']).toBe('Tomorrow');
+    expect(flatten(templateTexts('ring', 2, 'en'))['3']).toBe('Do it later');
     expect(templateTexts('ring', 2, 'zh-TW')['3']).toEqual({ t: '明天\n再說' });
   });
 

@@ -49,9 +49,9 @@ Circle positions are always derived from `arr` / `n` / `overlap` / `radius` — 
   "bg": "#fafafa",
   "size": 1200,               // integer, 400–2000
   "texts": {                  // key is the member-circle bitmask, as a decimal string
-    "1": { "t": "Things I\nshould do" },  // circle i = bit i, so 3 = circle 0 ∩ circle 1
-    "2": { "t": "Things I\nwant to do" },
-    "3": { "t": "Tomorrow", "fs": 0.09 }
+    "1": { "t": "My duty" },          // circle i = bit i, so 3 = circle 0 ∩ circle 1
+    "2": { "t": "My passion" },
+    "3": { "t": "Do it\nlater", "fs": 0.09 }
   }
 }
 ```
@@ -104,7 +104,7 @@ import { sampleState } from './content/state-presets';
 process.stdout.write(encodeState(sampleState()));")
 
 curl -o venn.png "http://localhost:3000/api/png?s=$S"
-curl -o og.png   "http://localhost:3000/api/og.png?v=5&s=$S&lang=en"
+curl -o og.png   "http://localhost:3000/api/og.png?v=6&s=$S&lang=en"
 
 # Or skip the encoding step and POST the state itself
 curl -sD headers.txt -o venn.png -H 'content-type: application/json' \

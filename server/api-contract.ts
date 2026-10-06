@@ -11,5 +11,6 @@ export const RETRY_AFTER_SECONDS = 2;
  * v3：合成時關掉浮水印，底圖已經有品牌名了（正式站目前輸出這版）。
  * v4：改成 build 時預烤靜態檔並加入 dither（開發中，未上線）。
  * v5：v3 與 v4 兩條線合併後的組合（無浮水印＋dither），兩邊都沒產出過，要蓋過 3 與 4。
+ * v6：en 2 圈 template 改「My duty／My passion／Do it later」，lang=en 的預設圖換了內容。
  */
-export const OG_IMAGE_VERSION = 5;
+export const OG_IMAGE_VERSION = 6;
