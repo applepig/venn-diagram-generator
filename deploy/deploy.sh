@@ -76,14 +76,17 @@ export VENN_REVISION="$3"
 compose=(sudo env "VENN_REVISION=$3" docker compose -p "$2" --env-file .env -f deploy/compose.yml)
 "${compose[@]}" up -d --build
 # up -d 不等於已 ready；先確認 app，再確認真正公開的 HTTPS routing。
-for attempt in 1 2 3 4 5; do
-  if "${compose[@]}" exec -T venn node dist-server/smoke-check.mjs http://localhost:3000 "$3"; then
-    break
-  fi
-  if [[ "$attempt" == 5 ]]; then exit 1; fi
-  sleep 2
-done
-"${compose[@]}" exec -T venn sh -c 'node dist-server/smoke-check.mjs "$PUBLIC_ORIGIN" "$VENN_REVISION"'
+smoke() {
+  local attempt
+  for attempt in 1 2 3 4 5; do
+    if "${compose[@]}" exec -T venn "$@"; then return 0; fi
+    if [[ "$attempt" == 5 ]]; then return 1; fi
+    sleep 2
+  done
+}
+smoke node dist-server/smoke-check.mjs http://localhost:3000 "$3"
+# 反向代理註冊新容器的 router 也要時間，公開檢查同樣給重試。
+smoke sh -c 'node dist-server/smoke-check.mjs "$PUBLIC_ORIGIN" "$VENN_REVISION"'
 REMOTE
 
 echo "deployed → ${HOST}:${DEST}"
