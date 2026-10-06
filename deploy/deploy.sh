@@ -72,7 +72,8 @@ ssh "$HOST" "$remote_deploy" <<'REMOTE'
 set -euo pipefail
 cd "$1"
 export VENN_REVISION="$3"
-compose=(sudo docker compose -p "$2" --env-file .env -f deploy/compose.yml)
+# sudo normally removes exported variables; pass the non-secret build revision explicitly.
+compose=(sudo env "VENN_REVISION=$3" docker compose -p "$2" --env-file .env -f deploy/compose.yml)
 "${compose[@]}" up -d --build
 # up -d 不等於已 ready；先確認 app，再確認真正公開的 HTTPS routing。
 for attempt in 1 2 3 4 5; do

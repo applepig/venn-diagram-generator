@@ -66,6 +66,19 @@ deploy/   Dockerfile、compose.yml、compose.dev.yml、deploy.sh
 
 ## API
 
+`GET /api/venn.svg` 用單一 URL 回傳 inline SVG。友善模式接受選填的 `a`（僅 A）、`b`（僅 B）、`ab`（A∩B）、`colorA` 與 `colorB`（#rrggbb）。固定為兩圈，其餘欄位用產品預設值；省略或空字串的文字槽留白，省略顏色用預設色，空字串顏色則無效。沒有 query 時產生空白圖，不混入 template／幽靈提示。用 `URLSearchParams` 或 percent encoding：# 要編為 `%23`，+ 要編為 `%2B`。
+
+```js
+const query = new URLSearchParams({
+  a: '藥品濫用', b: '物質濫用', ab: '毒品',
+  colorA: '#E76F51', colorB: '#2A9D8F',
+});
+const url = `https://venn.applepig.net/api/venn.svg?${query}`;
+```
+
+完整樣式與形狀使用 `GET /api/venn.svg?s=<state>`，沿用既有編碼 state。兩種模式互斥：未知／重複 query 或混用 `s` 與友善欄位，都回 400 JSON 與 `no-store`。文字沿用 80 Unicode code point 限制，`s` 沿用 7300 字元限制；包含 ? 的完整 serialized query 上限為 22156 字元。成功回傳 `image/svg+xml; charset=utf-8`，並附上同一份可編輯 state 的 `X-Venn-Url`。SVG 使用共用 renderer，不占用 PNG rasterizer worker。友善模式因預設值可能變更，使用 `no-cache`；`s` 模式沿用一年 immutable 快取（renderer／watermark 變更仍需考慮快取失效）。字型不嵌入 SVG，獨立 reader 的字形可能不同；需要固定字型外觀時使用 PNG。
+
+
 首頁的初始 HTML 有真正的 API 文件連結。`GET /api` 是完整的英文 HTML 說明與可直接使用的範例，不需要 JavaScript。`GET /openapi.json` 回傳 OpenAPI 3.1 規格（`application/vnd.oai.openapi+json`），首頁 head 與 body 都以 `rel="service-desc"` 宣告；`/llms.txt` 也連到這兩個入口。規格的各排列合法文字槽與圈數／幾何限制，從 validator 共用的 shape registry 取得。固定介紹透過既有三語 server localization 呈現，不需要導入 SSG 框架；分享圖的 meta 仍由 Hono 動態產生。
 
 
@@ -182,7 +195,7 @@ script 開頭會先 source repo 根目錄的 `.env`，所以這兩個變數可�
 
 主機端的前置條件：ssh 使用者要能免密碼跑 Docker（在 `docker` group 裡，或有免密 sudo），而且 `${VENN_DEPLOY_PATH}/.env` 必須先存在。script 會先檢查那份檔案有沒有宣告 `VENN_PUBLIC_HOST`、`VENN_GTM_ID`、`VENN_WATERMARK`（值可以是空的，key 不能少），缺了就印出缺哪幾把並 exit 1，不會先動主機——浮水印靜默消失會被烤進一年期快取的 `og:image`。
 
-部署在重建後會依序檢查 container 內部與公開 HTTPS origin：首頁、`/llms.txt` 的狀態／文字 MIME／API 內容，以及真正的 OG PNG。404、redirect、HTML fallback 或不符預期的 `X-Venn-Revision` 都會讓部署失敗。`VENN_REVISION` 會烤進 image 的 OCI revision label 與回應標頭；deploy.sh 使用當前 Git commit，有未提交變更時加 `-dirty`。這表示來源版本，不是未提交檔案的內容雜湊；手動跑 Compose 而未指定版本時為 `unknown`。
+部署在重建後會依序檢查 container 內部與公開 HTTPS origin：首頁、`/llms.txt` 的狀態／文字 MIME／API 內容，API 文件／OpenAPI、中文 SVG 與可編輯連結，以及真正的方形／OG PNG。404、redirect、HTML fallback 或不符預期的 `X-Venn-Revision` 都會讓部署失敗。`VENN_REVISION` 會烤進 image 的 OCI revision label 與回應標頭；deploy.sh 使用當前 Git commit，有未提交變更時加 `-dirty`。這表示來源版本，不是未提交檔案的內容雜湊；手動跑 Compose 而未指定版本時為 `unknown`。
 
 唯讀檢查既有部署可在本機執行 `pnpm smoke -- https://your-host.example`，或在 container 裡執行 `node dist-server/smoke-check.mjs http://localhost:3000`；第二個參數可指定預期 revision，以辨識舊 image。內部成功、外部失敗時查代理 host/path routing 與錯誤快取；兩邊失敗時查運行中的 image／server bundle。本機驗證成功不等於正式站已可用。
 
@@ -201,6 +214,7 @@ script 開頭會先 source repo 根目錄的 `.env`，所以這兩個變數可�
 | `VENN_DEPLOY_HOST` | `deploy/deploy.sh` | **是** | 部署目標主機的 ssh host。缺少時 script 印出缺哪個變數並 exit 1。 |
 | `VENN_DEPLOY_PATH` | `deploy/deploy.sh` | **是** | 要 rsync 進去的遠端目錄。 |
 | `VENN_DEV_HOST` | `deploy/compose.dev.yml` | **是** | 掛原始碼的開發站 hostname；沒給 compose 直接拒絕啟動。 |
+| `VENN_REVISION` | Docker build、server | 否 | OCI image label 與 X-Venn-Revision 標頭的來源版本，由 deploy.sh 自動產生；手動 Docker build 可用 --build-arg VENN_REVISION=<commit>。 |
 | `VENN_DIST` | server、build | 否 | 內部用，正式站不要設。build 產物目錄，預設 `dist`。 |
 | `VENN_FONT` | server | 否 | 內部用，正式站不要設。resvg 載入的字型檔（逗號分隔），預設 `assets/fonts/NotoSansTC-Bold.otf,assets/fonts/NotoSansJP-Bold.otf`；第一個是 SVG 指名的字型，其餘只補缺字。 |
 | `VENN_DEV` | server | 否 | 內部用，正式站不要設。設成 `1` 會改跑 Vite middlewareMode，而不是吐 `dist/`。 |

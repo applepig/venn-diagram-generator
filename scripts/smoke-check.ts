@@ -1,6 +1,6 @@
 import { pathToFileURL } from 'node:url';
 import { encodeState } from '../engine/state-codec-node';
-import { API_EXAMPLE } from '../server/api-documentation';
+import { API_EXAMPLE, SVG_EXAMPLE_QUERY } from '../server/api-documentation';
 
 /** Run against the container first, then the public origin. No browser or JS needed. */
 export async function smokeCheck(
@@ -13,7 +13,9 @@ export async function smokeCheck(
     throw new Error('Expected an HTTP(S) origin without a path, query or fragment');
   async function get(path: string, mime: string): Promise<Response> {
     const url = new URL(path, base);
-    const res = await fetcher(url, { redirect: 'manual', signal: AbortSignal.timeout(10000) });
+    const res = await fetcher(url, { redirect: 'manual', signal: AbortSignal.timeout(10000),
+      headers: { 'cache-control': 'no-cache' },
+    });
     if (res.status !== 200) throw new Error(`${url}: HTTP ${res.status}; redirect=${res.headers.get('location') ?? 'none'}`);
     if (!res.headers.get('content-type')?.startsWith(mime))
       throw new Error(`${url}: expected ${mime}, received ${res.headers.get('content-type')}`);
@@ -36,11 +38,18 @@ export async function smokeCheck(
     throw new Error('OpenAPI is missing the PNG operation');
   if (!['localhost', '127.0.0.1', '[::1]'].includes(base.hostname) && spec.servers?.[0]?.url !== base.origin)
     throw new Error('OpenAPI describes a different public origin');
-  const image = await get(`/api/png?s=${encodeState(API_EXAMPLE)}`, 'image/png');
+  const svgResponse = await get(`/api/venn.svg?${new URLSearchParams(SVG_EXAMPLE_QUERY)}`, 'image/svg+xml');
+  const svg = await svgResponse.text();
+  if (!svg.includes('<svg') || !svg.includes('毒品') || !svgResponse.headers.get('x-venn-url'))
+    throw new Error('SVG API did not render the example with an editable share URL');
+  // PNG/OG URLs are immutable: probe this build using a fresh cache key, rather
+  // than mistaking a valid older cached response for the running server version.
+  const probe = encodeURIComponent(expectedRevision ?? String(Date.now()));
+  const image = await get(`/api/png?s=${encodeState(API_EXAMPLE)}&smoke=${probe}`, 'image/png');
   const imageBytes = new Uint8Array(await image.arrayBuffer());
   if (![137, 80, 78, 71, 13, 10, 26, 10].every((byte, i) => imageBytes[i] === byte))
     throw new Error('Diagram response is not a PNG');
-  const png = await get('/api/og.png?lang=en', 'image/png');
+  const png = await get(`/api/og.png?lang=en&smoke=${probe}`, 'image/png');
   const bytes = new Uint8Array(await png.arrayBuffer());
   if (![137, 80, 78, 71, 13, 10, 26, 10].every((byte, i) => bytes[i] === byte))
     throw new Error('Image response is not a PNG');

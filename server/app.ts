@@ -23,7 +23,8 @@ import { MAX_INFLATED_BYTES, decodeState, encodeState } from '../engine/state-co
 import type { VennState } from '../engine/types';
 import { OG_HEIGHT, OG_WIDTH, renderOgPng } from './render-og';
 import { MAX_CONCURRENT_RENDERS, RETRY_AFTER_SECONDS, OG_IMAGE_VERSION } from './api-contract';
-import { API_EXAMPLE, apiDocumentation, openApi, slotTable } from './api-documentation';
+import { API_EXAMPLE, apiDocumentation, openApi, slotTable, svgExampleUrl } from './api-documentation';
+import { svgQuery } from './svg-query';
 
 export interface AppOptions {
   /** Build provenance; deploy smoke checks compare internal and public responses. */
@@ -240,6 +241,12 @@ function llmsTxt(origin: string): string {
 
 ## Draw one in a single request
 
+For a two-circle SVG, fetch this single URL (no encoding of state needed):
+
+${svgExampleUrl(origin)}
+
+Query keys: a = A only, b = B only, ab = the intersection, colorA/colorB = #rrggbb colors. Missing or empty text is blank; omitted colors use product defaults. Use URLSearchParams: # must be %23, + must be %2B. Unknown/duplicate parameters, empty colors and mixing s with friendly fields return 400. The SVG has no embedded fonts; use PNG for fixed glyph rendering. Success includes x-venn-url. Friendly SVG is no-cache; GET /api/venn.svg?s=<state> supports the full validated state and uses the same immutable cache policy as GET PNG. SVG does not consume PNG/OG rasterizer workers.
+
 POST the diagram as JSON. The response body is the PNG, and the \`x-venn-url\` response header is the editable share link for that same picture. This request works as written:
 
 \`\`\`bash
@@ -359,6 +366,22 @@ export function createApp(opts: AppOptions): Hono {
       ...headers,
     });
   };
+
+  app.get('/api/venn.svg', (c) => {
+    let diagram: ReturnType<typeof svgQuery>;
+    try {
+      diagram = svgQuery(new URL(c.req.url));
+    } catch (err) {
+      const message = err instanceof StateError ? err.message : 'invalid state parameter';
+      return c.json({ error: message }, 400, no_store);
+    }
+    // SVG serialization uses the shared pure renderer and no rasterizer worker.
+    return c.body(renderSvg(diagram.state, { watermark: opts.watermark ?? '' }), 200, {
+      'content-type': 'image/svg+xml; charset=utf-8',
+      'cache-control': diagram.encoded ? CACHE_FOREVER : 'no-cache',
+      'x-venn-url': shareUrl(originOf(c, opts.publicOrigin), diagram.param),
+    });
+  });
 
   app.get('/api/png', async (c) => {
     const s = c.req.query('s');

@@ -8,11 +8,16 @@ import { encodeState, MAX_INFLATED_BYTES } from '../engine/state-codec-node';
 import { STROKE_WIDTH_MAX } from '../engine/stroke';
 import type { CircleCount } from '../engine/types';
 import { MAX_CONCURRENT_RENDERS, OG_IMAGE_VERSION, RETRY_AFTER_SECONDS } from './api-contract';
+import { MAX_SVG_QUERY_LEN } from './svg-query';
 
 /** One executable example shared by HTML, llms.txt and OpenAPI. */
 export const API_EXAMPLE = validateState({ ...defaultState(), size: 400,
   texts: { '1': { t: 'Coffee' }, '2': { t: 'Sleep' }, '3': { t: 'Me at 3am' } },
 });
+export const SVG_EXAMPLE_QUERY = { a: '藥品濫用', b: '物質濫用', ab: '毒品', colorA: '#E76F51', colorB: '#2A9D8F' };
+export function svgExampleUrl(origin: string): string {
+  return `${origin}/api/venn.svg?${new URLSearchParams(SVG_EXAMPLE_QUERY)}`;
+}
 
 export function slotTable(): string {
   return ARRANGEMENTS.flatMap((arr) => {
@@ -52,11 +57,28 @@ export function openApi(origin: string) {
   });
   return {
     openapi: '3.1.0',
-    info: { title: 'Venn Diagram API', version: '1.0.0',
+    info: { title: 'Venn Diagram API', version: '1.1.0',
       description: 'Public, stateless diagram generation. No account or API key. The browser editor requires JavaScript; these APIs do not.' },
     servers: [{ url: origin }],
     externalDocs: { description: 'API documentation', url: `${origin}/api` },
     paths: {
+      '/api/venn.svg': { get: { operationId: 'getVennSvg', summary: 'Generate an SVG with one GET URL',
+        description: `Two mutually exclusive modes: s alone supports any valid state, or a/b/ab/colorA/colorB describe a two-circle diagram with product defaults. Missing/empty text is an empty region; no query produces an empty two-circle SVG. Unknown or duplicate parameters and mixing s with any friendly parameter return 400. Serialized query limit: ${MAX_SVG_QUERY_LEN} characters (including ?). Use percent encoding, especially %23 for # and %2B for +. Fonts are not embedded; standalone SVG font display depends on the reader. SVG does not consume PNG rasterizer workers.`,
+        parameters: [sParameter(false),
+          ...(['a', 'b', 'ab'] as const).map((name) => ({ name, in: 'query',
+            description: name === 'ab' ? 'Text in A∩B, the intersection region.' : `Text exclusively in ${name.toUpperCase()}, outside the intersection.`,
+            schema: { type: 'string', maxLength: MAX_TEXT_LEN }, example: SVG_EXAMPLE_QUERY[name],
+          })),
+          ...(['colorA', 'colorB'] as const).map((name) => ({ name, in: 'query',
+            description: 'Circle color; omitted uses the product default. Empty string is invalid.',
+            schema: hex, example: SVG_EXAMPLE_QUERY[name],
+          })),
+        ], responses: {
+          '200': { description: 'Inline SVG. Friendly mode: no-cache; s mode: immutable one-year cache. No sample/placeholder text.',
+            headers: { 'X-Venn-Url': { description: 'Editable share URL for the validated state.', schema: { type: 'string', format: 'uri' } } },
+            content: { 'image/svg+xml': { schema: { type: 'string' } } } },
+          '400': badState,
+        } } },
       '/api/png': {
         get: { operationId: 'getVennPng', summary: 'Render an existing encoded state as a square PNG',
           parameters: [sParameter(true)], responses: {
@@ -137,6 +159,9 @@ export function apiDocumentation(origin: string): string {
 <style>body{font:16px/1.6 system-ui,sans-serif;margin:0 auto;padding:24px;max-width:900px;color:#222;background:#fafafa}a{color:#1558a6}pre{padding:16px;background:#eee;overflow:auto}code{overflow-wrap:anywhere}table{width:100%;border-collapse:collapse}th,td{text-align:left;vertical-align:top;padding:8px;border-bottom:1px solid #ccc}h1,h2{line-height:1.2}nav{display:flex;flex-wrap:wrap;gap:16px}img{max-width:100%;height:auto}</style></head><body>
 <nav><a href="/">Diagram editor</a><a rel="service-desc" href="/openapi.json">OpenAPI specification</a><a href="/llms.txt">llms.txt</a></nav>
 <main><h1>Venn Diagram API</h1><p>Create diagrams with 2–6 circles using HTTP. No account or API key. The editor uses JavaScript; this documentation and the APIs do not.</p>
+<h2>Generate an SVG with one URL</h2><p><code>GET /api/venn.svg</code> accepts <code>a</code> (A only), <code>b</code> (B only), <code>ab</code> (A∩B), and optional <code>colorA</code> / <code>colorB</code> (#rrggbb). This friendly mode always uses two circles; other state fields use product defaults. Missing or empty text leaves the region blank; no query produces an empty diagram. Colors may be omitted but cannot be empty.</p>
+<p><a href="${e(svgExampleUrl(origin))}">Open the example SVG</a></p><pre><code>${e(svgExampleUrl(origin))}</code></pre>
+<p>Use <code>URLSearchParams</code> or a URL encoder. Encode # as %23 and + as %2B; unencoded # starts a fragment and never reaches the server. For full styles and shapes, use <code>/api/venn.svg?s=&lt;state&gt;</code>. Do not mix s with friendly parameters. Duplicate or unknown parameters return 400; the serialized query including ? is limited to ${MAX_SVG_QUERY_LEN} characters. Success returns <code>image/svg+xml; charset=utf-8</code> and <code>X-Venn-Url</code> for the same editable diagram. Fonts are not embedded: use PNG when identical glyph rendering across readers is required. SVG serialization does not use the PNG worker quota.</p>
 <h2>Generate a PNG in one request</h2><p><code>POST /api/png</code> accepts a complete VennState JSON body. Save the response as PNG. The <code>X-Venn-Url</code> response header gives an editable share link for the same diagram.</p>
 <pre><code>${e(curl)}</code></pre><p>Inspect <code>headers.txt</code> for <code>X-Venn-Url</code>. To fetch the diagram again, reuse its <code>s</code> parameter with GET.</p>
 <h2>Fetch a diagram by URL</h2><p><code>GET /api/png?s=&lt;state&gt;</code> returns a square PNG at <code>state.size</code> pixels. <code>s</code> is base64url without padding of raw DEFLATE of UTF-8 JSON, not gzip or zlib-wrapped DEFLATE. Copy it from an editor/share link, or generate it with Node:</p>
@@ -148,7 +173,7 @@ export function apiDocumentation(origin: string): string {
 <p>ring(2) and ring(3) support every combination. Other shapes may lack overlaps; for example row(3) has no 5 or 7. An unavailable slot is a 400. Rearrange circles or use fewer circles when necessary.</p>
 <h2>Social image</h2><p><code>GET /api/og.png?v=${OG_IMAGE_VERSION}&amp;s=&lt;state&gt;&amp;lang=en</code> returns a branded 1200 × 630 PNG, rather than the square diagram. Without s it renders a sample. Language uses only the query (zh-TW, en, ja); cookies and Accept-Language do not change a cached image. v is a layout cache buster, not the state version.</p>
 <h2>Errors and limits</h2><p>Expected API errors are English JSON <code>{"error":"..."}</code> with <code>Cache-Control: no-store</code>. 400 means invalid/missing input; 413 means the POST body exceeds ${MAX_INFLATED_BYTES} bytes. Encoded s is limited to ${MAX_STATE_PARAM_LEN} characters, and decompressed JSON to ${MAX_INFLATED_BYTES} bytes. PNG and OG share ${MAX_CONCURRENT_RENDERS} concurrent rasterizers: 503 with <code>Retry-After: ${RETRY_AFTER_SECONDS}</code> means wait and retry the same request. A missing OG base image returns 500.</p>
-<h2>Caching</h2><p>GET PNG/OG uses <code>public, max-age=31536000, immutable</code>; POST PNG is <code>no-store</code> and renders on every call. Produce with POST, then reuse GET for repeat fetches. Renderer or watermark changes may leave previously cached images visible at unchanged URLs; deployments must account for cache invalidation.</p>
+<h2>Caching</h2><p>GET PNG/OG and SVG s mode use <code>public, max-age=31536000, immutable</code>; POST PNG is <code>no-store</code> and renders on every call. Friendly SVG mode is <code>no-cache</code> because product defaults can change. Produce with POST, then reuse GET for repeat fetches. Renderer or watermark changes may leave previously cached images visible at unchanged URLs; deployments must account for cache invalidation.</p>
 <h2>Other interfaces</h2><p>Use the <a href="/llms.txt">agent guide</a> for CLI and plugin instructions, or read the <a href="https://github.com/applepig/venn-diagram-generator">source and README</a>.</p>
 </main></body></html>`;
 }

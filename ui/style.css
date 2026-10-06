@@ -71,7 +71,7 @@ body {
   display: grid;
   grid-template-columns: 320px minmax(0, 1fr);
   /*
-   * 兩列：面板與（大圖＋動作列），以及頁尾。多出來的高度全給頁尾那一列（1fr）吸收，
+   * 三列：面板與（大圖＋動作列）、產品介紹，以及頁尾。多出的高度給頁尾那列（1fr），
    * 頁尾才留在視窗底部——不指定的話 min-height 的餘裕會平均撐開每一列。
    */
   grid-template-rows: auto auto 1fr;
