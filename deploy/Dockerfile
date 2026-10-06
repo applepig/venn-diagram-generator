@@ -18,6 +18,9 @@ COPY scripts ./scripts
 RUN pnpm build
 
 FROM node:24-slim AS runtime
+ARG VENN_REVISION=unknown
+LABEL org.opencontainers.image.revision=$VENN_REVISION
+ENV VENN_REVISION=$VENN_REVISION
 ENV COREPACK_ENABLE_DOWNLOAD_PROMPT=0 \
     NODE_ENV=production \
     PORT=3000

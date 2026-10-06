@@ -181,6 +181,10 @@ The script sources the repository-root `.env` first, so those two variables can 
 
 Prerequisites on that host: the ssh user must be able to run Docker without an interactive password — either in the `docker` group or with passwordless sudo — and `${VENN_DEPLOY_PATH}/.env` must already exist. The script checks that the file declares `VENN_PUBLIC_HOST`, `VENN_GTM_ID` and `VENN_WATERMARK` (empty values are fine, missing keys are not) and exits 1 naming the missing ones before touching anything: a silently dropped watermark would be baked into a year-long cached `og:image`.
 
+Deployment now checks both the container and the public HTTPS origin after rebuilding: the homepage, `/llms.txt` (status, text MIME and API content), and a real OG PNG. A 404, redirect, HTML fallback, or unexpected `X-Venn-Revision` makes deployment fail. `VENN_REVISION` is baked into the image as an OCI revision label and response header; deploy.sh uses the current Git commit with `-dirty` for an uncommitted working tree. This identifies the source revision, not a digest of dirty files. Running Compose manually without a revision uses `unknown`.
+
+To inspect an existing deployment without changing it, run `pnpm smoke -- https://your-host.example` locally, or `node dist-server/smoke-check.mjs http://localhost:3000` inside the container. Pass an expected revision as the second argument to detect a stale image. If the internal check passes but the public check fails, inspect proxy host/path routing and cached errors; if both fail, inspect the running image/server bundle. A successful local check does not establish production availability.
+
 ## Environment variables
 
 Copy `.env.example` to `.env` in the repository root and fill it in — on the deployment host, that is the file compose reads. Nothing the *server* does has a baked-in default pointing at someone else's infrastructure: no hostname, no analytics id, no watermark. The one exception is the CLI's share link, which falls back to this project's public instance (see `VENN_BASE_URL` below) because a link has to point somewhere.

@@ -26,6 +26,8 @@ import type { CircleCount, VennState } from '../engine/types';
 import { OG_HEIGHT, OG_WIDTH, renderOgPng } from './render-og';
 
 export interface AppOptions {
+  /** Build provenance; deploy smoke checks compare internal and public responses. */
+  revision?: string;
   /**
    * resvg 載入的字型檔。`defaultFontFamily`（Noto Sans TC）決定主字型，
    * 其餘的檔只在主字型缺字時逐字補上（日文漢字走這條），SVG 的 `font-family` 不受影響。
@@ -318,6 +320,10 @@ function findBakedOg(dist_dir?: string): string | null {
 
 export function createApp(opts: AppOptions): Hono {
   const app = new Hono();
+  if (opts.revision) app.use('*', async (c, next) => {
+    c.header('x-venn-revision', opts.revision!);
+    await next();
+  });
   const og_base = opts.ogBaseFile ? readFileSync(opts.ogBaseFile) : null;
   const baked_og = findBakedOg(opts.distDir);
 

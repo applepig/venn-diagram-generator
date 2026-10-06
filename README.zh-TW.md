@@ -179,6 +179,10 @@ script 開頭會先 source repo 根目錄的 `.env`，所以這兩個變數可�
 
 主機端的前置條件：ssh 使用者要能免密碼跑 Docker（在 `docker` group 裡，或有免密 sudo），而且 `${VENN_DEPLOY_PATH}/.env` 必須先存在。script 會先檢查那份檔案有沒有宣告 `VENN_PUBLIC_HOST`、`VENN_GTM_ID`、`VENN_WATERMARK`（值可以是空的，key 不能少），缺了就印出缺哪幾把並 exit 1，不會先動主機——浮水印靜默消失會被烤進一年期快取的 `og:image`。
 
+部署在重建後會依序檢查 container 內部與公開 HTTPS origin：首頁、`/llms.txt` 的狀態／文字 MIME／API 內容，以及真正的 OG PNG。404、redirect、HTML fallback 或不符預期的 `X-Venn-Revision` 都會讓部署失敗。`VENN_REVISION` 會烤進 image 的 OCI revision label 與回應標頭；deploy.sh 使用當前 Git commit，有未提交變更時加 `-dirty`。這表示來源版本，不是未提交檔案的內容雜湊；手動跑 Compose 而未指定版本時為 `unknown`。
+
+唯讀檢查既有部署可在本機執行 `pnpm smoke -- https://your-host.example`，或在 container 裡執行 `node dist-server/smoke-check.mjs http://localhost:3000`；第二個參數可指定預期 revision，以辨識舊 image。內部成功、外部失敗時查代理 host/path routing 與錯誤快取；兩邊失敗時查運行中的 image／server bundle。本機驗證成功不等於正式站已可用。
+
 ## 環境變數
 
 把 `.env.example` 複製成 repo 根目錄的 `.env` 再填——部署主機上 compose 讀的就是這份。**server** 的行為沒有任何指向他人環境的內建預設值：沒有 hostname、沒有分析 id、沒有浮水印。唯一的例外是 CLI 的分享連結，連結總得指向某個站，所以它退回本專案的公開站（見下方的 `VENN_BASE_URL`）。
