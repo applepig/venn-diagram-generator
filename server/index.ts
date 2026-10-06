@@ -28,6 +28,7 @@ const DEV = process.env.VENN_DEV === '1';
 async function main(): Promise<void> {
   if (!DEV) {
     const app = createApp({
+      revision: process.env.VENN_REVISION,
       fontFiles: FONT_FILES,
       ogBaseFile: resolve(DIST_DIR, 'og-base.png'),
       distDir: resolve(DIST_DIR),

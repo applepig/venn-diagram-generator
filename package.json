@@ -45,7 +45,8 @@
     "build:ui": "vite build",
     "build:og": "tsx scripts/bake-og.ts",
     "build:cli": "esbuild cli/venn.ts --bundle --platform=node --target=node20 --format=esm --outfile=dist-cli/venn.mjs --external:@resvg/resvg-js --banner:js='#!/usr/bin/env node' && chmod +x dist-cli/venn.mjs",
-    "build:server": "esbuild server/index.ts --bundle --platform=node --target=node24 --format=esm --outfile=dist-server/index.mjs --external:@resvg/resvg-js --external:vite",
+    "build:server": "esbuild server/index.ts --bundle --platform=node --target=node24 --format=esm --outfile=dist-server/index.mjs --external:@resvg/resvg-js --external:vite && esbuild scripts/smoke-check.ts --bundle --platform=node --target=node24 --format=esm --outfile=dist-server/smoke-check.mjs",
+    "smoke": "node --import tsx scripts/smoke-check.ts",
     "start": "node dist-server/index.mjs",
     "prepack": "pnpm build:cli",
     "version": "tsx scripts/sync-plugin-version.ts && git add .claude-plugin",
@@ -59,7 +60,9 @@
     "hono": "^4.7.0"
   },
   "devDependencies": {
+    "@apidevtools/swagger-parser": "^13.1.0",
     "@types/node": "^26.4.1",
+    "ajv": "^8.20.0",
     "esbuild": "^0.25.0",
     "tsx": "^4.19.0",
     "typescript": "^5.7.0",

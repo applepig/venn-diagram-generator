@@ -29,6 +29,10 @@ RUN pnpm install --frozen-lockfile --prod && pnpm store prune
 COPY --from=build /app/dist ./dist
 COPY --from=build /app/dist-server ./dist-server
 COPY assets/fonts ./assets/fonts
+# revision 每次 commit 都變：放在依賴安裝之後，才不會讓 pnpm install 與 COPY 的 layer cache 每次失效
+ARG VENN_REVISION=unknown
+LABEL org.opencontainers.image.revision=$VENN_REVISION
+ENV VENN_REVISION=$VENN_REVISION
 
 # node:24-slim 內建 uid 1000 的 node 使用者；server 只讀檔案，不需要 root
 USER node

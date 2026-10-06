@@ -601,14 +601,15 @@ describe('AC13 SEO：canonical、robots、structured data', () => {
     expect(line_of('row', 3)).not.toContain('7');
   });
 
-  it('sitemap.xml 只收首頁', async () => {
+  it('sitemap.xml 收首頁與 API 文件，排除分享頁', async () => {
     const res = await get('/sitemap.xml');
     const body = await res.text();
 
     expect(res.status).toBe(200);
     expect(res.headers.get('content-type')).toContain('application/xml');
     expect(body).toContain(`<loc>${ORIGIN}/</loc>`);
-    expect(body.match(/<loc>/g)).toHaveLength(1);
+    expect(body).toContain(`<loc>${ORIGIN}/api</loc>`);
+    expect(body.match(/<loc>/g)).toHaveLength(2);
   });
 });
 

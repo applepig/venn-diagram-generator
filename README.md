@@ -13,7 +13,7 @@ engine/   types, defaults, shapes/ (ring & row registry), layout, region-geometr
           render-svg, state-codec — pure geometry, layout and codec, zero product copy
 content/  palette, templates/, strings/, locale, state-presets — default memes and UI strings
 ui/       Vite + vanilla TS editor
-server/   Hono: static files, og meta injection for GET /, GET /api/png and /api/og.png
+server/   Hono: static HTML/API docs, OpenAPI, SVG/PNG/OG endpoints, meta injection for GET /
 cli/      the `venn` command: spec (letters <-> masks), flags (merging), venn (I/O shell)
 skills/   Claude Code skill shipped by the plugin in .claude-plugin/
 deploy/   Dockerfile, compose.yml, compose.dev.yml, deploy.sh
@@ -67,6 +67,22 @@ Which slots a shape offers is derived from its default geometry (a region gets a
 Without `s` the editor starts empty: every shape ships a default template (in the current UI language), but it is only shown as a placeholder — in the text fields and, faintly, on the canvas preview itself (`renderSvg`'s `ghosts` option, which only the editor canvas passes). Nothing is written into the state, so you never have to clear a sample before typing your own, and no download, `/api/png` or og:image ever contains the ghost text. Switching shape while nothing is typed also switches to that template's style; once you have typed something, your text and style are kept. The og:image for the bare home page still renders the 2-circle template, so the social card is not an empty diagram.
 
 ## API
+
+`GET /api/venn.svg` generates an inline SVG from a single URL. Friendly mode takes optional `a` (A only), `b` (B only), `ab` (A∩B), `colorA` and `colorB` (#rrggbb). It always uses two circles with product defaults; omitted/empty text is blank, omitted colors use defaults, and empty colors are invalid. No query produces an empty diagram without template/ghost text. Use `URLSearchParams` or percent encoding: # is `%23`, + is `%2B`.
+
+```js
+const query = new URLSearchParams({
+  a: '藥品濫用', b: '物質濫用', ab: '毒品',
+  colorA: '#E76F51', colorB: '#2A9D8F',
+});
+const url = `https://venn.applepig.net/api/venn.svg?${query}`;
+```
+
+For all supported styles and shapes, use `GET /api/venn.svg?s=<state>` with the existing encoded state. These modes are mutually exclusive: unknown/duplicate query parameters or mixing `s` with friendly fields returns 400 JSON with `no-store`. Text uses the existing 80-code-point limit, `s` has the same 7300-character limit, and serialized query length (including ?) is capped at 22156 characters. Successful responses are `image/svg+xml; charset=utf-8` with `X-Venn-Url` for the same editable state. SVG serialization uses the shared renderer without PNG rasterizer workers. Friendly mode is `no-cache` because defaults can change; `s` mode preserves the existing immutable one-year cache policy (renderer/watermark changes still need cache invalidation). Fonts are not embedded: standalone readers may display different glyphs, so use PNG when fixed font rendering matters.
+
+
+The homepage exposes a real API documentation link in its initial HTML. `GET /api` is a complete English HTML reference with executable examples; no JavaScript is needed. `GET /openapi.json` returns an OpenAPI 3.1 description (`application/vnd.oai.openapi+json`), declared by `rel="service-desc"` links in the homepage head and body. `/llms.txt` links to both. The specification's per-shape text keys and circle/geometry constraints come from the same shape registry as the validator. Fixed introduction text uses the existing three-language server localization; this needs no SSG framework. Share-specific meta remains dynamic in Hono.
+
 
 `GET /api/png?s=<state>` returns `image/png` sized to `state.size`, with `Cache-Control: public, max-age=31536000, immutable` (the parameter *is* the content). A missing, undecodable or invalid `s` returns a 400 JSON body `{ "error": "..." }`. API error messages are always English — it is a machine interface and does not follow the UI language.
 
@@ -181,6 +197,10 @@ The script sources the repository-root `.env` first, so those two variables can 
 
 Prerequisites on that host: the ssh user must be able to run Docker without an interactive password — either in the `docker` group or with passwordless sudo — and `${VENN_DEPLOY_PATH}/.env` must already exist. The script checks that the file declares `VENN_PUBLIC_HOST`, `VENN_GTM_ID` and `VENN_WATERMARK` (empty values are fine, missing keys are not) and exits 1 naming the missing ones before touching anything: a silently dropped watermark would be baked into a year-long cached `og:image`.
 
+Deployment now checks both the container and the public HTTPS origin after rebuilding: the homepage, `/llms.txt` (status, text MIME and API content), API documentation/OpenAPI, a CJK SVG and editable link, and real square/OG PNGs. A 404, redirect, HTML fallback, or unexpected `X-Venn-Revision` makes deployment fail. `VENN_REVISION` is baked into the image as an OCI revision label and response header; deploy.sh uses the current Git commit with `-dirty` for an uncommitted working tree. This identifies the source revision, not a digest of dirty files. Running Compose manually without a revision uses `unknown`.
+
+To inspect an existing deployment without changing it, run `pnpm smoke -- https://your-host.example` locally, or `node dist-server/smoke-check.mjs http://localhost:3000` inside the container. Pass an expected revision as the second argument to detect a stale image. If the internal check passes but the public check fails, inspect proxy host/path routing and cached errors; if both fail, inspect the running image/server bundle. A successful local check does not establish production availability.
+
 ## Environment variables
 
 Copy `.env.example` to `.env` in the repository root and fill it in — on the deployment host, that is the file compose reads. Nothing the *server* does has a baked-in default pointing at someone else's infrastructure: no hostname, no analytics id, no watermark. The one exception is the CLI's share link, which falls back to this project's public instance (see `VENN_BASE_URL` below) because a link has to point somewhere.
@@ -196,6 +216,7 @@ Copy `.env.example` to `.env` in the repository root and fill it in — on the d
 | `VENN_DEPLOY_HOST` | `deploy/deploy.sh` | **yes** | ssh target of the deployment host. The script exits 1 and names the missing variable. |
 | `VENN_DEPLOY_PATH` | `deploy/deploy.sh` | **yes** | Directory on that host to rsync into. |
 | `VENN_DEV_HOST` | `deploy/compose.dev.yml` | **yes** | Hostname of the source-mounted dev site; compose refuses to start without it. |
+| `VENN_REVISION` | Docker build, server | no | Build provenance for the OCI image label and X-Venn-Revision header; generated by deploy.sh. Manual Docker builds can pass --build-arg VENN_REVISION=<commit>. |
 | `VENN_DIST` | server, build | no | Internal — do not set in production. Build output directory, default `dist`. |
 | `VENN_FONT` | server | no | Internal — do not set in production. Comma-separated font files for resvg, default `assets/fonts/NotoSansTC-Bold.otf,assets/fonts/NotoSansJP-Bold.otf`. The first one is the family the SVG names; the rest only fill in missing glyphs. |
 | `VENN_DEV` | server | no | Internal — do not set in production. `1` runs Vite in middlewareMode instead of serving `dist/`. |

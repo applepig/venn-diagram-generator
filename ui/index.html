@@ -4,6 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="theme-color" content="#14161a" />
+    <link rel="service-desc" type="application/vnd.oai.openapi+json" href="/openapi.json" />
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
     <!-- 其餘 meta（og、canonical、robots、JSON-LD）由 server 依 ?s= 內容注入 -->
     <title>文氏圖產生器</title>
@@ -32,6 +33,16 @@
         <p class="peek-hint" data-i18n="peek.hint">預覽 · 點一下放大</p>
         <button type="button" class="preview-close" data-i18n="peek.close">關閉預覽</button>
       </div>
+      <section class="site-intro" aria-labelledby="site-intro-title">
+        <h1 id="site-intro-title" data-i18n="site.name">文氏圖產生器</h1>
+        <p data-i18n="site.intro">在瀏覽器製作文氏圖，下載 PNG 或 SVG，並用網址分享。</p>
+        <p data-i18n="site.apiIntro">也可以透過公開 HTTP API 產圖，不需登入或執行 JavaScript。</p>
+        <nav aria-label="API">
+          <a href="/api" rel="service-doc" data-i18n="site.apiDocs">API 文件（英文）</a>
+          <a href="/openapi.json" rel="service-desc">OpenAPI specification</a>
+          <a href="/llms.txt">llms.txt</a>
+        </nav>
+      </section>
       <!-- 兩個連結都是專有名詞，三種語言長得一樣，所以不進字串表 -->
       <footer class="site-footer">
         <a href="https://applepig.idv.tw" target="_blank" rel="noopener">applepig.idv.tw</a>
