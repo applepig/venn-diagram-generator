@@ -79,7 +79,9 @@ compose=(sudo env "VENN_REVISION=$3" docker compose -p "$2" --env-file .env -f d
 smoke() {
   local attempt
   for attempt in 1 2 3 4 5; do
-    if "${compose[@]}" exec -T venn "$@"; then return 0; fi
+    # 這段腳本本身是經 stdin 餵給 bash -s 的；exec -T 會轉發 stdin，不擋掉就會吃光後面的指令，
+    # 公開檢查從此靜默跳過、部署卻照樣回報成功。
+    if "${compose[@]}" exec -T venn "$@" </dev/null; then return 0; fi
     if [[ "$attempt" == 5 ]]; then return 1; fi
     sleep 2
   done
