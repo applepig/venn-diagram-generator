@@ -12,6 +12,10 @@ export const STRINGS = {
   'site.titleJoiner': '｜',
 
   // ui/index.html 裡的靜態說明，由 server 依語言換掉（data-i18n）
+  'site.intro': '在瀏覽器製作文氏圖，下載 PNG 或 SVG，並用網址分享。',
+  'site.apiIntro': '也可以透過公開 HTTP API 產圖，不需登入或執行 JavaScript。',
+  'site.apiDocs': 'API 文件（英文）',
+
   'peek.hint': '預覽 · 點一下放大',
   'peek.close': '關閉預覽',
 

@@ -10,6 +10,10 @@ export const STRINGS = {
   'site.imageAlt': 'Venn Diagram Maker preview',
   'site.titleJoiner': ' | ',
 
+  'site.intro': 'Create Venn diagrams in your browser, download PNG or SVG, and share an editable URL.',
+  'site.apiIntro': 'Generate images through the public HTTP API without signing in or running JavaScript.',
+  'site.apiDocs': 'API documentation',
+
   'peek.hint': 'Preview · tap to enlarge',
   'peek.close': 'Close preview',
 

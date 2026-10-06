@@ -17,13 +17,13 @@ import {
 } from '../content/locale';
 import { sampleState } from '../content/state-presets';
 import { MAX_STATE_PARAM_LEN } from '../engine/defaults';
-import { slotMasks } from '../engine/layout';
 import { escapeXml, renderSvg } from '../engine/render-svg';
-import { ARRANGEMENTS, circleCountRange } from '../engine/shapes/index';
 import { StateError, validateState } from '../engine/state-codec';
 import { MAX_INFLATED_BYTES, decodeState, encodeState } from '../engine/state-codec-node';
-import type { CircleCount, VennState } from '../engine/types';
+import type { VennState } from '../engine/types';
 import { OG_HEIGHT, OG_WIDTH, renderOgPng } from './render-og';
+import { MAX_CONCURRENT_RENDERS, RETRY_AFTER_SECONDS, OG_IMAGE_VERSION } from './api-contract';
+import { API_EXAMPLE, apiDocumentation, openApi, slotTable } from './api-documentation';
 
 export interface AppOptions {
   /** Build provenance; deploy smoke checks compare internal and public responses. */
@@ -63,11 +63,10 @@ export const CACHE_FOREVER = 'public, max-age=31536000, immutable';
  * v4：改成 build 時預烤靜態檔並加入 dither（開發中，未上線）。
  * v5：v3 與 v4 兩條線合併後的組合（無浮水印＋dither），兩邊都沒產出過，要蓋過 3 與 4。
  */
-const OG_IMAGE_VERSION = 5;
+// Version is shared with the API description in api-contract.ts.
 
 /** 同時進行的點陣化上限：resvg 每張圖吃滿一條 worker thread，開太多只會一起變慢 */
-const MAX_CONCURRENT_RENDERS = 3;
-const RETRY_AFTER_SECONDS = 2;
+// Rasterizer limits are shared with api-contract.ts.
 
 /**
  * 對外 origin：設了 PUBLIC_ORIGIN 就以它為準，任何 forwarded 標頭都改不動；
@@ -225,21 +224,6 @@ function jsonLd(origin: string, locale: Locale): string {
 }
 
 /**
- * llms.txt 的合法文字槽表。逐 (arr, n) 問 `slotMasks()` 現算，不手抄：
- * 抄一份就會漂——row(3) 沒有 5 與 7（兩端的圓不相鄰），手寫版第一次就寫錯了。
- */
-function slotTable(): string {
-  const rows: string[] = [];
-  for (const arr of ARRANGEMENTS) {
-    const [min_n, max_n] = circleCountRange(arr);
-    for (let n = min_n; n <= max_n; n++) {
-      rows.push(`${`${arr}(${n})`.padEnd(8)}${slotMasks(arr, n as CircleCount).join(' ')}`);
-    }
-  }
-  return rows.join('\n');
-}
-
-/**
  * llms.txt（llmstxt.org）：給會讀網頁的 agent 看的操作說明，不是給人看的行銷頁。
  * 只寫「怎麼呼叫 API」需要的事實，來源是 README 的 API 與 URL state 兩節——
  * 契約變動時兩邊一起改，這裡不自成第二份規格。英文寫，理由同 API 錯誤訊息：機器介面。
@@ -249,15 +233,18 @@ function llmsTxt(origin: string): string {
 
 > Renders a Venn diagram of 2-6 circles as a PNG and hands back an editable share link. No account, no API key, no rate limit beyond three concurrent renders; the server keeps nothing — the whole diagram lives in the URL.
 
+## Documentation
+
+- [API documentation](${origin}/api)
+- [OpenAPI specification](${origin}/openapi.json)
+
 ## Draw one in a single request
 
 POST the diagram as JSON. The response body is the PNG, and the \`x-venn-url\` response header is the editable share link for that same picture. This request works as written:
 
 \`\`\`bash
 curl -sD headers.txt -o venn.png -H 'content-type: application/json' \\
-  --data '{"v":1,"n":2,"style":"translucent","opacity":0.6,"overlap":1,"radius":0.26,
-           "colors":["#4285f4","#ea4335"],"bg":"#fafafa","size":1200,
-           "texts":{"1":{"t":"Coffee"},"2":{"t":"Sleep"},"3":{"t":"Me at 3am"}}}' \\
+  --data '${JSON.stringify(API_EXAMPLE)}' \\
   ${origin}/api/png
 grep -i x-venn-url headers.txt
 \`\`\`
@@ -540,8 +527,15 @@ export function createApp(opts: AppOptions): Hono {
       .replace(/<title>[^<]*<\/title>/, () => `<title>${escapeXml(og_title)}</title>`)
       .replace('</head>', () => `${meta}</head>`)
       .replace('<body>', () => `<body>${opts.gtmId ? gtmBody(opts.gtmId) : ''}`);
-    return c.html(html, 200, { 'cache-control': 'no-cache' });
+    return c.html(html, 200, { 'cache-control': 'private, no-cache', vary: 'Accept-Language, Cookie' });
   });
+
+  app.get('/api', (c) => c.html(apiDocumentation(originOf(c, opts.publicOrigin)), 200, { 'cache-control': 'no-cache' }));
+
+  app.get('/openapi.json', (c) => c.body(JSON.stringify(openApi(originOf(c, opts.publicOrigin))), 200, {
+    'content-type': 'application/vnd.oai.openapi+json; charset=utf-8',
+    'cache-control': 'no-cache',
+  }));
 
   app.get('/robots.txt', (c) => {
     const origin = originOf(c, opts.publicOrigin);
@@ -558,8 +552,8 @@ export function createApp(opts: AppOptions): Hono {
 
   app.get('/sitemap.xml', (c) => {
     const origin = originOf(c, opts.publicOrigin);
-    // 只有首頁值得索引，分享頁是 noindex
-    const body = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"><url><loc>${escapeXml(`${origin}/`)}</loc><changefreq>monthly</changefreq><priority>1.0</priority></url></urlset>\n`;
+    // 首頁與 API 文件可索引，分享頁仍是 noindex
+    const body = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"><url><loc>${escapeXml(`${origin}/`)}</loc><changefreq>monthly</changefreq><priority>1.0</priority></url><url><loc>${escapeXml(`${origin}/api`)}</loc><changefreq>monthly</changefreq></url></urlset>\n`;
     return c.body(body, 200, { 'content-type': 'application/xml; charset=utf-8' });
   });
 

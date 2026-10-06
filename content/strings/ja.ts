@@ -9,6 +9,10 @@ export const STRINGS = {
   'site.imageAlt': 'ベン図メーカーのプレビュー画像',
   'site.titleJoiner': '｜',
 
+  'site.intro': 'ブラウザーでベン図を作成し、PNG・SVG をダウンロードして、編集可能な URL を共有できます。',
+  'site.apiIntro': '公開 HTTP API でも画像を生成できます。ログインや JavaScript の実行は不要です。',
+  'site.apiDocs': 'API ドキュメント（英語）',
+
   'peek.hint': 'プレビュー · タップで拡大',
   'peek.close': 'プレビューを閉じる',
 

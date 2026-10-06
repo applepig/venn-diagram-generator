@@ -60,7 +60,9 @@
     "hono": "^4.7.0"
   },
   "devDependencies": {
+    "@apidevtools/swagger-parser": "^13.1.0",
     "@types/node": "^26.4.1",
+    "ajv": "^8.20.0",
     "esbuild": "^0.25.0",
     "tsx": "^4.19.0",
     "typescript": "^5.7.0",

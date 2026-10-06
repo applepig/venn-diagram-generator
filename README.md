@@ -68,6 +68,9 @@ Without `s` the editor starts empty: every shape ships a default template (in th
 
 ## API
 
+The homepage exposes a real API documentation link in its initial HTML. `GET /api` is a complete English HTML reference with executable examples; no JavaScript is needed. `GET /openapi.json` returns an OpenAPI 3.1 description (`application/vnd.oai.openapi+json`), declared by `rel="service-desc"` links in the homepage head and body. `/llms.txt` links to both. The specification's per-shape text keys and circle/geometry constraints come from the same shape registry as the validator. Fixed introduction text uses the existing three-language server localization; this needs no SSG framework. Share-specific meta remains dynamic in Hono.
+
+
 `GET /api/png?s=<state>` returns `image/png` sized to `state.size`, with `Cache-Control: public, max-age=31536000, immutable` (the parameter *is* the content). A missing, undecodable or invalid `s` returns a 400 JSON body `{ "error": "..." }`. API error messages are always English — it is a machine interface and does not follow the UI language.
 
 `POST /api/png` takes the same diagram as a raw `VennState` JSON body, so a caller does not have to deflate and base64url a state itself. The response is the PNG plus an `X-Venn-Url` header holding the editable share link for that diagram. Same validation and the same concurrency limit as the GET; a body that is not JSON, a state that fails validation, or a body over 32 KB return 400 / 400 / 413 as JSON.

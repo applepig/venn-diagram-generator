@@ -66,6 +66,9 @@ deploy/   Dockerfile、compose.yml、compose.dev.yml、deploy.sh
 
 ## API
 
+首頁的初始 HTML 有真正的 API 文件連結。`GET /api` 是完整的英文 HTML 說明與可直接使用的範例，不需要 JavaScript。`GET /openapi.json` 回傳 OpenAPI 3.1 規格（`application/vnd.oai.openapi+json`），首頁 head 與 body 都以 `rel="service-desc"` 宣告；`/llms.txt` 也連到這兩個入口。規格的各排列合法文字槽與圈數／幾何限制，從 validator 共用的 shape registry 取得。固定介紹透過既有三語 server localization 呈現，不需要導入 SSG 框架；分享圖的 meta 仍由 Hono 動態產生。
+
+
 `GET /api/png?s=<state>` 回 `image/png`，尺寸等於 `state.size`，帶 `Cache-Control: public, max-age=31536000, immutable`（參數即內容，可以永久快取）。缺 `s`、解不開、schema 不合都回 400 JSON `{ "error": "..." }`。API 錯誤訊息固定英文——它是機器介面，不跟介面語言走。
 
 `POST /api/png` 收同一張圖的 raw `VennState` JSON body，呼叫端不必自己 deflate ＋ base64url 編一次 state。回應是 PNG，外加 `X-Venn-Url` 標頭，裡面是這張圖的可編輯分享網址。驗證與併發上限跟 GET 完全共用；body 不是 JSON、state 驗不過、body 超過 32 KB，分別回 400／400／413 的 JSON。
