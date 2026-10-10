@@ -5,6 +5,7 @@ import { nextStateForShape } from '../content/next-state';
 import { PALETTE } from '../content/palette';
 import {
   defaultState,
+  ghostTexts,
   initialState,
   isPristine,
   sampleState,
@@ -94,6 +95,45 @@ describe('initialState', () => {
         expect(initialState(n, locale).texts, `${locale} ring(${n})`).toEqual({});
       }
     }
+  });
+});
+
+describe('ghostTexts：預覽的幽靈字', () => {
+  it('還沒寫字時給整組示範文字', () => {
+    expect(ghostTexts(initialState(2))).toEqual({
+      '1': '該做\n的事',
+      '2': '想做\n的事',
+      '3': '明天\n再說',
+    });
+  });
+
+  it('任何一格寫了字就整組收掉（預覽必須等於匯出）', () => {
+    const state = { ...initialState(2), texts: { '1': { t: '貓派' } } };
+
+    expect(ghostTexts(state)).toEqual({});
+  });
+
+  it('把字全刪光又回到空白狀態，提示再出現', () => {
+    const typed = { ...initialState(2), texts: { '1': { t: '貓派' } } };
+    const cleared = { ...typed, texts: {} };
+
+    expect(ghostTexts(cleared)).not.toEqual({});
+  });
+
+  it('只改過顏色或幾何不算寫字，提示仍在', () => {
+    const state = { ...initialState(2), bg: '#ffffff', radius: 0.2 };
+
+    expect(Object.keys(ghostTexts(state))).toHaveLength(3);
+  });
+
+  it('只打了圖片標題也算寫過字（標題會進輸出，示範字不會）', () => {
+    expect(ghostTexts({ ...initialState(2), title: '我的圖' })).toEqual({});
+    // 空白標題不算，等同沒打
+    expect(Object.keys(ghostTexts({ ...initialState(2), title: '  ' }))).toHaveLength(3);
+  });
+
+  it('跟著呼叫端的語言走', () => {
+    expect(ghostTexts(initialState(2, 'en'), 'en')['3']).toBe('Tomorrow');
   });
 });
 
